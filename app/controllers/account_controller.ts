@@ -1,11 +1,8 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import crypto from 'crypto';
-import AccountService from '#services/account_service';
+import AccountService from '../utils/services/account_service.js';
 import Account from '#models/account'
 import { inject } from '@adonisjs/core'
-import Bot from '#models/bot';
-
-
 @inject()
 export default class AccountController {
   constructor(protected account: AccountService) { }

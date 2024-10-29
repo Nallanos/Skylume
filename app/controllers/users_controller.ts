@@ -1,6 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import Account from '#models/account'
-
 export default class UsersController {
 
     public async listAccount({ auth }: HttpContext) {

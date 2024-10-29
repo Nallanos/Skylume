@@ -1,4 +1,4 @@
-import EventActionMapper from '../utils/EventActionMapper.js';
+import EventActionMapper from '../EventActionMapper.js';
 import Account from '#models/account';
 import { Bot } from "@skyware/bot"
 

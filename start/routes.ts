@@ -10,7 +10,6 @@
 import router from '@adonisjs/core/services/router'
 import { middleware } from './kernel.js'
 import Account from '#models/account'
-import Bot from '#models/bot'
 router.on('/').renderInertia('home')
 router.on('/settings').renderInertia('settings').use(middleware.auth())
 router.on('/schedule').renderInertia('schedule').use(middleware.auth())

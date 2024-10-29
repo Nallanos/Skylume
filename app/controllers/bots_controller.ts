@@ -1,5 +1,5 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import BotService from '#services/bot_service';
+import BotService from '../utils/services/bot_service.js';
 import Bot from '#models/bot';
 import Account from '#models/account';
 export type EventType = "Mention" | "Follow" | "Reply"

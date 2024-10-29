@@ -1,10 +1,11 @@
 import { fontFamily } from "tailwindcss/defaultTheme";
-
+import form from "@tailwindcss/forms"
 /** @type {import('tailwindcss').Config} */
 const config = {
-	darkMode: ["class"],
-	content: ["./src/**/*.{html,js,svelte,ts}"],
-	safelist: ["dark"],
+	content: [
+		"./inertia/**/*.{svelte,ts}",
+		"./resources/**/*.{edge,js,ts}",
+	], safelist: ["dark"],
 	theme: {
 		container: {
 			center: true,
@@ -17,9 +18,6 @@ const config = {
 			colors: {
 				border: "hsl(var(--border) / <alpha-value>)",
 				input: "hsl(var(--input) / <alpha-value>)",
-				ring: "hsl(var(--ring) / <alpha-value>)",
-				background: "hsl(var(--background) / <alpha-value>)",
-				foreground: "hsl(var(--foreground) / <alpha-value>)",
 				primary: {
 					DEFAULT: "hsl(var(--primary) / <alpha-value>)",
 					foreground: "hsl(var(--primary-foreground) / <alpha-value>)"
@@ -47,6 +45,9 @@ const config = {
 				card: {
 					DEFAULT: "hsl(var(--card) / <alpha-value>)",
 					foreground: "hsl(var(--card-foreground) / <alpha-value>)"
+				},
+				background: {
+					DEFAULT: "hsl(var(--background) / <alpha-value>)",
 				}
 			},
 			borderRadius: {
@@ -56,9 +57,10 @@ const config = {
 			},
 			fontFamily: {
 				sans: [...fontFamily.sans]
-			}
+			},
 		}
 	},
+	plugins: [form]
 };
 
 export default config;
