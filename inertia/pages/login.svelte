@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { page } from '@inertiajs/svelte'
   import UserAuthForm from '@/components/user-auth-form.svelte'
 </script>
 
@@ -9,7 +10,7 @@
         <h1 class="text-2xl font-semibold tracking-tight">Login</h1>
         <p class="text-muted-foreground text-sm">Enter your email below to login</p>
       </div>
-      <UserAuthForm apiAuth={'login'} />
+      <UserAuthForm apiAuth={'login'} error={$page.props} />
       <p class="text-muted-foreground px-8 text-center text-sm">
         By clicking continue, you agree to our
         <a href="/terms" class="hover:text-primary underline underline-offset-4">

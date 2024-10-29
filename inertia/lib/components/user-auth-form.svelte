@@ -5,6 +5,7 @@
   import { Label } from '@/ui/label/'
   import { cn } from '@/utils'
   export let apiAuth: string
+  export let error: any
   const srcLogoBSKY = '../../../resources/images/Bluesky_Logo.png'
   let email = ''
   let password = ''
@@ -12,7 +13,6 @@
   async function handleSubmit() {
     const res = await router.post(`/${apiAuth}`, { password, email })
     response == res
-    console.log(res)
   }
   let className: string | undefined | null = undefined
   export { className as class }
@@ -21,8 +21,8 @@
 
 <div class={cn('grid gap-6', className)} {...$$restProps}>
   <form on:submit|preventDefault={handleSubmit}>
-    {#if response != undefined && !response.ok}
-      <div class="bg-red-600">Error while authentification</div>
+    {#if error.errors && error.errors.credentials}
+      <div class="text-red-500">{error.errors.credentials}</div>
     {/if}
     <div class="grid gap-2">
       <div class="grid gap-2">

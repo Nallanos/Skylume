@@ -18,7 +18,7 @@ class BotService {
 
     public static async handleEventAction(handle: string, event: string, action: string, waitTime: number, messageContent?: string) {
         const bot = await this.loginToAccount(handle);
-        if (messageContent) {
+        if (action === 'Send a Message') {
             console.log("mapping event with message")
             EventActionMapper.mapEventToAction(bot, event, action, waitTime, messageContent);
             return

@@ -9,7 +9,7 @@ import Bot from '#models/bot';
 @inject()
 export default class AccountController {
   constructor(protected account: AccountService) { }
-  public async createAccount({ request, auth, response, inertia }: HttpContext) {
+  public async createAccount({ request, auth, response, session }: HttpContext) {
     try {
       const user = await auth.authenticate();
       const data = request.only(['token_app_password', 'bksy_social']);
@@ -28,8 +28,8 @@ export default class AccountController {
         response.redirect('/dashboard');
       }
     } catch (err) {
-      console.log(err)
-      return inertia.render("settings", { errorMessage: "Bad credential" })
+      session.flash("errors.credentials", "Invalid social or password")
+      return response.redirect().back()
     }
   }
 

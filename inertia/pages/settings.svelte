@@ -2,12 +2,11 @@
   import Layout from '@/components/layout.svelte'
   import { router } from '@inertiajs/svelte'
   import { Input } from '../lib/ui/input/'
-  let error: boolean
+  import { page } from '@inertiajs/svelte'
   let token_app_password = ''
   let bksy_social = ''
   function handleSubmit() {
     router.put('/settings', { bksy_social, token_app_password })
-    error = true
   }
 </script>
 
@@ -38,8 +37,8 @@
         <p>Bluesky will then give you a unique token.</p>
         <h3 class="font-medium text-lg pt-2">Step 2: Give us the authorization</h3>
         <p>Copy and paste the token and your Bluesky social here:</p>
-        {#if error}
-          <p class="text-red-500">Invalid identifier or password</p>
+        {#if $page.props.errors && $page.props.errors.credentials == 'Invalid social or password'}
+          <p class="text-red-500">{$page.props.errors.credentials}</p>
         {/if}
         <form on:submit|preventDefault={handleSubmit}>
           <div class="flex flex-col space-y-2 pt-2">
