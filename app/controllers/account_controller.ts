@@ -1,6 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import crypto from 'crypto';
-import AccountService from '../utils/services/account_service.js';
+import AccountService from '#services/account_service';
 import Account from '#models/account'
 import { inject } from '@adonisjs/core'
 @inject()
@@ -20,15 +20,17 @@ export default class AccountController {
           app_password: data.token_app_password,
           bksy_social: data.bksy_social,
           id: crypto.randomBytes(16).toString('hex'),
-          did: did
+          did: did,
         });
-        response.redirect('/dashboard');
+        return response.redirect('/dashboard');
       }
     } catch (err) {
       session.flash("errors.credentials", "Invalid social or password")
       return response.redirect().back()
     }
   }
+
+
 
   public async deleteAccount({ request, response }: HttpContext) {
     const data = request.only(['id'])

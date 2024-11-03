@@ -4,9 +4,9 @@ import { DateTime } from 'luxon';
 export default class SessionController {
     public async login({ request, auth, response, session }: HttpContext) {
         try {
-            console.log("logging in")
             const { email, password } = request.only(['email', 'password'])
             const user = await User.verifyCredentials(email, password)
+            
             await auth.use('web').login(user)
             response.redirect('/dashboard')
         } catch (error) {
@@ -25,6 +25,12 @@ export default class SessionController {
         await User.create({ email: request.body().email, password: request.body().password, createdAt: DateTime.now() })
         const user = await User.verifyCredentials(email, password)
         await auth.use('web').login(user)
-        response.redirect('/dashboard')
+        return response.redirect('/dashboard')
+    }
+
+    public async logout({ auth, response }: HttpContext) {
+        await auth.use('web').logout()
+
+        return response.redirect('/')
     }
 }

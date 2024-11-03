@@ -6,7 +6,7 @@ export default class UsersController {
         const user = await auth.authenticate()
         if (user) {
             const accounts = await Account.query().where('user_id', user.id);
-            console.log("list of bots", accounts[0].bots)
+            console.log("list of bots", accounts[0].listeners)
             return accounts
         }
         return []

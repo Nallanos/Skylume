@@ -10,6 +10,7 @@
 import router from '@adonisjs/core/services/router'
 import { middleware } from './kernel.js'
 import Account from '#models/account'
+import Account_bot_service from '#services/account_bot_service'
 router.on('/').renderInertia('home')
 router.on('/settings').renderInertia('settings').use(middleware.auth())
 router.on('/schedule').renderInertia('schedule').use(middleware.auth())
@@ -25,16 +26,19 @@ router.post("/login", [session_controller, 'login'])
 router.put("/settings", [account_controller, 'createAccount']).use(middleware.auth())
 router.post("/dashboard/accounts/delete", [account_controller, 'deleteAccount']).use(middleware.auth())
 router.post("/bot/add", [bots_controller, 'addBot']).use(middleware.auth())
-
-
+router.post("/bot/remove", [bots_controller, 'removeBot']).use(middleware.auth())
+router.put("/logout", [session_controller, 'logout']).use(middleware.auth())
 
 router.get('/dashboard', async ({ auth, inertia }) => {
     const user = await auth.authenticate()
     if (user) {
         const accounts = await Account.query()
             .where('user_id', user.id)
-            .preload('bots')
-
+        accounts.forEach(async (account) => {
+            const bot = new Account_bot_service(account.id)
+            await bot.initializeMapHandler()
+            await bot.startAllListener()
+        })
         return inertia.render('dashboard', { accounts: accounts.map((a) => a.serialize()) })
     }
     return inertia.render('dashboard', { accounts: [] })

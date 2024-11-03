@@ -10,6 +10,7 @@ export default class extends BaseSchema {
       table.string('id').primary()
       table.string('did').nullable()
       table.string('bksy_social')
+      table.string("session").nullable()
     })
   }
 

@@ -18,7 +18,7 @@
       ><Trash2 class="size-4" /></Button
     >
   </div>
-  <div class="flex">
+  <!-- <div class="flex">
     <p>There's <span class="font-bold">{account.bots.length}</span> active bots :</p>
   </div>
   <ul class="pt-2 gap-2 flex flex-col">
@@ -35,5 +35,5 @@
         </p>
       </li>
     {/each}
-  </ul>
+  </ul> -->
 </div>

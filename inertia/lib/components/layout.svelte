@@ -1,8 +1,10 @@
 <script lang="ts" context="module">
+  import { Button } from '@/ui/button'
+  import { router } from '@inertiajs/svelte'
   import { Settings, House, Bot, CalendarCheck2 } from 'lucide-svelte'
 </script>
 
-<header class="container mx-auto w-2/3 flex justify-center items-center flex-col pt-12 px-0">
+<header class="container mx-auto w-2/3 flex flex-row items-center gap-6 pt-12 px-0">
   <nav
     class="flex justify-evenly h-12 items-center w-full border border-gray-700 rounded-md divide-x divide-gray-700"
   >
@@ -24,4 +26,13 @@
       <p>Settings</p></a
     >
   </nav>
+  <form
+    class="flex justify-self-end"
+    on:submit={async (e) => {
+      e.preventDefault()
+      router.put('/logout')
+    }}
+  >
+    <Button variant="outline" type="submit">Logout</Button>
+  </form>
 </header>
