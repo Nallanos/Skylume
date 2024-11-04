@@ -64,10 +64,10 @@ class Handler implements EventHandler<FollowEvent> {
         try {
             await this.createOrResumeSession()
             const message = this.message
-            const bot = this.bot
             if (this.bot) {
                 if (this.action === "Send a Message" && message) {
-                    bot.on("follow", (reply) => {
+                    console.log('registering')
+                    this.bot.on("follow", (reply) => {
                         setTimeout(async () => {
                             console.log("sending message")
                             await reply.user.sendMessage({ text: message })
@@ -75,7 +75,7 @@ class Handler implements EventHandler<FollowEvent> {
                     })
                 } else if (this.action === "Follow") {
                     console.log("tout fonctionne")
-                    bot.on("follow", (reply) => {
+                    this.bot.on("follow", (reply) => {
                         console.log("following")
                         setTimeout(async () => {
                             await reply.user.follow()
@@ -90,7 +90,7 @@ class Handler implements EventHandler<FollowEvent> {
 
     off(): void {
         if (this.bot) {
-            this.bot.removeAllListeners()
+            // this.bot.removeAllListeners()
         }
     }
 }
@@ -109,7 +109,8 @@ export default class Account_bot_service {
             let mappedListeners: Map<string, Handler> = new Map()
             if (account && listeners) {
                 for (const listener of listeners) {
-                    mappedListeners.set(listener.id, new Handler(listener.wait_time, account, listener.event, listener.action, listener.message))
+                    const handler = new Handler(listener.wait_time, account, listener.event, listener.action, listener.message)
+                    mappedListeners.set(listener.id, handler)
                 }
             }
             this.listeners = mappedListeners
@@ -183,7 +184,6 @@ export default class Account_bot_service {
             console.log(err)
         }
     }
-
 
     public async start(listener_id: string) {
         try {

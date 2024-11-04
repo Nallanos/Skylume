@@ -4,7 +4,6 @@
   import type { Account } from '@/type'
   import { page } from '@inertiajs/svelte'
 
-  console.log($page.props)
   export let accounts: Account[]
 </script>
 
