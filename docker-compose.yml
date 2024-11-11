@@ -1,0 +1,14 @@
+services:
+  postgresql:
+    image: postgres:16.4
+    restart: always
+    environment:
+      POSTGRES_USER: blueskybluesky
+      POSTGRES_PASSWORD: blueskybluesky
+      POSTGRES_DB: blueskybluesky
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgresql_data:/var/lib/postgresql/data
+volumes:
+  postgresql_data:

@@ -47,6 +47,7 @@
     "@types/luxon": "^3.4.2",
     "@types/node": "^22.7.5",
     "@types/uuid": "^10.0.0",
+    "@types/ws": "^8.5.13",
     "autoprefixer": "^10.4.20",
     "bits-ui": "^0.21.16",
     "clsx": "^2.1.1",
@@ -81,11 +82,12 @@
     "edge.js": "^6.2.0",
     "lucide-svelte": "^0.453.0",
     "luxon": "^3.5.0",
-    "pg": "^8.13.0",
+    "pg": "^8.13.1",
     "pino-pretty": "^11.2.2",
     "reflect-metadata": "^0.2.2",
     "svelte": "^4.2.19",
-    "uuid": "^10.0.0"
+    "uuid": "^10.0.0",
+    "ws": "^8.18.0"
   },
   "hotHook": {
     "boundaries": [
