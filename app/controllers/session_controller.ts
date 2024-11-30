@@ -7,14 +7,19 @@ export default class SessionController {
     public async login({ request, auth, response, session }: HttpContext) {
         try {
             const { email, password } = request.only(['email', 'password'])
+            const userAlreadyExists = await User.findBy('email', email)
+
+            if (userAlreadyExists == null) {
+                session.flash("errors.credentials", "This account does not exist")
+                return response.redirect().back()
+            }
+
             const user = await User.verifyCredentials(email, password)
 
             let UserBotService = UsersBotServiceManager.userbotServiceMap.get(user.id)
 
             if (!UserBotService) {
                 UsersBotServiceManager.startUserBotService(user)
-                UserBotService = UsersBotServiceManager.userbotServiceMap.get(user.id)
-                await UserBotService?.startAllListeners()
             }
 
             await auth.use('web').login(user)
@@ -26,24 +31,25 @@ export default class SessionController {
     }
 
     public async signUp({ request, auth, response, session }: HttpContext) {
-        const { email, password } = request.only(['email', 'password'])
-        const userAlreadyExists = await User.findBy('email', email)
+        try {
+            const { email, password } = request.only(['email', 'password'])
+            const userAlreadyExists = await User.findBy('email', email)
 
-        if (userAlreadyExists !== null) {
-            session.flash('errors.credential', 'Account already exists')
-            return response.redirect().back()
+            if (userAlreadyExists !== null) {
+                session.flash('errors.credential', 'Account already exists')
+                return response.redirect().back()
+            }
+
+            await User.create({ email: request.body().email, password: request.body().password, createdAt: DateTime.now() })
+            const user = await User.verifyCredentials(email, password)
+
+            await auth.use('web').login(user)
+
+            await UsersBotServiceManager.startUserBotService(user)
+            return response.redirect('/dashboard')
+        } catch (err) {
+            console.log("error while signin up:", err)
         }
-
-        await User.create({ email: request.body().email, password: request.body().password, createdAt: DateTime.now() })
-        const user = await User.verifyCredentials(email, password)
-        await auth.use('web').login(user)
-
-
-        UsersBotServiceManager.startUserBotService(user)
-        const userBotService = UsersBotServiceManager.userbotServiceMap.get(user.id)
-        await userBotService?.startAllListeners()
-
-        return response.redirect('/dashboard')
     }
 
     public async logout({ auth, response }: HttpContext) {

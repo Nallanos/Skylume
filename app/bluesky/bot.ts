@@ -1,23 +1,30 @@
-import type Account from "#models/account";
-import { Agent } from "@atproto/api";
-
+import { AtpAgent } from "@atproto/api";
+import { getConvoFromMembers, sendMessageToConvo } from "./chatAPI.js";
+import Account from "#models/account";
+import type { MessagePayload } from "./types.js";
+import type { RateLimitedAgent } from "@skyware/bot";
 export class EventListener {
-    constructor(private account: Account, private agent: Agent, private ws: WebSocket, private event: string, private action: string, private message?: string) {
-        console.log("instance of event listener created")
-        this.account = account
-        this.agent = agent
-    }
+    constructor(
+        private chatAgent: RateLimitedAgent,
+        private agent: AtpAgent,
+        private event: string,
+        public action: string,
+        public listener_id: string,
+        private account_id: string,
+        private message?: string,
+    ) { }
 
     /**
      * Activates event listening based on configured action
      */
-    async on(): Promise<void> {
-        console.log("starting bot with", this.action, this.event)
-        if (this.event == "Follow") {
-            if (this.action == "Send A Message" && this.message) {
-                this.onFollowSendMessage(this.message)
+    async on(did: string): Promise<void> {
+        if (this.event == "follow") {
+            if (this.action == "Send a Message" && this.message) {
+                console.log(`sending ${this.message} to ${did}`)
+                await this.onFollowSendMessage(did)
             } else if (this.action == "Follow") {
-                this.followBack()
+                console.log(`following ${did}`)
+                await this.agent.follow(did)
             }
         }
     }
@@ -25,22 +32,29 @@ export class EventListener {
     /**
      * Sends a message when a follow event occurs
      */
-    public async onFollowSendMessage(message: string): Promise<void> {
-        console.log('ws open on message')
-        this.ws.onmessage = (response) => {
-            console.log(response.data, message)
-        }
-    }
-
-    /**
-     * Follows back a user who has followed
-     */
-    public async followBack(): Promise<void> {
-        console.log('ws open on message')
-        if (this.ws.onmessage) {
-            this.ws.onmessage = (event) => {
-                console.log('Message from server:', event.data);
-            };
+    public async onFollowSendMessage(authorDid: string): Promise<void> {
+        try {
+            const account = await Account.find(this.account_id)
+            if (!account) {
+                throw new Error(`can't find account with the following account_id: ${this.account_id}`)
+            }
+            console.log("in send message")
+            if (this.message == undefined) {
+                throw new Error("given message is undefined")
+            }
+            const convo = await getConvoFromMembers([authorDid], this.chatAgent)
+            if (!convo) {
+                throw new Error("convos is undefined")
+            }
+            const sendMessagePayload: MessagePayload = {
+                convoId: convo.id,
+                message: {
+                    text: this.message
+                }
+            }
+            await sendMessageToConvo(sendMessagePayload, this.chatAgent)
+        } catch (err) {
+            console.log("error while sending message on follow:", err)
         }
     }
 
@@ -48,6 +62,5 @@ export class EventListener {
      * Removes all event listeners
      */
     public removeListener(): void {
-        this.ws
     }
 }

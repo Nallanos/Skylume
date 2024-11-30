@@ -12,31 +12,28 @@ export default class BotsController {
             }
             const user = await auth.authenticate()
             const { handle, event, action, wait_time, message } = request.only(['handle', 'event', 'action', "message", "wait_time"]);
-            const account = await Account.findBy("bksy_social", handle)
+            const account = await Account.findBy("handle", handle)
 
             if (account === null) {
                 throw new Error("no account found")
             }
 
             const id = crypto.randomBytes(6).toString('hex')
-            await Listener.create({
+            const listener = await Listener.create({
                 event: event,
                 action: action,
                 wait_time: wait_time,
                 message: message,
                 account_id: account.id,
                 id: id,
+                user_id: user.id,
             })
 
             let bot_service = UsersBotServiceManager.userbotServiceMap.get(user.id)
-            if (bot_service === undefined) {
-                await UsersBotServiceManager.startUserBotService(user)
-                bot_service = UsersBotServiceManager.userbotServiceMap.get(user.id)
-                if (bot_service === undefined) {
-                    throw new Error(`deosn't find the mapped userbotservice for this user id ${user.id}`)
-                }
+            if (!bot_service) {
+                throw new Error("can't find users service in the user bot service manager")
             }
-            await bot_service.start(id)
+            await bot_service.addHandlerToMap(listener.id)
             return response.redirect("/dashboard")
         } catch (err) {
             console.log("error while adding a bot", err)
@@ -65,14 +62,6 @@ export default class BotsController {
         } catch (err) {
             console.log(err)
             session.flash("error", err)
-        }
-    }
-
-    public async createAllListeners({ auth }: HttpContext) {
-        const user = await auth.authenticate()
-        const bot_service = UsersBotServiceManager.userbotServiceMap.get(user.id)
-        if (bot_service) {
-            await bot_service.startAllListeners()
         }
     }
 }

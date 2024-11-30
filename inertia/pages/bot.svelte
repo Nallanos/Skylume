@@ -6,7 +6,7 @@
   import type { Account, EventType } from '@/type'
   import Textarea from '@/ui/textarea/textarea.svelte'
   export let accounts: Account[]
-  const events: EventType[] = ['Mention', 'Follow', 'Reply']
+  const events: EventType[] = ['mention', 'follow', 'reply']
   const actions = ['Follow', 'Send a Message']
   let event: string
   let action: string
@@ -65,12 +65,12 @@
                 <Select.Label>Your accounts</Select.Label>
                 {#each accounts as account}
                   <Select.Item
-                    value={account.bksySocial}
+                    value={account.handle}
                     on:click={() => {
-                      handleSelect('handle', account.bksySocial)
+                      handleSelect('handle', account.handle)
                     }}
                   >
-                    {account.bksySocial}
+                    {account.handle}
                   </Select.Item>
                 {/each}
               </Select.Group>

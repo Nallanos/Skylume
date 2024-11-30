@@ -13,7 +13,7 @@
 
 <div class="border border-gray-800 rounded-md w-full px-4 flex flex-col py-2">
   <div class="flex justify-center text-center">
-    <h3 class="text-2xl font-medium">{account.bksySocial}</h3>
+    <h3 class="text-2xl font-medium">{account.handle}</h3>
     <Button variant="destructive" on:click={handleDelete} class="ml-auto"
       ><Trash2 class="size-4" /></Button
     >

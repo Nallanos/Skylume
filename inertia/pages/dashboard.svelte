@@ -2,7 +2,6 @@
   import Layout from '@/components/layout.svelte'
   import AccountCard from '@/components/account_card.svelte'
   import type { Account } from '@/type'
-  import { page } from '@inertiajs/svelte'
 
   export let accounts: Account[]
 </script>

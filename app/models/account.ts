@@ -15,7 +15,7 @@ export default class Account extends BaseModel {
   declare userId: number
 
   @column()
-  declare app_password: string
+  declare appPassword: string
 
   @column()
   declare session: string | null
@@ -28,7 +28,7 @@ export default class Account extends BaseModel {
   }
 
   @column()
-  declare bksy_social: string
+  declare handle: string
 
   @hasMany(() => Listener)
   declare listeners: HasMany<typeof Listener>

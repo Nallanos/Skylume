@@ -1,13 +1,13 @@
 export type Account = {
     appPassword: string;
     user_id: number;
-    bksySocial: string;
+    handle: string;
     did: string;
     id: string,
     bots: Bot[]
 }
 
-export type EventType = "Mention" | "Follow" | "Reply"
+export type EventType = "mention" | "follow" | "reply"
 
 
 export type BotPayload = {

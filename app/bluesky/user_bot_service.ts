@@ -2,22 +2,49 @@ import Account from '#models/account'
 import Listener from '#models/listener'
 import { type AtpSessionData, AtpAgent, } from '@atproto/api'
 import { EventListener } from './bot.js'
-import User from '#models/user'
+import type { NotificationData } from './types.js'
+import queue from '@rlanz/bull-queue/services/main'
+import BotJob from '../jobs/bot_job.js'
+import { RateLimitedAgent } from '@skyware/bot'
+import { RateLimitThreshold } from "rate-limit-threshold";
 /**
  * Manages bot services for an account, including listener handling
  */
 export default class UserBotService {
-  private handlers: Map<string, EventListener> = new Map()
-  private mapUserWS: Map<number, WebSocket> = new Map()
+  public handlers: Map<string, EventListener> = new Map()
   private agent: AtpAgent;
-
-  constructor(private user: User, private ws: WebSocket, private accounts: Account[]) {
-    console.log("instance of user bot service")
+  private chat: RateLimitedAgent;
+  constructor(private accounts: Account[]) {
+    console.log("instance of user bot service created")
     this.agent = new AtpAgent({ service: "https://bsky.social" })
-    this.mapUserWS.set(this.user.id, this.ws)
+    this.chat = new RateLimitedAgent(
+      { handler: this.agent.fetchHandler },
+      new RateLimitThreshold(3000, 300),
+    ).withProxy("bsky_chat", "did:web:api.bsky.chat");
     this.initializeMapHandler()
   }
 
+  /**
+   * Create one Job for one Account
+   */
+  public async createOneJob(account: Account, Queue: typeof queue) {
+    Queue.dispatch(BotJob, account, { queueName: "listeners", repeat: { every: 60000 * 1 } })
+  }
+  /**
+   * Create a Job for each user's account
+   */
+  public async createAJobForEachUserAccount(Queue: typeof queue) {
+    try {
+      for (const account of this.accounts) {
+        console.log("Adding a job for account:", account)
+        console.log(account.save)
+        await Queue.dispatch(BotJob, account, { queueName: "listeners", repeat: { every: 60000 * 1 } })
+      }
+      console.log("All jobs have been added successfully!")
+    } catch (err) {
+      console.error("An error occurred while creating jobs:", err)
+    }
+  }
 
   /**
    * Initializes map handlers for all listeners associated with the account
@@ -25,15 +52,15 @@ export default class UserBotService {
   public async initializeMapHandler(): Promise<void> {
     try {
       const listeners = await this.getListeners()
-      if (this.ws === undefined) {
-        throw new Error("ws connection is undefined")
-      }
-      if (listeners === undefined) {
+
+      if (listeners == undefined) {
         throw new Error("listeners connection is undefined")
       }
+
       this.handlers = new Map(
-        listeners.map((listener) => [listener.id, new EventListener(listener.account, this.agent, this.ws, listener.event, listener.action, listener.message)])
+        listeners.map((listener) => [listener.id, new EventListener(this.chat, this.agent, listener.event, listener.action, listener.id, listener.account_id, listener.message)])
       )
+
     } catch (err) {
       console.error('Handler map initialization failed:', err)
     }
@@ -63,33 +90,73 @@ export default class UserBotService {
         return
       }
 
-      this.handlers.set(listener_id, new EventListener(account, this.agent, this.ws, listener.event, listener.action, listener.message))
+      this.handlers.set(listener_id, new EventListener(this.chat, this.agent, listener.event, listener.action, listener.id, account.id, listener.message))
+      console.log("updated handlers map :", this.handlers)
     } catch (err) {
       console.error('Handler addition failed:', err)
     }
   }
 
   /**
-   * Starts all listeners for the account
+   * Starts all the given listeners for the given events
    */
-  public async startAllListeners(): Promise<void> {
+  public async startAllListeners(notificationData: NotificationData[], listeners: Listener[]): Promise<void> {
     try {
-      const listeners = await this.getListeners()
-      await Promise.all(listeners.map((listener) => this.start(listener.id)))
+      notificationData.forEach(async (notification) => {
+        console.log("starting notifcation:", notification)
+        const userListeners = await this.getListenersOn(notification.event, listeners)
+
+        // Sort the listeners array to ensure that "Follow" actions are processed first
+        // This is necessary because "Follow" should happen before "Send A Message" for proper sequence
+        userListeners.sort((a, b) => {
+          if (a.action === "Follow" && b.action !== "Follow") return -1;
+          if (a.action !== "Follow" && b.action === "Follow") return 1;
+          return 0;
+        });
+        for (const listener of userListeners) {
+          let bot = this.handlers.get(listener.id)
+          if (bot === undefined) {
+            await this.initializeMapHandler()
+            bot = this.handlers.get(listener.id)
+            if (bot === undefined) {
+              throw new Error(`didn't find the handlers with ${listener.id} in the handlers map`)
+            }
+          }
+          await bot.on(notification.authorDid)
+        }
+      })
     } catch (err) {
       console.error('Starting all listeners failed:', err)
     }
   }
 
+
+  /***
+   * get users listeners for a specific event
+   */
+  public async getListenersOn(event: string, listeners: Listener[]) {
+    try {
+      const filteredListeners = listeners.filter(listener => listener.event === event);
+      return filteredListeners;
+    } catch (err) {
+      throw new Error(`error while getting listeners on ${event}`)
+    }
+  }
+
+
   /**
-   * Retrieves all listeners for an user in the database
+   * Retrieves all listeners from an user in the database
    */
   public async getListeners(): Promise<Listener[]> {
     try {
       let listener: Listener[] = []
       if (this.accounts) {
         for (const account of this.accounts) {
+          console.log(`getting listener with ${account.id}`)
           listener = [...listener, ...(await Listener.findManyBy('account_id', account.id) || [])];
+        }
+        if (listener.length == 0) {
+          console.log("user doesn't have listeners", listener)
         }
         return listener
       }
@@ -119,37 +186,77 @@ export default class UserBotService {
   /**
    * Starts a specific listener
    */
-  public async start(listener_id: string): Promise<void> {
+  public async start(listener_id: string, did: string): Promise<void> {
     try {
-      let bot = this.handlers.get(listener_id)
-      if (bot === undefined) {
-        await this.initializeMapHandler()
-        bot = this.handlers.get(listener_id)
+      await this.addHandlerToMap(listener_id).then(async () => {
+        let bot = this.handlers.get(listener_id)
         if (bot === undefined) {
-          throw new Error(`can't find mapped bot in handlermap with ${listener_id} as listener_id`)
+          bot = this.handlers.get(listener_id)
+          if (bot === undefined) {
+            throw new Error(`can't find mapped bot in handlermap with ${listener_id} as listener_id`)
+          }
         }
-      }
-      await bot.on()
+        await bot.on(did)
+      })
+
     } catch (err) {
       console.error('Starting listener failed:', err)
     }
   }
 
-  private async createOrResumeSession(account: Account): Promise<void> {
+  public async createOrResumeSession(account_id: string): Promise<void> {
     try {
+      const account = await Account.find(account_id)
+      if (!account) {
+        throw new Error("can't find the account with the given userId")
+      }
+
+      if (!this.agent.sessionManager.hasSession) {
+        const session = (await this.agent.login({
+          identifier: account.did,
+          password: account.appPassword,
+        })).data;
+
+        account.session = JSON.stringify(session)
+        account.save()
+        console.log("New session created!");
+      }
       if (account.at_session) {
         await this.agent.resumeSession({
           accessJwt: account.at_session.accessJwt,
           refreshJwt: account.at_session.refreshJwt,
-          handle: account.bksy_social,
+          handle: account.handle,
           did: account.did,
-        } as AtpSessionData)
-        return
+        } as AtpSessionData);
       }
-      const session = (await this.agent.login({ identifier: account.did, password: account.app_password })).data
-      account.session = JSON.stringify(session)
+      return;
     } catch (err) {
-      console.error("error while creating or resuming the session in the userBotService: ", err)
+      console.error("Error while creating or resuming the session in the userBotService:", err);
     }
+  }
+
+  public async fetchAccountNotifications(): Promise<NotificationData[] | undefined> {
+    try {
+      const response = await this.agent.listNotifications();
+      if (!response) {
+        console.log("response undefined in fetchAccountNotifications");
+        throw new Error("list notification response is undefined");
+      }
+
+      const notificationsData: NotificationData[] = response.data.notifications.map((notification) => ({
+        authorDid: notification.author.did,
+        event: notification.reason,
+      }));
+
+      return notificationsData;
+    } catch (err) {
+      console.error("Error while fetching Account Notifications in the userBotService: ", err);
+      return undefined;
+    }
+  }
+
+
+  public async readAllNotification() {
+    await this.agent.updateSeenNotifications()
   }
 }

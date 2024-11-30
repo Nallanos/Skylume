@@ -4,7 +4,6 @@ export default class AccountService {
         const agent = new AtpAgent({
             service: 'https://bsky.social'
         })
-        console.log(handle, app_password)
         await agent.login({
             identifier: handle,
             password: app_password

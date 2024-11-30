@@ -2,6 +2,7 @@
   import { page } from '@inertiajs/svelte'
 
   import UserAuthForm from '@/components/user-auth-form.svelte'
+  console.log($page.props)
 </script>
 
 <div class="flex items-center justify-center h-screen">

@@ -23,3 +23,16 @@ export interface BotConfig {
     strategy: EventStrategy
   }
 }
+export type NotificationData = {
+  authorDid: string,
+  event: string
+}
+
+export type MessagePayload = {
+  convoId: string; // L'ID de la conversation
+  message: {
+    text: string; // Le texte du message (obligatoire, max 10,000 caractères)
+    facets?: object[]; // Facettes optionnelles (si nécessaires)
+    embed?: object; // Embed optionnel (si nécessaire)
+  };
+}

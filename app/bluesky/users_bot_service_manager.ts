@@ -1,28 +1,53 @@
 import Account from "#models/account";
-import type User from "#models/user";
+import User from "#models/user";
+import queue from "@rlanz/bull-queue/services/main";
 import UserBotService from "./user_bot_service.js";
 
 class UsersBotServiceManager {
-    public userbotServiceMap: Map<number, UserBotService> = new Map()
-
-    constructor() {
-        console.log("instance user bot service manager created")
+    public userbotServiceMap: Map<number, UserBotService> = new Map();
+    public queue = queue
+    /**
+     * Init alls jobs with for every users 
+    */
+    public async createAndStartListenersQueue() {
+        await queue.clear()
+        console.log("init user jobs", this.userbotServiceMap)
+        this.userbotServiceMap.forEach(async (userBotService: UserBotService) => {
+            await userBotService.createAJobForEachUserAccount(this.queue)
+        })
+        queue.process({ queueName: "listeners" })
     }
 
+    /**
+     * start bot service for the given user
+     * @param user 
+     */
     public async startUserBotService(user: User) {
-        if (this.userbotServiceMap.get(user.id) != undefined) {
-            throw new Error("You tried to create a new UserBotService but one is already mapped with the given user_id")
+        if (this.userbotServiceMap.has(user.id)) {
+            throw new Error("UserBotService already exists for this user_id");
         }
-        const ws = new WebSocket("wss://bsky.network/xrpc/com.atproto.sync.subscribeRepos")
 
-        const accounts = await Account.findManyBy("userId", user.id)
-        this.userbotServiceMap.set(user.id, new UserBotService(user, ws, accounts))
-        const user_service = this.userbotServiceMap.get(user.id)
-        if (user_service == undefined) {
-            throw Error(`can't find userbotservice in the userbotservicemap with ${user.id}`)
+        const accounts = await Account.findManyBy("userId", user.id);
+        const userService = new UserBotService(accounts);
+        this.userbotServiceMap.set(user.id, userService);
+
+        await userService.initializeMapHandler();
+
+    }
+
+    /**
+ * start bot service for all users
+ * @param user 
+ */
+    public async startAllUsersBotService() {
+        const users = await User.all();
+        for (const user of users) {
+            const accounts = await Account.findManyBy("userId", user.id);
+            const userService = new UserBotService(accounts);
+            this.userbotServiceMap.set(user.id, userService);
+            await userService.initializeMapHandler();
         }
-        await user_service?.initializeMapHandler()
     }
 }
 
-export default new UsersBotServiceManager()
+export default new UsersBotServiceManager();

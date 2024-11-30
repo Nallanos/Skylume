@@ -9,8 +9,8 @@ export default class extends BaseSchema {
       table.string("app_password")
       table.string('id').primary()
       table.string('did').nullable()
-      table.string('bksy_social')
-      table.string("session").nullable()
+      table.string('handle')
+      table.string("session", 1600).nullable()
     })
   }
 
