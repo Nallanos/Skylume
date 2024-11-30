@@ -11,7 +11,6 @@ class UsersBotServiceManager {
     */
     public async createAndStartListenersQueue() {
         await queue.clear()
-        console.log("init user jobs", this.userbotServiceMap)
         this.userbotServiceMap.forEach(async (userBotService: UserBotService) => {
             await userBotService.createAJobForEachUserAccount(this.queue)
         })

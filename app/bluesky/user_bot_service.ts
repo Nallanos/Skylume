@@ -208,7 +208,7 @@ export default class UserBotService {
     try {
       const account = await Account.find(account_id)
       if (!account) {
-        throw new Error("can't find the account with the given userId")
+        throw new Error(`can't find the account with the given account_id ${account.id}`)
       }
 
       if (!this.agent.sessionManager.hasSession) {
@@ -257,6 +257,10 @@ export default class UserBotService {
 
 
   public async readAllNotification() {
-    await this.agent.updateSeenNotifications()
+    try {
+      await this.agent.updateSeenNotifications()
+    } catch (err) {
+      console.error("error while reading all notification:", err)
+    }
   }
 }
