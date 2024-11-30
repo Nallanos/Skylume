@@ -1,14 +1,4 @@
-export type Account = {
-    appPassword: string;
-    user_id: number;
-    handle: string;
-    did: string;
-    id: string,
-    bots: Bot[]
-}
-
 export type EventType = "mention" | "follow" | "reply"
-
 
 export type BotPayload = {
     handle: string;
@@ -16,11 +6,13 @@ export type BotPayload = {
     action: string
 }
 
-export type Bot = {
-    accountId: string;
-    action: string;
-    event: string;
-    id: number;
-    message: null | string;
-    waitTime: number
+export type Listener = {
+    id: string
+    accountId: string
+    event: string
+    user_id: number
+    handler: string
+    wait_time: number
+    message: string
+    action: string
 }

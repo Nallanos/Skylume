@@ -1,10 +1,10 @@
 <script lang="ts">
-  import { Input } from '@/ui/input/'
   import { router } from '@inertiajs/svelte'
   import Layout from '@/components/layout.svelte'
   import * as Select from '@/ui/select'
-  import type { Account, EventType } from '@/type'
+  import type { EventType } from '@/type'
   import Textarea from '@/ui/textarea/textarea.svelte'
+  import type Account from '#models/account'
   export let accounts: Account[]
   const events: EventType[] = ['mention', 'follow', 'reply']
   const actions = ['Follow', 'Send a Message']
@@ -12,10 +12,8 @@
   let action: string
   let handle: string
   let message: string = ''
-  let wait_time: number
 
   async function handleSelect(selectType: string, selectAction: string) {
-    console.log('handle called')
     if (selectType === 'handle') {
       handle = selectAction
     } else if (selectType === 'action') {
@@ -26,14 +24,11 @@
   }
 
   async function handleSubmit() {
-    console.log(message)
-    wait_time *= 60
     router.post('/bot/add', {
       event,
       action,
       handle,
       message,
-      wait_time,
     })
   }
 </script>
@@ -138,11 +133,6 @@
             ></Textarea>
           </div>
         {/if}
-
-        <div>
-          <label for="wait_time">Delay before action (min)</label>
-          <Input type="number" bind:value={wait_time} placeholder="0" required></Input>
-        </div>
         <button type="submit" class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600">
           Add the bot
         </button>

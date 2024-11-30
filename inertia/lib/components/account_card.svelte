@@ -2,9 +2,16 @@
   import Button from './../ui/button/button.svelte'
   import { Trash2 } from 'lucide-svelte'
   import { router } from '@inertiajs/svelte'
-  import type { Account } from '@/type'
+  import type Account from '#models/account'
+  import type { Listener } from '@/type'
   export let account: Account
+  export let listeners: Listener[]
+
   const id = account.id
+  console.log('filtering listener with', account.id)
+  console.log(listeners)
+  let accountListeners = listeners.filter((listener) => listener.accountId === id)
+
   async function handleDelete() {
     console.log(id)
     router.post('/dashboard/accounts/delete', { id: id })
@@ -18,11 +25,11 @@
       ><Trash2 class="size-4" /></Button
     >
   </div>
-  <!-- <div class="flex">
-    <p>There's <span class="font-bold">{account.bots.length}</span> active bots :</p>
+  <div class="flex">
+    <p>There's <span class="font-bold">{accountListeners.length}</span> active bots :</p>
   </div>
   <ul class="pt-2 gap-2 flex flex-col">
-    {#each account.bots as bot}
+    {#each accountListeners as bot}
       <li class="pl-2 flex flex-col gap-4">
         <p>
           Bot number {bot.id} Listening on {bot.event} and
@@ -31,9 +38,8 @@
           {:else}
             {bot.action}
           {/if}
-          after {bot.waitTime / 60}min
         </p>
       </li>
     {/each}
-  </ul> -->
+  </ul>
 </div>

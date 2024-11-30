@@ -208,7 +208,7 @@ export default class UserBotService {
     try {
       const account = await Account.find(account_id)
       if (!account) {
-        throw new Error(`can't find the account with the given account_id ${account.id}`)
+        throw new Error(`can't find the account with the given account_id ${account_id}`)
       }
 
       if (!this.agent.sessionManager.hasSession) {
@@ -242,8 +242,8 @@ export default class UserBotService {
         console.log("response undefined in fetchAccountNotifications");
         throw new Error("list notification response is undefined");
       }
-
-      const notificationsData: NotificationData[] = response.data.notifications.map((notification) => ({
+      const unreadNotifications = response.data.notifications.filter((notification: any) => !notification.isRead);
+      const notificationsData: NotificationData[] = unreadNotifications.map((notification) => ({
         authorDid: notification.author.did,
         event: notification.reason,
       }));
