@@ -16,6 +16,7 @@ export default class BotJob extends Job {
     const listeners = await Listener.findManyBy("account_id", account.id)
     await user_service.createOrResumeSession(account.id)
     const notificationData = await user_service.fetchAccountNotifications()
+    await user_service.readAllNotification()
     if (!notificationData) {
       throw new Error(`Notification Data is undefined for the following account ${account.handle}`,)
     }
