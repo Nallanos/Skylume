@@ -19,7 +19,7 @@ export default class BotsController {
             }
 
             const id = crypto.randomBytes(6).toString('hex')
-            const listener = await Listener.create({
+            await Listener.create({
                 event: event,
                 action: action,
                 wait_time: wait_time,
@@ -28,12 +28,6 @@ export default class BotsController {
                 id: id,
                 user_id: user.id,
             })
-
-            let bot_service = UsersBotServiceManager.userbotServiceMap.get(user.id)
-            if (!bot_service) {
-                throw new Error("can't find users service in the user bot service manager")
-            }
-            await bot_service.addHandlerToMap(listener.id)
             return response.redirect("/dashboard")
         } catch (err) {
             console.log("error while adding a bot", err)

@@ -44,7 +44,7 @@
         <Input
           bind:value={password}
           id="password"
-          placeholder="not1234"
+          placeholder="password"
           type="password"
           autocapitalize="none"
           autocomplete="password"
@@ -53,7 +53,7 @@
         />
       </div>
 
-      <Button type="submit">Submit</Button>
+      <Button type="submit" class="text-white">Submit</Button>
     </div>
   </form>
   <div class="relative">
@@ -64,7 +64,7 @@
       <span class="bg-background text-muted-foreground px-2"> Or continue with </span>
     </div>
   </div>
-  <Button variant="outline" type="button" disabled={isLoading} class="flex gap-1"
+  <Button variant="outline" type="button" disabled={isLoading} class="flex gap-1 "
     ><img src={srcLogoBSKY} class="size-4" alt="bluesky logo" />BlueSky</Button
   >
 </div>

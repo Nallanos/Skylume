@@ -3,8 +3,6 @@ import Listener from '#models/listener'
 import { type AtpSessionData, AtpAgent, } from '@atproto/api'
 import { EventListener } from './bot.js'
 import type { NotificationData } from './types.js'
-import queue from '@rlanz/bull-queue/services/main'
-import BotJob from '../jobs/bot_job.js'
 import { RateLimitedAgent } from '@skyware/bot'
 import { RateLimitThreshold } from "rate-limit-threshold";
 /**
@@ -22,28 +20,6 @@ export default class UserBotService {
       new RateLimitThreshold(3000, 300),
     ).withProxy("bsky_chat", "did:web:api.bsky.chat");
     this.initializeMapHandler()
-  }
-
-  /**
-   * Create one Job for one Account
-   */
-  public async createOneJob(account: Account, Queue: typeof queue) {
-    Queue.dispatch(BotJob, account, { queueName: "listeners", repeat: { every: 60000 * 1 } })
-  }
-  /**
-   * Create a Job for each user's account
-   */
-  public async createAJobForEachUserAccount(Queue: typeof queue) {
-    try {
-      for (const account of this.accounts) {
-        console.log("Adding a job for account:", account)
-        console.log(account.save)
-        await Queue.dispatch(BotJob, account, { queueName: "listeners", repeat: { every: 60000 * 1 } })
-      }
-      console.log("All jobs have been added successfully!")
-    } catch (err) {
-      console.error("An error occurred while creating jobs:", err)
-    }
   }
 
   /**
@@ -152,7 +128,6 @@ export default class UserBotService {
       let listener: Listener[] = []
       if (this.accounts) {
         for (const account of this.accounts) {
-          console.log(`getting listener with ${account.id}`)
           listener = [...listener, ...(await Listener.findManyBy('account_id', account.id) || [])];
         }
         if (listener.length == 0) {
@@ -204,13 +179,8 @@ export default class UserBotService {
     }
   }
 
-  public async createOrResumeSession(account_id: string): Promise<void> {
+  public async createOrResumeSession(account: Account): Promise<void> {
     try {
-      const account = await Account.find(account_id)
-      if (!account) {
-        throw new Error(`can't find the account with the given account_id ${account_id}`)
-      }
-
       if (!this.agent.sessionManager.hasSession) {
         const session = (await this.agent.login({
           identifier: account.did,
@@ -235,32 +205,24 @@ export default class UserBotService {
     }
   }
 
-  public async fetchAccountNotifications(): Promise<NotificationData[] | undefined> {
+  public async fetchAccountNotifications(account: Account): Promise<NotificationData[] | undefined> {
     try {
       const response = await this.agent.listNotifications();
       if (!response) {
         console.log("response undefined in fetchAccountNotifications");
         throw new Error("list notification response is undefined");
       }
-      const unreadNotifications = response.data.notifications.filter((notification: any) => !notification.isRead);
-      const notificationsData: NotificationData[] = unreadNotifications.map((notification) => ({
+      console.log(new Date(response.data.notifications[0].indexedAt), new Date(account.seenNotificationAt))
+      const newNotification = response.data.notifications.filter((notification) => new Date(notification.indexedAt) > new Date(account.seenNotificationAt))
+      console.log(newNotification)
+      return newNotification.map((notification) => ({
         authorDid: notification.author.did,
         event: notification.reason,
+        indexedAt: notification.indexedAt
       }));
-
-      return notificationsData;
     } catch (err) {
       console.error("Error while fetching Account Notifications in the userBotService: ", err);
       return undefined;
-    }
-  }
-
-
-  public async readAllNotification() {
-    try {
-      await this.agent.updateSeenNotifications()
-    } catch (err) {
-      console.error("error while reading all notification:", err)
     }
   }
 }

@@ -36,7 +36,6 @@ router.get('/dashboard', async ({ auth, inertia }) => {
         const accounts = await Account.query()
             .where('user_id', user.id)
         const listeners = await Listener.findManyBy("user_id", user.id)
-        console.log(listeners)
         return inertia.render('dashboard', { accounts: accounts.map((a) => a.serialize()), listeners: listeners.map((a) => a.serialize()) })
     }
     return inertia.render('dashboard', { accounts: [] })

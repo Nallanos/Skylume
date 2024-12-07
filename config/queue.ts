@@ -10,7 +10,9 @@ export default defineConfig({
 
   queue: {},
 
-  worker: {},
+  worker: {
+    concurrency: 1000
+  },
 
   jobs: {
     /*
@@ -41,5 +43,6 @@ export default defineConfig({
     */
     removeOnComplete: 100,
     removeOnFail: 100,
+
   },
 })

@@ -28,6 +28,9 @@ export default class Account extends BaseModel {
   }
 
   @column()
+  declare seenNotificationAt: string
+
+  @column()
   declare handle: string
 
   @hasMany(() => Listener)

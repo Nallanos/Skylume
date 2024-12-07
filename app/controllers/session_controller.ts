@@ -16,12 +16,6 @@ export default class SessionController {
 
             const user = await User.verifyCredentials(email, password)
 
-            let UserBotService = UsersBotServiceManager.userbotServiceMap.get(user.id)
-
-            if (!UserBotService) {
-                UsersBotServiceManager.startUserBotService(user)
-            }
-
             await auth.use('web').login(user)
             response.redirect('/dashboard')
         } catch (error) {
@@ -36,7 +30,7 @@ export default class SessionController {
             const userAlreadyExists = await User.findBy('email', email)
 
             if (userAlreadyExists !== null) {
-                session.flash('errors.credential', 'Account already exists')
+                session.flash('errors.credentials', 'Account already exists')
                 return response.redirect().back()
             }
 

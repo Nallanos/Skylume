@@ -25,7 +25,8 @@ export interface BotConfig {
 }
 export type NotificationData = {
   authorDid: string,
-  event: string
+  event: string,
+  indexedAt: string,
 }
 
 export type MessagePayload = {

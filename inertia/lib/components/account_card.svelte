@@ -8,8 +8,6 @@
   export let listeners: Listener[]
 
   const id = account.id
-  console.log('filtering listener with', account.id)
-  console.log(listeners)
   let accountListeners = listeners.filter((listener) => listener.accountId === id)
 
   async function handleDelete() {

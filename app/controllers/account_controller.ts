@@ -3,7 +3,8 @@ import crypto from 'crypto';
 import AccountService from '#services/account_service';
 import Account from '#models/account'
 import { inject } from '@adonisjs/core'
-import UsersBotServiceManager from '../bluesky/users_bot_service_manager.js'
+import users_bot_service_manager from '../bluesky/users_bot_service_manager.js';
+import queue_manager from '../bluesky/queue_manager.js';
 @inject()
 export default class AccountController {
   constructor(protected account_service: AccountService) { }
@@ -18,14 +19,6 @@ export default class AccountController {
 
       const did = await this.account_service.getAccountDid(data.bksy_social, data.token_app_password);
 
-      const user_service = UsersBotServiceManager.userbotServiceMap.get(user.id)
-
-      if (!user_service) {
-        session.flash("errors.credentials", "Internal error")
-      }
-
-      await user_service?.initializeMapHandler()
-
       if (!user) {
         session.flash("errors.credentials", "you're not authenticated")
         return response.redirect("/")
@@ -37,16 +30,15 @@ export default class AccountController {
         handle: data.bksy_social,
         id: crypto.randomBytes(16).toString('hex'),
         did: did,
+        seenNotificationAt: new Date(Date.now()).toISOString()
       });
 
       if (!account) {
         session.flash("errors.credentials", "Failed to create account, please, verify the credential")
       }
 
-      if (!user_service) {
-        throw new Error("error while getting user service from userServiceManagerMap")
-      }
-      user_service.createOneJob(account, UsersBotServiceManager.queue)
+      await queue_manager.createOneJob(account)
+
       return response.redirect('/dashboard');
     } catch (err) {
       console.log(err)
