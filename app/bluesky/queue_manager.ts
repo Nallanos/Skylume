@@ -26,6 +26,9 @@ class QueueManager {
         this.queue.dispatch(BotJob, { account_id: account.id }, { queueName: this.queueName, repeat: { every: 10000 }, jobId: account.id })
     }
 
+    public process() {
+        this.queue.process({ queueName: this.queueName })
+    }
     /**
         * Create a Job for each user's account
     */
