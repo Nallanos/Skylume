@@ -9,6 +9,9 @@ export default class Account extends BaseModel {
   declare id: string
 
   @column()
+  declare jobId: string
+
+  @column()
   declare did: string
 
   @column()

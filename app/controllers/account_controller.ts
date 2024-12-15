@@ -3,7 +3,6 @@ import crypto from 'crypto';
 import AccountService from '#services/account_service';
 import Account from '#models/account'
 import { inject } from '@adonisjs/core'
-import users_bot_service_manager from '../bluesky/users_bot_service_manager.js';
 import queue_manager from '../bluesky/queue_manager.js';
 @inject()
 export default class AccountController {
@@ -53,10 +52,9 @@ export default class AccountController {
     const data = request.only(['id'])
     const account = await Account.findBy('id', data.id)
     if (account) {
+      await queue_manager.removeJob(account)
       account.delete()
       response.redirect().back()
     }
   }
-
-
 }

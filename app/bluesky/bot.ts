@@ -9,7 +9,7 @@ export class EventListener {
         private agent: AtpAgent,
         private event: string,
         public action: string,
-        public listener_id: string,
+        public listener_id: number,
         private account_id: string,
         private message?: string,
     ) { }

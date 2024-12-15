@@ -9,7 +9,7 @@ import { RateLimitThreshold } from "rate-limit-threshold";
  * Manages bot services for an account, including listener handling
  */
 export default class UserBotService {
-  public handlers: Map<string, EventListener> = new Map()
+  public handlers: Map<number, EventListener> = new Map()
   private agent: AtpAgent;
   private chat: RateLimitedAgent;
   constructor(private accounts: Account[]) {
@@ -37,6 +37,10 @@ export default class UserBotService {
         listeners.map((listener) => [listener.id, new EventListener(this.chat, this.agent, listener.event, listener.action, listener.id, listener.account_id, listener.message)])
       )
 
+      if (this.handlers.size != listeners.length) {
+        throw new Error(`mapEventListener is missing handlers: ${this.handlers.size} != ${listeners.length}: ${this.handlers}`)
+      }
+
     } catch (err) {
       console.error('Handler map initialization failed:', err)
     }
@@ -45,7 +49,7 @@ export default class UserBotService {
   /**
    * Removes a handler from the managed map listeners
    */
-  public async removeHandlerFromMap(listener_id: string): Promise<void> {
+  public async removeHandlerFromMap(listener_id: number): Promise<void> {
     try {
       this.handlers.delete(listener_id)
     } catch (err) {
@@ -56,7 +60,7 @@ export default class UserBotService {
   /**
    * Adds a new handler to the managed map listeners
    */
-  public async addHandlerToMap(listener_id: string): Promise<void> {
+  public async addHandlerToMap(listener_id: number): Promise<void> {
     try {
       const listener = await Listener.find(listener_id)
       const account = await Account.find(listener?.account_id)
@@ -145,7 +149,7 @@ export default class UserBotService {
   /**
    * Stops a specific listener
    */
-  public stop(listener_id: string): void {
+  public stop(listener_id: number): void {
     try {
       const bot = this.handlers.get(listener_id)
       if (bot == undefined) {
@@ -161,7 +165,7 @@ export default class UserBotService {
   /**
    * Starts a specific listener
    */
-  public async start(listener_id: string, did: string): Promise<void> {
+  public async start(listener_id: number, did: string): Promise<void> {
     try {
       await this.addHandlerToMap(listener_id).then(async () => {
         let bot = this.handlers.get(listener_id)

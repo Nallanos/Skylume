@@ -1,29 +1,13 @@
-<script>
+<script lang="ts">
+  import LayoutLandingPage from '@/components/layoutLandingPage.svelte'
   import Button from '@/ui/button/button.svelte'
   import { Handshake, Check, Lock, MessageSquare, Hourglass, Star } from 'lucide-svelte'
 </script>
 
-<header class="container mx-auto w-full flex items-center justify-center gap-8 px-6 py-2 shadow-md">
-  <nav
-    class="flex justify-evenly items-center h-12 w-1/2 rounded-full border border-gray-900 px-4 shadow"
-  >
-    <a
-      href="/dashboard"
-      class="px-4 text-gray-300 hover:text-blue-400"
-      title="Navigate to Dashboard">Login</a
-    >
-    <a href="#pricing" class="px-4 text-gray-300 hover:text-blue-400" title="View Pricing Options"
-      >Pricing</a
-    >
-    <a href="#features" class="px-4 text-gray-300 hover:text-blue-400" title="Discover Features"
-      >Features</a
-    >
-  </nav>
-</header>
-
-<main class="container mx-auto pt-10 text-center text-gray-300 gap-8 flex flex-col">
+<LayoutLandingPage />
+<main class="container pt-10 text-center text-gray-300 gap-8 flex flex-col">
   <section class="flex flex-col items-center gap-4">
-    <div class=" w-[1000px]">
+    <div class="w-[1000px]">
       <h1 class="text-6xl">
         <b class="bg-gradient-to-r from-teal-400 to-blue-700 bg-clip-text text-transparent">Boost</b
         >
@@ -42,9 +26,9 @@
     </div>
     <div class="flex flex-col items-center gap-3">
       <Button
-        href="#pricing"
+        href="/sign-up"
         variant="default"
-        class="w-44 h-10 rounded-full bg-blue-500 text-gray-900 text-sm hover:bg-blue-400"
+        class="w-44 h-10 rounded-full bg-blue-500 text-white text-sm hover:bg-blue-400"
         aria-label="Get Started with Bluesky Bots"
       >
         Get Started Now
@@ -53,8 +37,8 @@
     </div>
   </section>
 
-  <section id="features">
-    <div class="bg-dark text-white py-12">
+  <section id="features ">
+    <div class="bg-dark text-white py-4">
       <div class="max-w-6xl mx-auto px-6">
         <!-- Header Section -->
         <div class="text-center mb-6">
