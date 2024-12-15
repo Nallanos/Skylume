@@ -6,7 +6,7 @@
   import { cn } from '@/utils'
   export let apiAuth: string
   export let error: any
-  const srcLogoBSKY = '../../../resources/images/Bluesky_Logo.png'
+  // const srcLogoBSKY = '../../../resources/images/Bluesky_Logo.png'
   let email = ''
   let password = ''
   let response: Response | undefined
@@ -36,6 +36,7 @@
           autocomplete="email"
           autocorrect="off"
           disabled={isLoading}
+          required
         />
       </div>
 
@@ -49,6 +50,7 @@
           autocapitalize="none"
           autocomplete="password"
           autocorrect="off"
+          required
           disabled={isLoading}
         />
       </div>
@@ -61,10 +63,10 @@
       <span class="w-full border-t" />
     </div>
     <div class="relative flex justify-center text-xs uppercase">
-      <span class="bg-background text-muted-foreground px-2"> Or continue with </span>
+      <!-- <span class="bg-background text-muted-foreground px-2"> Or continue with </span> -->
     </div>
   </div>
-  <Button variant="outline" type="button" disabled={isLoading} class="flex gap-1 "
+  <!-- <Button variant="outline" type="button" disabled={isLoading} class="flex gap-1 "
     ><img src={srcLogoBSKY} class="size-4" alt="bluesky logo" />BlueSky</Button
-  >
+  > -->
 </div>

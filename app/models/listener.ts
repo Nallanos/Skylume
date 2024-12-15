@@ -8,7 +8,7 @@ export default class Listener extends BaseModel {
   public static table = 'listeners'
 
   @column({ isPrimary: true })
-  declare id: string
+  declare id: number
 
   @column()
   declare account_id: string

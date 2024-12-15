@@ -2,8 +2,11 @@ import User from '#models/user'
 import { HttpContext } from '@adonisjs/core/http'
 import { DateTime } from 'luxon';
 import UsersBotServiceManager from '../bluesky/users_bot_service_manager.js';
+import { isEmailValid } from '#services/session_service';
+
 
 export default class SessionController {
+    constructor() { }
     public async login({ request, auth, response, session }: HttpContext) {
         try {
             const { email, password } = request.only(['email', 'password'])
@@ -17,7 +20,7 @@ export default class SessionController {
             const user = await User.verifyCredentials(email, password)
 
             await auth.use('web').login(user)
-            response.redirect('/dashboard')
+            response.redirect('/thank-you')
         } catch (error) {
             session.flash("errors.credentials", "Invalid email or password")
             response.redirect().back()
@@ -34,13 +37,18 @@ export default class SessionController {
                 return response.redirect().back()
             }
 
+            if (!await isEmailValid(email)) {
+                session.flash('errors.credentials', 'Please enter a valid email')
+                return response.redirect().back()
+            }
+
             await User.create({ email: request.body().email, password: request.body().password, createdAt: DateTime.now() })
             const user = await User.verifyCredentials(email, password)
 
             await auth.use('web').login(user)
 
             await UsersBotServiceManager.startUserBotService(user)
-            return response.redirect('/dashboard')
+            return response.redirect('/thank-you')
         } catch (err) {
             console.log("error while signin up:", err)
         }
@@ -51,4 +59,5 @@ export default class SessionController {
 
         return response.redirect('/')
     }
+
 }

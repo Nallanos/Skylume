@@ -1,46 +1,85 @@
-import queue from "@rlanz/bull-queue/services/main";
-import BotJob from "../jobs/bot_job.js";
+import { Worker } from 'bullmq';
 import Account from "#models/account";
 import User from "#models/user";
+import { Queue } from 'bullmq';
+import handle from '../jobs/bot_job.js';
+import redis from '@adonisjs/redis/services/main'
 
 class QueueManager {
-    public queue = queue
-    public queueName = "listeners"
-    constructor() {
-        queue.getOrSet(this.queueName)
-    }
-    /**
-     * Init alls jobs with for every users 
-    */
-    public async createAndStartListenersQueue() {
-        const users = await User.query().preload("account")
-        users.forEach(async (user) => {
-            await this.createAJobForEachUserAccount(user.account)
-        })
-    }
+    public queueName = "listeners";
+    public queue = new Queue(this.queueName, {
+        connection: {
+            port: 6379,
+        }
+    })
 
     /**
-     * Create one Job for one Account
+     * Initializes jobs for all users and their accounts.
      */
-    public async createOneJob(account: Account) {
-        this.queue.dispatch(BotJob, { account_id: account.id }, { queueName: this.queueName, repeat: { every: 10000 }, jobId: account.id })
+    public async createAndStartListenersQueue(): Promise<void> {
+        try {
+            const users = await User.query().preload("account");
+            await Promise.all(users.map((user) => this.createAJobForEachUserAccount(user.account)));
+            new Worker('listeners', async job => {
+                const account_id = job.data.account_id
+                console.log("worker is calling a job with account:", account_id, "and job", job.id)
+                if (!account_id) {
+                    throw new Error(`account id is not defined for the worker`)
+                }
+                await handle({ account_id })
+                const account = await Account.find(account_id)
+                if (!account || !job.repeatJobKey) {
+                    throw new Error(`account id is not defined for the worker`)
+                }
+                account.jobId = job.repeatJobKey
+                account.save()
+            }, {
+                connection: {
+                    port: 6379,
+                }
+            })
+        } catch (err) {
+            console.error("[ERROR] Failed to create and start listener queues:", err);
+        }
     }
 
-    public process() {
-        this.queue.process({ queueName: this.queueName })
-    }
     /**
-        * Create a Job for each user's account
-    */
-    public async createAJobForEachUserAccount(user_accounts: Account[]) {
+     * Creates a single job for a specific account.
+     * @param account The account for which to create a job.
+     */
+    public async createOneJob(account: Account): Promise<void> {
         try {
-            for (let account of user_accounts) {
-                console.log("creating job for", account.id, "of", account.userId)
-                await this.queue.dispatch(BotJob, { account_id: account.id }, { queueName: "listeners", repeat: { every: 10000 }, jobId: account.id })
+            const account_id = account.id
+            const job = await this.queue.add(`bot`, { account_id }, {
+                repeat: { every: 10000 },
+                jobId: account_id,
+                repeatJobKey: account_id
+            })
+            console.log(job.id)
+        } catch (err) {
+            console.error(`[ERROR] Failed to create job for account ID: ${account.id}`, err);
+        }
+    }
+
+
+    /**
+     * Creates jobs for all accounts of a user.
+     * @param user_accounts The accounts for which to create jobs.
+     */
+    public async createAJobForEachUserAccount(user_accounts: Account[]): Promise<void> {
+        try {
+            for (const account of user_accounts) {
+                await this.createOneJob(account);
             }
         } catch (err) {
-            console.error("An error occurred while creating jobs:", err)
+            console.error("[ERROR] Failed to create jobs for user accounts:", err);
         }
+    }
+
+    public async removeJob(account: Account) {
+        const jobs = await redis.keys(`bull:${this.queueName}:repeat:${account.jobId}:*`)
+        console.log(`got job :${jobs} with ${account.jobId}`)
+        await redis.del(jobs)
     }
 }
 

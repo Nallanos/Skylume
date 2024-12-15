@@ -1,7 +1,6 @@
 import { HttpContext } from '@adonisjs/core/http'
 import Account from '#models/account';
 import Listener from '#models/listener';
-import crypto from "crypto"
 import UsersBotServiceManager from '../bluesky/users_bot_service_manager.js';
 
 export default class BotsController {
@@ -18,14 +17,12 @@ export default class BotsController {
                 throw new Error("no account found")
             }
 
-            const id = crypto.randomBytes(6).toString('hex')
             await Listener.create({
                 event: event,
                 action: action,
                 wait_time: wait_time,
                 message: message,
                 account_id: account.id,
-                id: id,
                 user_id: user.id,
             })
             return response.redirect("/dashboard")
