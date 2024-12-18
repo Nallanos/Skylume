@@ -7,7 +7,7 @@
 <LayoutLandingPage />
 <main class="container pt-10 text-center text-gray-300 gap-8 flex flex-col">
   <section class="flex flex-col items-center gap-4">
-    <div class="w-[1000px]">
+    <div class="w-[970px]">
       <h1 class="text-6xl">
         <b class="bg-gradient-to-r from-teal-400 to-blue-700 bg-clip-text text-transparent">Boost</b
         >
@@ -15,6 +15,8 @@
         <b class="bg-gradient-to-r from-teal-400 to-blue-700 bg-clip-text text-transparent"
           >Conversions</b
         >
+        by
+        <b class="bg-gradient-to-r from-teal-400 to-blue-700 bg-clip-text text-transparent">2x</b>
         with Bots That
         <b class="bg-gradient-to-r from-teal-400 to-blue-700 bg-clip-text text-transparent"
           >Engage</b
@@ -31,7 +33,7 @@
         class="w-44 h-10 rounded-full bg-blue-500 text-white text-sm hover:bg-blue-400"
         aria-label="Get Started with Bluesky Bots"
       >
-        Get Started Now
+        Join the Waitlist
       </Button>
       <p class="text-gray-400 text-sm">Start your free trial. No credit card required.</p>
     </div>
