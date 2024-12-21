@@ -1,5 +1,5 @@
 {
-  "name": "sdk-copilot ",
+  "name": "bluesky-bot",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -63,6 +63,9 @@
     "ts-node-maintained": "^10.9.4",
     "typescript": "^5.6.3",
     "vite": "^5.4.8"
+  },
+  "engines": {
+    "node": ">=20.6.0"
   },
   "dependencies": {
     "@adonisjs/auth": "^9.2.3",
