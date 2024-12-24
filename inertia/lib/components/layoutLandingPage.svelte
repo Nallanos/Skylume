@@ -5,7 +5,7 @@
     class="flex justify-evenly items-center h-12 w-1/2 rounded-full border border-gray-900 px-4 shadow"
   >
     <a href="/" class="px-4 text-gray-300 hover:text-blue-400" title="Navigate to Dashboard"
-      >Login</a
+      >Get started</a
     >
     <a href="/pricing" class="px-4 text-gray-300 hover:text-blue-400" title="View Pricing Options"
       >Pricing</a

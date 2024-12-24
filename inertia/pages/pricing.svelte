@@ -13,7 +13,7 @@
   const plans: Plan[] = [
     {
       title: 'Premium',
-      price: '$4.99',
+      price: 'Pay as you go',
       buttonText: 'Coming Soon',
       features: [
         'Advanced auto-send with personalized messaging',
@@ -34,7 +34,7 @@
       >
         <div>
           <h2 class="text-2xl font-bold mb-4">{plan.title}</h2>
-          <p class="text-4xl font-extrabold mb-4">{plan.price}</p>
+          <p class="text-2xl font-extrabold mb-4">{plan.price}</p>
           <ul class="space-y-2 text-sm">
             {#each plan.features as feature}
               <li class="flex items-center space-x-2">
