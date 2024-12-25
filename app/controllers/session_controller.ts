@@ -3,6 +3,7 @@ import { HttpContext } from '@adonisjs/core/http'
 import { DateTime } from 'luxon';
 import UsersBotServiceManager from '../bluesky/users_bot_service_manager.js';
 import { isEmailValid } from '#services/session_service';
+import crypto from 'crypto';
 
 
 export default class SessionController {
@@ -42,7 +43,7 @@ export default class SessionController {
                 return response.redirect().back()
             }
 
-            await User.create({ email: request.body().email, password: request.body().password, createdAt: DateTime.now() })
+            await User.create({ id: crypto.randomBytes(16).toString('hex'), email: request.body().email, password: request.body().password, createdAt: DateTime.now() })
             const user = await User.verifyCredentials(email, password)
 
             await auth.use('web').login(user)

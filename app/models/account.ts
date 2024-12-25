@@ -15,7 +15,7 @@ export default class Account extends BaseModel {
   declare did: string
 
   @column()
-  declare userId: number
+  declare userId: string
 
   @column()
   declare appPassword: string
