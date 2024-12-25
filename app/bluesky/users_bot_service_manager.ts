@@ -3,7 +3,7 @@ import User from "#models/user";
 import UserBotService from "./user_bot_service.js";
 
 class UsersBotServiceManager {
-    public userbotServiceMap: Map<number, UserBotService> = new Map();
+    public userbotServiceMap: Map<string, UserBotService> = new Map();
 
     /**
      * Start bot service for the given user.
@@ -34,7 +34,7 @@ class UsersBotServiceManager {
      * Initialize a bot service for a single user.
      * @param user_id The ID of the user.
      */
-    public async initOneUserBotService(user_id: number): Promise<void> {
+    public async initOneUserBotService(user_id: string): Promise<void> {
         if (this.userbotServiceMap.has(user_id)) {
             console.log(`[INFO] Bot service already exists for user_id: ${user_id}`);
             return;
@@ -46,7 +46,7 @@ class UsersBotServiceManager {
      * Helper function to initialize a bot service for a specific user ID.
      * @param user_id The ID of the user for which to initialize the bot service.
      */
-    private async initializeUserService(user_id: number): Promise<void> {
+    private async initializeUserService(user_id: string): Promise<void> {
         try {
             const accounts = await Account.findManyBy("userId", user_id);
             if (accounts.length === 0) {

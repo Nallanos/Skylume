@@ -5,9 +5,9 @@ export default class extends BaseSchema {
 
   async up() {
     this.schema.createTable(this.tableName, (table) => {
-      table.increments("id").unique().nullable()
+      table.string("id").unique().nullable().primary()
       table.string("account_id").references("accounts.id").onDelete('CASCADE')
-      table.integer("user_id").references("users.id").onDelete("CASCADE")
+      table.string("user_id").references("users.id").onDelete("CASCADE")
       table.string("event")
       table.string("handler")
       table.float("wait_time")

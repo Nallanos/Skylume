@@ -2,6 +2,7 @@ import { HttpContext } from '@adonisjs/core/http'
 import Account from '#models/account';
 import Listener from '#models/listener';
 import UsersBotServiceManager from '../bluesky/users_bot_service_manager.js';
+import crypto from 'crypto';
 
 export default class BotsController {
     public async addBot({ request, response, session, auth }: HttpContext) {
@@ -24,6 +25,7 @@ export default class BotsController {
                 message: message,
                 account_id: account.id,
                 user_id: user.id,
+                id: crypto.randomBytes(16).toString('hex')
             })
             return response.redirect("/dashboard")
         } catch (err) {

@@ -5,7 +5,7 @@ export default class extends BaseSchema {
 
   async up() {
     this.schema.createTable(this.tableName, (table) => {
-      table.integer('user_id').unsigned().references('users.id').onDelete('CASCADE')
+      table.string('user_id').unsigned().references('users.id').onDelete('CASCADE')
       table.string("app_password")
       table.string('id').primary()
       table.string('did').nullable()
