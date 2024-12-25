@@ -13,6 +13,7 @@ class QueueManager {
             family: 0,
             host: env.get("REDIS_HOST"),
             port: env.get("REDIS_PORT"),
+            password: env.get("REDIS_PASSWORD")
         }
     })
 
@@ -41,6 +42,7 @@ class QueueManager {
                     family: 0,
                     host: env.get("REDIS_HOST"),
                     port: env.get("REDIS_PORT"),
+                    password: env.get("REDIS_PASSWORD")
                 }
             })
         } catch (err) {
