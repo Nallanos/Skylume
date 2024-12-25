@@ -4,12 +4,14 @@ import User from "#models/user";
 import { Queue } from 'bullmq';
 import handle from '../jobs/bot_job.js';
 import redis from '@adonisjs/redis/services/main'
+import env from '#start/env';
 
 class QueueManager {
     public queueName = "listeners";
     public queue = new Queue(this.queueName, {
         connection: {
-            port: 6379,
+            host: env.get("REDIS_HOST"),
+            port: env.get("REDIS_PORT"),
         }
     })
 
@@ -35,7 +37,8 @@ class QueueManager {
                 account.save()
             }, {
                 connection: {
-                    port: 6379,
+                    host: env.get("REDIS_HOST"),
+                    port: env.get("REDIS_PORT"),
                 }
             })
         } catch (err) {
