@@ -27,6 +27,7 @@ const redisConfig = defineConfig({
     },
   },
 })
+console.info("Redis config:", env.get('REDIS_HOST'), env.get('REDIS_PORT'), env.get('REDIS_PASSWORD', ''))
 export default redisConfig
 
 declare module '@adonisjs/redis/types' {
