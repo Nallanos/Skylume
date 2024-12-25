@@ -10,6 +10,7 @@ class QueueManager {
     public queueName = "listeners";
     public queue = new Queue(this.queueName, {
         connection: {
+            family: 0,
             host: env.get("REDIS_HOST"),
             port: env.get("REDIS_PORT"),
         }
@@ -37,6 +38,7 @@ class QueueManager {
                 account.save()
             }, {
                 connection: {
+                    family: 0,
                     host: env.get("REDIS_HOST"),
                     port: env.get("REDIS_PORT"),
                 }
