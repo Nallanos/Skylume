@@ -1,4 +1,5 @@
 import env from '#start/env'
+import logger from '@adonisjs/core/services/logger'
 import { defineConfig } from '@adonisjs/redis'
 import type { InferConnections } from '@adonisjs/redis/types'
 const redisConfig = defineConfig({
@@ -27,7 +28,7 @@ const redisConfig = defineConfig({
     },
   },
 })
-
+logger.error("Redis config:", env.get('REDIS_HOST'), env.get('REDIS_PORT'), env.get('REDIS_PASSWORD', ''))
 export default redisConfig
 
 declare module '@adonisjs/redis/types' {
