@@ -1,17 +1,21 @@
 <script lang="ts">
-  import { router } from '@inertiajs/svelte'
+  import { page, router } from '@inertiajs/svelte'
   import { Button } from '@/ui/button'
   import { Input } from '@/ui/input/'
-  import { Label } from '@/ui/label/'
   import { cn } from '@/utils'
+  import Label from '@/ui/label/label.svelte'
+  import Checkbox from '@/ui/checkbox/checkbox.svelte'
+  page.URL
   export let apiAuth: string
   export let error: any
   // const srcLogoBSKY = '../../../resources/images/Bluesky_Logo.png'
   let email = ''
   let password = ''
+  let marketing_consent = false
   let response: Response | undefined
   async function handleSubmit() {
-    const res = await router.post(`/${apiAuth}`, { password, email })
+    console.log(marketing_consent)
+    const res = await router.post(`/${apiAuth}`, { password, email, marketing_consent })
     response == res
   }
   let className: string | undefined | null = undefined
@@ -24,7 +28,7 @@
     {#if error.errors && error.errors.credentials}
       <div class="text-red-500">{error.errors.credentials}</div>
     {/if}
-    <div class="grid gap-2">
+    <div class="grid gap-4">
       <div class="grid gap-2">
         <Label for="email">Email</Label>
         <Input
@@ -40,7 +44,7 @@
         />
       </div>
 
-      <div class="grid gap-2 pt-2 pb-4">
+      <div class="grid gap-2 pt-2">
         <Label class="text-white" for="password">Password</Label>
         <Input
           bind:value={password}
@@ -54,18 +58,17 @@
           disabled={isLoading}
         />
       </div>
-
+      {#if apiAuth != 'login'}
+        <div>
+          <div class="flex items-center space-x-2">
+            <Checkbox id="terms" bind:checked={marketing_consent} />
+            <Label for="terms">I agree to receive offers and information by email.</Label>
+          </div>
+        </div>
+      {/if}
       <Button type="submit" class="text-white">Submit</Button>
     </div>
   </form>
-  <div class="relative">
-    <div class="absolute inset-0 flex items-center">
-      <span class="w-full border-t" />
-    </div>
-    <div class="relative flex justify-center text-xs uppercase">
-      <!-- <span class="bg-background text-muted-foreground px-2"> Or continue with </span> -->
-    </div>
-  </div>
   <!-- <Button variant="outline" type="button" disabled={isLoading} class="flex gap-1 "
     ><img src={srcLogoBSKY} class="size-4" alt="bluesky logo" />BlueSky</Button
   > -->

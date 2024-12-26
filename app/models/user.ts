@@ -31,4 +31,7 @@ export default class User extends compose(BaseModel, AuthFinder) {
 
   @column()
   declare token_app_password: string | null
+
+  @column()
+  declare marketing_consent: boolean
 }
