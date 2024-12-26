@@ -30,7 +30,7 @@ export default class SessionController {
 
     public async signUp({ request, auth, response, session }: HttpContext) {
         try {
-            const { email, password } = request.only(['email', 'password'])
+            const { email, password, marketing_consent } = request.only(['email', 'password', "marketing_consent"])
             const userAlreadyExists = await User.findBy('email', email)
 
             if (userAlreadyExists !== null) {
@@ -43,7 +43,7 @@ export default class SessionController {
                 return response.redirect().back()
             }
 
-            await User.create({ id: crypto.randomBytes(16).toString('hex'), email: request.body().email, password: request.body().password, createdAt: DateTime.now() })
+            await User.create({ id: crypto.randomBytes(16).toString('hex'), email: request.body().email, password: request.body().password, createdAt: DateTime.now(), marketing_consent: marketing_consent })
             const user = await User.verifyCredentials(email, password)
 
             await auth.use('web').login(user)
