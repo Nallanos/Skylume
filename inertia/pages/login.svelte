@@ -3,7 +3,7 @@
   import UserAuthForm from '@/components/user-auth-form.svelte'
 </script>
 
-<div class="flex items-center justify-center h-screen w-[80%] mx-auto">
+<div class="flex items-center justify-center h-screen w-[80%] container mx-auto">
   <div class="lg:p-8">
     <div class="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
       <div class="flex flex-col space-y-2 text-center">
