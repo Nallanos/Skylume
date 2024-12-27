@@ -65,7 +65,12 @@
             <Label for="terms">I agree to receive offers and information by email.</Label>
           </div>
         </div>
+      {:else}
+        <div class="flex gap-1">
+          <a href="/password/reset" class="underline text-sm">Forgot your password ?</a>
+        </div>
       {/if}
+
       <Button type="submit" class="text-white">Submit</Button>
     </div>
   </form>

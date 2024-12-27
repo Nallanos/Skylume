@@ -21,6 +21,7 @@ router.on("/terms").renderInertia("terms")
 router.on("/privacy").renderInertia("privacy")
 router.on("/pricing").renderInertia("pricing")
 router.on("/thank-you").renderInertia("thank-you")
+router.on("/password/reset").renderInertia("contact-us")
 
 const session_controller = () => import('#controllers/session_controller')
 const account_controller = () => import('#controllers/account_controller')
