@@ -7,9 +7,10 @@
 <LayoutLandingPage />
 <main class="container pt-10 text-center text-gray-300 gap-8 flex flex-col">
   <section class="flex flex-col items-center gap-4">
-    <div class="w-full md:w-[970px] px-4">
+    <div class="w-full px-4">
       <h1 class="text-4xl md:text-6xl">
-        <b class="bg-gradient-to-r from-teal-400 to-blue-700 bg-clip-text text-transparent">Boost</b>
+        <b class="bg-gradient-to-r from-teal-400 to-blue-700 bg-clip-text text-transparent">Boost</b
+        >
         Your Bluesky
         <b class="bg-gradient-to-r from-teal-400 to-blue-700 bg-clip-text text-transparent"
           >Conversions</b
