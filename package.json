@@ -91,6 +91,7 @@
     "pg": "^8.13.1",
     "pg-boss": "^10.1.5",
     "pino-pretty": "^11.2.2",
+    "random-words": "^2.0.1",
     "reflect-metadata": "^0.2.2",
     "svelte": "^4.2.19",
     "uuid": "^10.0.0",

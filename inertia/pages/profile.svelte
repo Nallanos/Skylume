@@ -1,7 +1,7 @@
 <script lang="ts">
   import Layout from '@/components/layout.svelte'
   import { router } from '@inertiajs/svelte'
-  import { Input } from '../lib/ui/input/'
+  import { Input } from '../lib/ui/input'
   import { page } from '@inertiajs/svelte'
   let token_app_password = ''
   let bksy_social = ''
@@ -14,7 +14,7 @@
 <main class="container pt-12 justify-center items-center w-2/3 flex px-0">
   <div class="border border-gray-800 rounded-md w-full px-4">
     <div>
-      <h1 class="text-2xl font-semibold pt-4">Link your bluesky account with appPassword</h1>
+      <h1 class="text-2xl font-semibold pt-4">Link your bluesky account with an app password</h1>
       <p class="py-2">
         We've chosen to implement appPasswords to provide seamless, secure access without
         compromising your main account credentials. With appPasswords, you stay in control—easily
@@ -37,7 +37,7 @@
         <p>Bluesky will then give you a unique token.</p>
         <h3 class="font-medium text-lg pt-2">Step 2: Give us the authorization</h3>
         <p>Copy and paste the token and your Bluesky social here:</p>
-        {#if $page.props.errors && $page.props.errors.credentials == 'Invalid social or password'}
+        {#if $page.props.errors}
           <p class="text-red-500">{$page.props.errors.credentials}</p>
         {/if}
         <form on:submit|preventDefault={handleSubmit}>
