@@ -12,7 +12,7 @@ import { middleware } from './kernel.js'
 import Account from '#models/account'
 import Listener from '#models/listener'
 router.on('/').renderInertia('home')
-router.on('/settings').renderInertia('settings').use(middleware.auth())
+router.on('/profile').renderInertia('profile').use(middleware.auth())
 router.on('/schedule').renderInertia('schedule').use(middleware.auth())
 router.on('/sign-up').renderInertia('sign-up')
 router.on('/login').renderInertia('login')

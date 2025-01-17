@@ -1,7 +1,7 @@
 <script lang="ts" context="module">
   import { Button } from '@/ui/button'
   import { router } from '@inertiajs/svelte'
-  import { Settings, House, Bot, CalendarCheck2 } from 'lucide-svelte'
+  import { CircleUser, House, Bot, CalendarCheck2 } from 'lucide-svelte'
 </script>
 
 <header class="container mx-auto w-2/3 flex flex-row items-center gap-6 pt-12 px-0">
@@ -21,9 +21,9 @@
       <p>Schedule your post</p></a
     >
 
-    <a href="/settings" class="w-full flex h-full justify-center items-center gap-2"
-      ><Settings class="size-4" />
-      <p>Settings</p></a
+    <a href="/profile" class="w-full flex h-full justify-center items-center gap-2"
+      ><CircleUser class="size-4" />
+      <p>Profile</p></a
     >
   </nav>
   <form

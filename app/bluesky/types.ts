@@ -1,4 +1,5 @@
 import type Account from '#models/account'
+import type { MessageInput } from '@atproto/api/dist/client/types/chat/bsky/convo/defs.js'
 import type { EventStrategy } from '@skyware/bot'
 
 // Base event type with generic event name
@@ -31,9 +32,5 @@ export type NotificationData = {
 
 export type MessagePayload = {
   convoId: string; // L'ID de la conversation
-  message: {
-    text: string; // Le texte du message (obligatoire, max 10,000 caractères)
-    facets?: object[]; // Facettes optionnelles (si nécessaires)
-    embed?: object; // Embed optionnel (si nécessaire)
-  };
+  message: MessageInput
 }

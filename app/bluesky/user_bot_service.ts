@@ -3,22 +3,18 @@ import Listener from '#models/listener'
 import { type AtpSessionData, AtpAgent, } from '@atproto/api'
 import { EventListener } from './bot.js'
 import type { NotificationData } from './types.js'
-import { RateLimitedAgent } from '@skyware/bot'
-import { RateLimitThreshold } from "rate-limit-threshold";
+
 /**
  * Manages bot services for an account, including listener handling
  */
 export default class UserBotService {
-  public handlers: Map<number, EventListener> = new Map()
+  public handlers: Map<string, EventListener> = new Map()
   private agent: AtpAgent;
-  private chat: RateLimitedAgent;
+  private chat: AtpAgent | undefined;
+
   constructor(private accounts: Account[]) {
     console.log("instance of user bot service created")
     this.agent = new AtpAgent({ service: "https://bsky.social" })
-    this.chat = new RateLimitedAgent(
-      { handler: this.agent.fetchHandler },
-      new RateLimitThreshold(3000, 300),
-    ).withProxy("bsky_chat", "did:web:api.bsky.chat");
     this.initializeMapHandler()
   }
 
@@ -34,7 +30,7 @@ export default class UserBotService {
       }
 
       this.handlers = new Map(
-        listeners.map((listener) => [listener.id, new EventListener(this.chat, this.agent, listener.event, listener.action, listener.id, listener.account_id, listener.message)])
+        listeners.map((listener) => [listener.id, new EventListener(this.agent, listener.event, listener.action, listener.id, listener.account_id, listener.message)])
       )
 
       if (this.handlers.size != listeners.length) {
@@ -49,7 +45,7 @@ export default class UserBotService {
   /**
    * Removes a handler from the managed map listeners
    */
-  public async removeHandlerFromMap(listener_id: number): Promise<void> {
+  public async removeHandlerFromMap(listener_id: string): Promise<void> {
     try {
       this.handlers.delete(listener_id)
     } catch (err) {
@@ -60,7 +56,7 @@ export default class UserBotService {
   /**
    * Adds a new handler to the managed map listeners
    */
-  public async addHandlerToMap(listener_id: number): Promise<void> {
+  public async addHandlerToMap(listener_id: string): Promise<void> {
     try {
       const listener = await Listener.find(listener_id)
       const account = await Account.find(listener?.account_id)
@@ -70,7 +66,7 @@ export default class UserBotService {
         return
       }
 
-      this.handlers.set(listener_id, new EventListener(this.chat, this.agent, listener.event, listener.action, listener.id, account.id, listener.message))
+      this.handlers.set(listener_id, new EventListener(this.agent, listener.event, listener.action, listener.id, account.id, listener.message))
       console.log("updated handlers map :", this.handlers)
     } catch (err) {
       console.error('Handler addition failed:', err)
@@ -149,7 +145,7 @@ export default class UserBotService {
   /**
    * Stops a specific listener
    */
-  public stop(listener_id: number): void {
+  public stop(listener_id: string): void {
     try {
       const bot = this.handlers.get(listener_id)
       if (bot == undefined) {
@@ -165,7 +161,7 @@ export default class UserBotService {
   /**
    * Starts a specific listener
    */
-  public async start(listener_id: number, did: string): Promise<void> {
+  public async start(listener_id: string, did: string): Promise<void> {
     try {
       await this.addHandlerToMap(listener_id).then(async () => {
         let bot = this.handlers.get(listener_id)
@@ -193,9 +189,10 @@ export default class UserBotService {
 
         account.session = JSON.stringify(session)
         account.save()
-        console.log("New session created!");
+        console.log("New session created!", session.accessJwt);
       }
-      if (account.at_session) {
+      else if (account.at_session) {
+        console.log("Resuming session...");
         await this.agent.resumeSession({
           accessJwt: account.at_session.accessJwt,
           refreshJwt: account.at_session.refreshJwt,

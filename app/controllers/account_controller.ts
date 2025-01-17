@@ -41,6 +41,10 @@ export default class AccountController {
       return response.redirect('/dashboard');
     } catch (err) {
       console.log(err)
+      if (err.error = "AuthFactorTokenRequired") {
+        session.flash("errors.credentials", "Please, check your email for the double factor authentication")
+        return response.redirect().back()
+      }
       session.flash("errors.credentials", "Invalid social or password")
       return response.redirect().back()
     }
@@ -49,12 +53,20 @@ export default class AccountController {
 
 
   public async deleteAccount({ request, response }: HttpContext) {
-    const data = request.only(['id'])
-    const account = await Account.findBy('id', data.id)
-    if (account) {
+    try {
+      const data = request.only(['id'])
+      const account = await Account.findBy('id', data.id)
+      if (!account) {
+        throw new Error("Account not found")
+      }
+      console.log(account.$attributes)
       await queue_manager.removeJob(account)
-      account.delete()
+      await account.delete()
+      response.redirect().back()
+    } catch (err) {
+      console.log("error while deleting account", err)
       response.redirect().back()
     }
   }
+
 }

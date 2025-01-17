@@ -9,14 +9,13 @@ interface BotJobPayload {
 
 const handle = async (data: BotJobPayload): Promise<void> => {
   try {
-    console.log(`[INFO] Starting job for account ID: ${data.account_id}`);
 
     const accountWithMethod = await Account.find(data.account_id);
     if (!accountWithMethod) {
       throw new Error(`Account not found for ID: ${data.account_id}`);
     }
 
-    console.log(`[INFO] Processing account: ID=${accountWithMethod.id}, handle=${accountWithMethod.handle}`);
+    console.log(`\n[INFO] Processing account: ID=${accountWithMethod.id}, handle=${accountWithMethod.handle}`);
 
     let user_service = users_bot_service_manager.userbotServiceMap.get(accountWithMethod.userId);
     if (!user_service) {
@@ -34,15 +33,16 @@ const handle = async (data: BotJobPayload): Promise<void> => {
 
     const notificationData: NotificationData[] | undefined = await user_service.fetchAccountNotifications(accountWithMethod);
     if (!notificationData) {
-      console.warn(`[WARN] No notifications found for account: ${accountWithMethod.handle}`);
+      console.log(`\n[INFO] No notifications found for account: ${accountWithMethod.handle}`);
       return;
     }
+    console.log(`\n[INFO] Notifications of the account: ${notificationData.length}`);
+    console.log(`\n[INFO] Seen Notification for account: ${accountWithMethod.handle}`);
 
-    console.log(`[INFO] Updating seenNotificationAt for account: ${accountWithMethod.handle}`);
     accountWithMethod.seenNotificationAt = new Date().toISOString();
     await accountWithMethod.save();
 
-    console.log(`[INFO] Starting listeners for account: ${accountWithMethod.handle}`);
+    console.log(`\n[INFO] Starting listeners for account: ${accountWithMethod.handle}`);
     await user_service.startAllListeners(notificationData, listeners);
 
   } catch (err) {

@@ -2,8 +2,7 @@ import { HttpContext } from '@adonisjs/core/http'
 import Account from '#models/account';
 import Listener from '#models/listener';
 import UsersBotServiceManager from '../bluesky/users_bot_service_manager.js';
-import crypto from 'crypto';
-
+import { generate } from 'random-words';
 export default class BotsController {
     public async addBot({ request, response, session, auth }: HttpContext) {
         try {
@@ -17,7 +16,11 @@ export default class BotsController {
             if (account === null) {
                 throw new Error("no account found")
             }
-
+            const word = generate({ exactly: 1, wordsPerString: 1, minLength: 5, maxLength: 10 })[0]
+            if (!word) {
+                throw new Error("error while generating a word with random-words")
+            }
+            await UsersBotServiceManager.initOneUserBotService(user.id)
             await Listener.create({
                 event: event,
                 action: action,
@@ -25,8 +28,9 @@ export default class BotsController {
                 message: message,
                 account_id: account.id,
                 user_id: user.id,
-                id: crypto.randomBytes(16).toString('hex')
+                id: word
             })
+
             return response.redirect("/dashboard")
         } catch (err) {
             console.log("error while adding a bot", err)
@@ -34,7 +38,7 @@ export default class BotsController {
         }
 
     }
-    public async removeBot({ request, response, session, auth }: HttpContext) {
+    public async removeBot({ request, response, auth }: HttpContext) {
         try {
             if (UsersBotServiceManager == undefined) {
                 throw Error("UsersBotServiceManager is undefined")
@@ -42,19 +46,26 @@ export default class BotsController {
             const user = await auth.authenticate()
             const { listener_id } = request.only(["listener_id"]);
             const listener = await Listener.find(listener_id)
-            if (listener) {
-                const bot_service = UsersBotServiceManager.userbotServiceMap.get(user.id)
-                if (bot_service) {
-                    bot_service.stop(listener_id)
-                    bot_service.removeHandlerFromMap(listener_id)
-                    listener.delete()
-                    return response.redirect("/dashboard")
-                }
-                return response.redirect().back()
+            if (!listener) {
+                throw new Error("no listener found with", listener_id)
             }
+
+            console.log(UsersBotServiceManager.userbotServiceMap)
+            const bot_service = UsersBotServiceManager.userbotServiceMap.get(user.id)
+            if (!bot_service) {
+                throw new Error(`no bot service found ${user.id}`)
+            }
+            bot_service.stop(listener.id)
+            await bot_service.removeHandlerFromMap(listener.id)
+            await listener.delete()
+            return response.redirect().back()
         } catch (err) {
-            console.log(err)
-            session.flash("error", err)
+            console.log("error while removing a bot", err)
+            return response.redirect().back()
         }
+    }
+
+    public async editBotName() {
+
     }
 }

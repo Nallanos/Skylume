@@ -1,18 +1,18 @@
-import { AtpAgent } from "@atproto/api";
 import { getConvoFromMembers, sendMessageToConvo } from "./chatAPI.js";
-import Account from "#models/account";
 import type { MessagePayload } from "./types.js";
-import type { RateLimitedAgent } from "@skyware/bot";
+import Account from "#models/account";
+import { AtpAgent } from "@atproto/api";
 export class EventListener {
     constructor(
-        private chatAgent: RateLimitedAgent,
         private agent: AtpAgent,
         private event: string,
         public action: string,
-        public listener_id: number,
+        public listener_id: string,
         private account_id: string,
         private message?: string,
-    ) { }
+    ) {
+
+    }
 
     /**
      * Activates event listening based on configured action
@@ -35,14 +35,30 @@ export class EventListener {
     public async onFollowSendMessage(authorDid: string): Promise<void> {
         try {
             const account = await Account.find(this.account_id)
+
+
             if (!account) {
                 throw new Error(`can't find account with the following account_id: ${this.account_id}`)
             }
+
+            if (account.at_session?.handle == undefined) {
+                throw new Error("handle is undefined")
+            }
+
+
+
             console.log("in send message")
+
             if (this.message == undefined) {
                 throw new Error("given message is undefined")
             }
-            const convo = await getConvoFromMembers([authorDid], this.chatAgent)
+
+            let res = await this.agent.com.atproto.server.getServiceAuth({ aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.getConvoForMembers" });
+
+            console.log(res.data.token)
+            res = await this.agent.com.atproto.server.getServiceAuth({ aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.getConvoForMembers" }, { headers: { Authorization: `Bearer ${account.at_session.accessJwt}` } })
+            let chatToken = res.data.token
+            const convo = await getConvoFromMembers([authorDid], chatToken)
             if (!convo) {
                 throw new Error("convos is undefined")
             }
@@ -52,7 +68,11 @@ export class EventListener {
                     text: this.message
                 }
             }
-            await sendMessageToConvo(sendMessagePayload, this.chatAgent)
+
+            res = await this.agent.com.atproto.server.getServiceAuth({ aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.sendMessage" });
+            chatToken = res.data.token
+
+            await sendMessageToConvo(sendMessagePayload, chatToken)
         } catch (err) {
             console.log("error while sending message on follow:", err)
         }
