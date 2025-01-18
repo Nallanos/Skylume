@@ -51,9 +51,13 @@ export default class BotsController {
             }
 
             console.log(UsersBotServiceManager.userbotServiceMap)
-            const bot_service = UsersBotServiceManager.userbotServiceMap.get(user.id)
+            let bot_service = UsersBotServiceManager.userbotServiceMap.get(user.id)
             if (!bot_service) {
-                throw new Error(`no bot service found ${user.id}`)
+                await UsersBotServiceManager.initOneUserBotService(user.id)
+                bot_service = UsersBotServiceManager.userbotServiceMap.get(user.id)
+                if (!bot_service) {
+                    throw new Error(`no bot service found ${user.id}`)
+                }
             }
             bot_service.stop(listener.id)
             await bot_service.removeHandlerFromMap(listener.id)

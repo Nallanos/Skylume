@@ -1,7 +1,7 @@
 <script lang="ts">
   import LayoutLandingPage from '@/components/layoutLandingPage.svelte'
   import Button from '@/ui/button/button.svelte'
-  import { Handshake, Check, Lock, MessageSquare, Hourglass, Star } from 'lucide-svelte'
+  import { MessageSquare, Hourglass, Star } from 'lucide-svelte'
 </script>
 
 <LayoutLandingPage />
@@ -9,22 +9,20 @@
   <section class="flex flex-col items-center gap-4">
     <div class="w-full px-4">
       <h1 class="text-4xl md:text-6xl">
-        <b class="bg-gradient-to-r from-teal-400 to-blue-700 bg-clip-text text-transparent">Boost</b
+        <b class="bg-gradient-to-r from-teal-400 to-blue-700 bg-clip-text text-transparent"
+          >Increase</b
         >
         Your Bluesky
-        <b class="bg-gradient-to-r from-teal-400 to-blue-700 bg-clip-text text-transparent"
-          >Conversions</b
+        <b class="bg-gradient-to-r from-teal-400 to-blue-700 bg-clip-text text-transparent">Sales</b
         >
         by
         <b class="bg-gradient-to-r from-teal-400 to-blue-700 bg-clip-text text-transparent">2x</b>
-        with Bots That
+        by marketing on
         <b class="bg-gradient-to-r from-teal-400 to-blue-700 bg-clip-text text-transparent"
-          >Engage</b
-        > Instantly
+          >BlueSky.</b
+        >
       </h1>
-      <h3 class="text-lg md:text-xl pt-4">
-        30 days free to boost your Bluesky conversions with engaging bots guaranteed
-      </h3>
+      <h3 class="text-lg md:text-xl pt-4">30 days free to boost your sales with engaging bots</h3>
     </div>
     <div class="flex flex-col items-center gap-3">
       <Button
@@ -35,7 +33,7 @@
       >
         Join the Waitlist
       </Button>
-      <p class="text-gray-400 text-sm">Get ahead with your Bluesky strategy.</p>
+      <p class="text-gray-400 text-sm">Get traction on your start up.</p>
     </div>
   </section>
 
@@ -44,7 +42,9 @@
       <div class="max-w-6xl mx-auto px-4 md:px-6">
         <!-- Header Section -->
         <div class="text-center mb-6">
-          <h1 class="text-lg md:text-xl font-bold">Everything you need - all in one platform.</h1>
+          <h1 class="text-lg md:text-xl font-bold">
+            Everything you need for boost your sales on your start up.
+          </h1>
           <p class="text-sm md:text-l text-gray-400">
             From setup to growth - engage effortlessly without leaving Bluesky.
           </p>
@@ -60,36 +60,6 @@
             <h2 class="text-lg font-semibold">Chat</h2>
             <p class="text-gray-400">
               <b>Double engagement</b> with <b>auto-send messages</b> on Bluesky
-            </p>
-          </div>
-
-          <!-- Feature: Deployments -->
-          <div class="text-center">
-            <div class="flex justify-center items-center text-2xl"><Handshake /></div>
-            <h2 class="text-lg font-semibold">Trust</h2>
-            <p class="text-gray-400">
-              Enhance <b>customer relationships</b> on Bluesky with <b>auto-sent messages</b>,
-              delivering instant, <b>personalized responses</b> that build <b>trust</b> and
-              <b>loyalty</b>.
-            </p>
-          </div>
-
-          <!-- Feature: Easy to Use -->
-          <div class="text-center">
-            <div class="flex justify-center items-center text-2xl"><Check /></div>
-            <h2 class="text-lg font-semibold">Easy to Use</h2>
-            <p class="text-gray-400">
-              Easy to set up and simple to use, Bluesky-Copilot makes <b>engagement effortless</b>.
-            </p>
-          </div>
-
-          <!-- Feature: Risk-free -->
-          <div class="text-center">
-            <div class="flex justify-center items-center text-2xl"><Lock /></div>
-            <h2 class="text-lg font-semibold">Risk-free</h2>
-            <p class="text-gray-400">
-              Experience the full power of Bluesky with a <b>free trial</b> - <b>no commitment</b>,
-              just <b>results</b>.
             </p>
           </div>
 
