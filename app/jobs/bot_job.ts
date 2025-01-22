@@ -37,7 +37,6 @@ const handle = async (data: BotJobPayload): Promise<void> => {
       return;
     }
     console.log(`\n[INFO] Notifications of the account: ${notificationData.length}`);
-    console.log(`\n[INFO] Seen Notification for account: ${accountWithMethod.handle}`);
 
     accountWithMethod.seenNotificationAt = new Date().toISOString();
     await accountWithMethod.save();

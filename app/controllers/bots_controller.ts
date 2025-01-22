@@ -72,4 +72,19 @@ export default class BotsController {
     public async editBotName() {
 
     }
+    public async refreshBotData({ request, response }: HttpContext) {
+        try {
+            const { listenerId } = request.only(["listenerId"]);
+            console.log(listenerId)
+            const listener = await Listener.query().where("id", listenerId).first()
+            if (!listener) {
+                throw new Error("no listener found with", listenerId)
+            }
+            console.log(listener.convos)
+            return response.redirect().back()
+        } catch (err) {
+            console.log("error while refreshing bot data", err)
+            return response.redirect().back()
+        }
+    }
 }

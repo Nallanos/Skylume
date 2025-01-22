@@ -13,6 +13,8 @@ export default class extends BaseSchema {
       table.float("wait_time")
       table.string("action")
       table.string("message")
+      table.integer("number_of_message_sent").defaultTo(0)
+      table.integer("number_of_message_received").defaultTo(0)
     })
   }
 
