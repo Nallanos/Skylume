@@ -11,8 +11,9 @@
   }
 </script>
 
-<div
+<a
   class="pl-2 flex flex-col w-full border justify-center items-center border-gray-800 rounded-md p-2 h-24"
+  href={`/bot/${bot.id}`}
 >
   <header class="flex items-center w-full">
     <h4 class=" w-full mx-auto">
@@ -30,4 +31,4 @@
       {bot.action}
     {/if}
   </p>
-</div>
+</a>

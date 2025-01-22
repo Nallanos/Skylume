@@ -67,7 +67,6 @@ export default class UserBotService {
       }
 
       this.handlers.set(listener_id, new EventListener(this.agent, listener.event, listener.action, listener.id, account.id, listener.message))
-      console.log("updated handlers map :", this.handlers)
     } catch (err) {
       console.error('Handler addition failed:', err)
     }
@@ -79,7 +78,6 @@ export default class UserBotService {
   public async startAllListeners(notificationData: NotificationData[], listeners: Listener[]): Promise<void> {
     try {
       notificationData.forEach(async (notification) => {
-        console.log("starting notifcation:", notification)
         const userListeners = await this.getListenersOn(notification.event, listeners)
 
         // Sort the listeners array to ensure that "Follow" actions are processed first
@@ -189,10 +187,8 @@ export default class UserBotService {
 
         account.session = JSON.stringify(session)
         account.save()
-        console.log("New session created!", session.accessJwt);
       }
       else if (account.at_session) {
-        console.log("Resuming session...");
         await this.agent.resumeSession({
           accessJwt: account.at_session.accessJwt,
           refreshJwt: account.at_session.refreshJwt,
@@ -210,12 +206,9 @@ export default class UserBotService {
     try {
       const response = await this.agent.listNotifications();
       if (!response) {
-        console.log("response undefined in fetchAccountNotifications");
         throw new Error("list notification response is undefined");
       }
-      console.log(new Date(response.data.notifications[0].indexedAt), new Date(account.seenNotificationAt))
       const newNotification = response.data.notifications.filter((notification) => new Date(notification.indexedAt) > new Date(account.seenNotificationAt))
-      console.log(newNotification)
       return newNotification.map((notification) => ({
         authorDid: notification.author.did,
         event: notification.reason,

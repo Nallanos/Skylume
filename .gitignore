@@ -25,3 +25,4 @@ yarn-error.log
 .DS_Store
 commands/follow.ts
 app/models/follow.ts
+commands/unfollow.ts

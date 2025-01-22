@@ -86,4 +86,27 @@
       </div>
     </div>
   </section>
+
+  <section class="flex flex-col items-center gap-12">
+    <div class="text-center">
+      <h2 class="text-lg font-semibold text-blue-500 uppercase tracking-wide">Key Features</h2>
+      <h1 class="mt-2 text-4xl font-extrabold leading-tight">
+        Discover the Features That Make Bluesky Bot Stand Out
+      </h1>
+    </div>
+    <div class="justify-center items-center flex max-w-screen-lg mx-auto overflow-hidden w-full">
+      <img
+        src="resources/images/Dashboard.webp"
+        alt="Dashboard preview"
+        class="max-w-full border border-gray-800 rounded-md"
+      />
+      <div class="flex flex-col px-4 mt-4 md:mt-0">
+        <h3 class="text-xl font-semibold">Get Customers, Effortlessly.</h3>
+        <p class="mt-2 text-sm text-gray-300">
+          Get more customers by converting your Bluesky audience into loyal buyers with automated,
+          personalized messages that drive real results and boost your growth.
+        </p>
+      </div>
+    </div>
+  </section>
 </main>

@@ -8,10 +8,10 @@
   page.URL
   export let apiAuth: string
   export let error: any
-  // const srcLogoBSKY = '../../../resources/images/Bluesky_Logo.png'
+
   let email = ''
   let password = ''
-  let marketing_consent = false
+  let marketing_consent = true
   let response: Response | undefined
   async function handleSubmit() {
     console.log(marketing_consent)

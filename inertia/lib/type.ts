@@ -1,4 +1,4 @@
-export type EventType = "mention" | "follow" | "reply"
+export type EventType = "mention" | "follow" | "reply" | 'like'
 
 export type BotPayload = {
     handle: string;
@@ -15,4 +15,5 @@ export type Listener = {
     wait_time: number
     message: string
     action: string
+    numberOfMessageSent: number
 }
