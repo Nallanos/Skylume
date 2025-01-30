@@ -1,5 +1,5 @@
-import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
-import { BaseModel, belongsTo, column, hasMany, } from '@adonisjs/lucid/orm'
+import type { BelongsTo, ManyToMany } from '@adonisjs/lucid/types/relations'
+import { BaseModel, belongsTo, column, manyToMany, } from '@adonisjs/lucid/orm'
 
 import Convo from './convo.js'
 import Account from './account.js'
@@ -33,17 +33,17 @@ export default class Listener extends BaseModel {
   declare action: string
 
   @column()
-  declare numberOfMessageSent: number
+  declare number_of_message_sent: number
 
   @column()
-  declare numberOfMessageReceived: number
+  declare number_of_message_received: number
+
+  @manyToMany(() => Convo)
+  declare convos: ManyToMany<typeof Convo>
 
   @belongsTo(() => Account)
   declare account: BelongsTo<typeof Account>
 
-  @belongsTo(() => User)
+  @belongsTo(() => User, { foreignKey: 'account_id' })
   declare user: BelongsTo<typeof User>
-
-  @hasMany(() => Convo)
-  declare convos: HasMany<typeof Convo>
 }

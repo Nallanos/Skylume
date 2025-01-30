@@ -16,4 +16,9 @@ export type Listener = {
     message: string
     action: string
     numberOfMessageSent: number
+    numberOfMessageReceived: number
 }
+
+export type MetricData = {
+    
+} 

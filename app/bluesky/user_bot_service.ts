@@ -9,8 +9,7 @@ import type { NotificationData } from './types.js'
  */
 export default class UserBotService {
   public handlers: Map<string, EventListener> = new Map()
-  private agent: AtpAgent;
-  private chat: AtpAgent | undefined;
+  public agent: AtpAgent;
 
   constructor(private accounts: Account[]) {
     console.log("instance of user bot service created")

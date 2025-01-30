@@ -31,7 +31,7 @@
           <img
             src="../../resources/images/CreateAppPassword.png"
             class="rounded-3xl py-4 w-[30%]"
-            alt="Create App Password"
+            alt="Create bluesky account"
           />
         </div>
         <p>Bluesky will then give you a unique token.</p>
@@ -59,7 +59,7 @@
             <button
               type="submit"
               class="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600"
-              >Add app protection</button
+              >Add your bluesky account</button
             >
           </div>
         </form>

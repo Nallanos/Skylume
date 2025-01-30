@@ -4,6 +4,7 @@ import AccountService from '#services/account_service';
 import Account from '#models/account'
 import { inject } from '@adonisjs/core'
 import queue_manager from '../bluesky/queue_manager.js';
+import Listeners_convos from '#models/listeners_convos';
 @inject()
 export default class AccountController {
   constructor(protected account_service: AccountService) { }
@@ -55,12 +56,17 @@ export default class AccountController {
   public async deleteAccount({ request, response }: HttpContext) {
     try {
       const data = request.only(['id'])
-      const account = await Account.findBy('id', data.id)
+      const account = await Account.query().where('id', data.id).preload("listeners").firstOrFail()
       if (!account) {
         throw new Error("Account not found")
       }
       console.log(account.$attributes)
       await queue_manager.removeJob(account)
+
+      for (const listener of account.listeners) {
+        await Listeners_convos.query().where('listeners_id', listener.id).delete()
+        await listener.delete()
+      }
       await account.delete()
       response.redirect().back()
     } catch (err) {

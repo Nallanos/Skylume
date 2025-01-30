@@ -6,7 +6,7 @@
   import Textarea from '@/ui/textarea/textarea.svelte'
   import type Account from '#models/account'
   export let accounts: Account[]
-  const events: EventType[] = ['mention', 'follow', 'reply', 'like']
+  const events: EventType[] = ['follow', 'reply', 'like']
   const actions = ['Follow', 'Send a Message']
   let event: string
   let action: string

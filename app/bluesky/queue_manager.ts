@@ -85,7 +85,6 @@ class QueueManager {
 
     public async removeJob(account: Account) {
         const jobs = await redis.keys(`bull:${this.queueName}:repeat:${account.jobId}:*`)
-        console.log(`got job :${jobs} with ${account.jobId}`)
         await redis.del(jobs)
     }
 }
