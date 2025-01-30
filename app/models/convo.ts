@@ -1,14 +1,14 @@
-import { BaseModel, column, belongsTo } from '@adonisjs/lucid/orm'
+import { BaseModel, column, manyToMany } from '@adonisjs/lucid/orm'
 import Listener from './listener.js'
-import type { BelongsTo } from '@adonisjs/lucid/types/relations'
+import type { ManyToMany } from '@adonisjs/lucid/types/relations'
 
 export default class Convo extends BaseModel {
   @column({ isPrimary: true })
   declare id: string
 
   @column()
-  declare listener_id: string
+  declare did: string
 
-  @belongsTo(() => Listener)
-  declare listener: BelongsTo<typeof Listener>
+  @manyToMany(() => Listener)
+  declare listeners: ManyToMany<typeof Listener>
 }

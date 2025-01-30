@@ -1,8 +1,4 @@
-import type Listener from "#models/listener";
 import type { MessagePayload } from "./types.js";
-import type { AtpAgent } from "@atproto/api";
-
-
 
 export async function getConvoFromMembers(
     members: Array<string>,
@@ -25,14 +21,13 @@ export async function getConvoFromMembers(
         if (!response.ok) {
             throw new Error(`Erreur HTTP ! Statut : ${response.status}, error : ${JSON.stringify(data)}`);
         }
-
         return data.convo;
     } catch (error) {
         console.error("Échec de la récupération de la conversation à partir des membres", error);
     }
 }
 
-export async function sendMessageToConvo(payload: MessagePayload, chatToken: string, listener: Listener) {
+export async function sendMessageToConvo(payload: MessagePayload, chatToken: string) {
     try {
         const url = `https://api.bsky.chat/xrpc/chat.bsky.convo.sendMessage`;
         const response = await fetch(url, {
@@ -53,8 +48,6 @@ export async function sendMessageToConvo(payload: MessagePayload, chatToken: str
             throw new Error(`Erreur HTTP ! Statut : ${response.status}, error : ${JSON.stringify(data)}`);
         }
 
-        listener.numberOfMessageSent++;
-        await listener.save();
     } catch (error) {
         console.error("Error:", error);
     }

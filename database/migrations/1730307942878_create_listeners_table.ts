@@ -7,8 +7,8 @@ export default class extends BaseSchema {
     this.schema.createTable(this.tableName, (table) => {
       table.string("id").unique().nullable().primary()
       table.string("account_id").references("accounts.id").onDelete('CASCADE')
-      table.string("user_id").references("users.id").onDelete("CASCADE")
       table.string("event")
+      table.string("user_id").references("users.id").onDelete("CASCADE")
       table.string("handler")
       table.float("wait_time")
       table.string("action")

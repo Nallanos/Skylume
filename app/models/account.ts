@@ -36,7 +36,7 @@ export default class Account extends BaseModel {
   @column()
   declare handle: string
 
-  @hasMany(() => Listener)
+  @hasMany(() => Listener, { foreignKey: 'account_id' })
   declare listeners: HasMany<typeof Listener>
 
   @belongsTo(() => User)
