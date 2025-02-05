@@ -12,6 +12,7 @@ export default class extends BaseSchema {
       table.string("handler")
       table.float("wait_time")
       table.string("action")
+      table.boolean("is_active").defaultTo(true)
       table.string("message")
       table.integer("number_of_message_sent").defaultTo(0)
       table.integer("number_of_message_received").defaultTo(0)

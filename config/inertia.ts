@@ -1,3 +1,4 @@
+import type Account from '#models/account'
 import { defineConfig } from '@adonisjs/inertia'
 import type { InferSharedProps } from '@adonisjs/inertia/types'
 
@@ -11,6 +12,17 @@ const inertiaConfig = defineConfig({
    */
   sharedData: {
     errors: (ctx) => ctx.session?.flashMessages.get('errors'),
+    user: async (ctx) => {
+      const user = ctx.auth?.user
+
+      if (user) {
+        await user.load('account')
+        for (const account of user.account) {
+          await account.load('listeners')
+        }
+      }
+      return ctx.auth?.user
+    },
   },
 
   /**

@@ -1,0 +1,378 @@
+<script lang="ts">
+  import { page, router } from '@inertiajs/svelte'
+  import Button from '@/ui/button/button.svelte'
+  import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/ui/table'
+  import { Card, CardContent, CardHeader, CardTitle } from '@/ui/card'
+  import { Input } from '@/ui/input'
+  import { Switch } from '@/ui/switch'
+  import {
+    Trash,
+    Pencil,
+    Plus,
+    Check,
+    X,
+    ArrowUpRight,
+    MessageSquareText,
+    ArrowDownRight,
+    Server,
+    Activity,
+  } from 'lucide-svelte'
+  import Sidebar from '@/components/Sidebar.svelte'
+  import type User from '#models/user'
+  import type Account from '#models/account'
+  import type { Listener } from '@/type'
+  import { onMount } from 'svelte'
+
+  export let account: Account | undefined
+
+  onMount(async () => {
+    for (const listener of listeners) {
+      console.log(listener.numberOfMessageReceived)
+      await router.post('/bot/refresh', { listenerId: listener.id })
+    }
+  })
+  // États réactifs
+  let user: User = $page.props.user
+  let accounts = user.account as unknown as Account[]
+  let editingListenerId: string | null = null
+  let newMessage = ''
+  let isProcessing = false
+
+  if (!account) {
+    throw new Error('Account not found')
+  }
+
+  $: listeners = account.listeners as unknown as Listener[]
+  $: totalEngagement = listeners.reduce(
+    (sum, l) => sum + l.numberOfMessageSent + l.numberOfMessageReceived,
+    0
+  )
+  $: totalResponses = listeners.reduce((sum, l) => sum + l.numberOfMessageReceived, 0)
+  $: activeListeners = listeners.filter((l) => l.isActive).length
+
+  // Gestion des états
+  async function toggleListener(listener: Listener) {
+    try {
+      isProcessing = true
+      await router.post(`/bot/toggle`, {
+        listener_id: listener.id,
+      })
+    } catch (error) {
+      console.error('Toggle error:', error)
+    } finally {
+      isProcessing = false
+    }
+  }
+
+  async function saveMessage(listener: Listener) {
+    if (!newMessage.trim()) return
+    try {
+      await router.put(`/bot/update`, { listenerId: listener.id, message: newMessage })
+      listener.message = newMessage
+      editingListenerId = null
+    } catch (error) {
+      console.error('Update error:', error)
+    }
+  }
+
+  function startEditing(listener: Listener) {
+    editingListenerId = listener.id
+    newMessage = listener.message
+  }
+
+  function deleteListener(listener_id: string) {
+    router.post('/bot/remove', { listener_id: listener_id })
+  }
+</script>
+
+<main class="flex min-h-screen">
+  <Sidebar {user} {accounts} />
+
+  <div class="flex flex-col flex-1 overflow-hidden">
+    <!-- Header avec animation au scroll -->
+    <header class="sticky top-0 z-10 backdrop-blur-sm border-b border-gray-800 transition-all">
+      <div class="flex items-center justify-between px-8 py-6">
+        <div class="space-y-1">
+          <h1 class="text-3xl font-bold">Account Dashboard</h1>
+          <p class="text-sm text-gray-400">
+            Managing automation for <span class="font-semibold text-blue-300"
+              >@{account.handle}</span
+            >
+          </p>
+        </div>
+        <Button href="/bot" class="group hover:scale-[1.02] transition-transform">
+          <Plus class="mr-2 h-4 w-4 transition-transform group-hover:rotate-90" />
+          Add New Bot
+        </Button>
+      </div>
+    </header>
+
+    <!-- Statistiques avec entrée animée -->
+    <div class="flex w-full gap-6 px-8 py-6 animate-fade-in-up">
+      <!-- Total Engagement Card -->
+      <Card
+        class="hover:border-blue-400 transition-all duration-300 w-full group relative overflow-hidden"
+      >
+        <div
+          class="absolute top-0 right-0 w-16 h-16 bg-blue-500/10 rounded-bl-2xl transition-colors"
+        />
+
+        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle class="text-sm font-medium text-gray-300">
+            Platform Activity
+            <span class="text-blue-400 text-xs ml-1">(+24h)</span>
+          </CardTitle>
+          <div class="relative p-2 bg-gradient-to-br from-blue-600 to-blue-400 rounded-lg">
+            <Activity class="h-5 w-5 text-white" />
+          </div>
+        </CardHeader>
+
+        <CardContent>
+          <div class="text-3xl font-bold text-blue-400 flex items-center gap-2">
+            {totalEngagement}
+            <span class="text-sm text-blue-300 font-normal flex items-center">
+              <ArrowUpRight class="h-4 w-4 mr-1" />8%
+            </span>
+          </div>
+          <p class="text-sm text-gray-400 mt-1">Engagement rate this month</p>
+
+          <div
+            class="absolute bottom-2 right-2 opacity-10 group-hover:opacity-20 transition-opacity"
+          >
+            <svg width="80" height="80" viewBox="0 0 24 24" class="fill-current text-blue-400">
+              <path
+                d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
+              />
+            </svg>
+          </div>
+        </CardContent>
+      </Card>
+
+      <!-- Active Bots Card -->
+      <Card
+        class="hover:border-green-400 transition-all duration-300 w-full group relative overflow-hidden"
+      >
+        <div
+          class="absolute top-0 right-0 w-16 h-16 bg-green-500/10 rounded-bl-2xl transition-colors"
+        />
+
+        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle class="text-sm font-medium text-gray-300">
+            Active Listeners
+            <span class="text-green-400 text-xs ml-1">Live</span>
+          </CardTitle>
+          <div class="relative p-2 bg-gradient-to-br from-green-600 to-green-400 rounded-lg">
+            <div class="relative h-5 w-5">
+              <div class="absolute inset-0 bg-white/20 rounded-full animate-pulse" />
+              <Server class="h-5 w-5 text-white relative" />
+            </div>
+          </div>
+        </CardHeader>
+
+        <CardContent>
+          <div class="text-3xl font-bold text-green-400 flex items-center gap-2">
+            {activeListeners}
+            <span class="text-sm text-green-300 font-normal flex items-center">
+              <ArrowDownRight class="h-4 w-4 mr-1" />3%
+            </span>
+          </div>
+          <p class="text-sm text-gray-400 mt-1">Real-time monitoring</p>
+
+          <div
+            class="absolute bottom-2 right-2 opacity-10 group-hover:opacity-20 transition-opacity"
+          >
+            <svg width="80" height="80" viewBox="0 0 24 24" class="fill-current text-green-400">
+              <path
+                d="M7 13C9.21 13 11 14.79 11 17C11 19.21 9.21 21 7 21C4.79 21 3 19.21 3 17C3 14.79 4.79 13 7 13ZM7 15C5.9 15 5 15.9 5 17C5 18.1 5.9 19 7 19C8.1 19 9 18.1 9 17C9 15.9 8.1 15 7 15ZM11 3C13.21 3 15 4.79 15 7C15 9.21 13.21 11 11 11C8.79 11 7 9.21 7 7C7 4.79 8.79 3 11 3ZM13 7C13 5.9 12.1 5 11 5C9.9 5 9 5.9 9 7C9 8.1 9.9 9 11 9C12.1 9 13 8.1 13 7ZM16.5 11C18.43 11 20 12.57 20 14.5C20 16.43 18.43 18 16.5 18C14.57 18 13 16.43 13 14.5C13 12.57 14.57 11 16.5 11Z"
+              />
+            </svg>
+          </div>
+        </CardContent>
+      </Card>
+
+      <!-- Total Responses Card (déjà modifié) -->
+      <Card
+        class="hover:border-purple-400 transition-all duration-300 w-full group relative overflow-hidden"
+      >
+        <div
+          class="absolute top-0 right-0 w-16 h-16 bg-purple-500/10 rounded-bl-2xl transition-colors"
+        />
+
+        <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+          <CardTitle class="text-sm font-medium text-gray-300">
+            Automated Replies
+            <span class="text-purple-400 text-xs ml-1">(+24h)</span>
+          </CardTitle>
+          <div class="relative p-2 bg-gradient-to-br from-purple-600 to-purple-400 rounded-lg">
+            <MessageSquareText class="h-5 w-5 text-white" />
+          </div>
+        </CardHeader>
+
+        <CardContent>
+          <div class="text-3xl font-bold text-purple-400 flex items-center gap-2">
+            {totalResponses}
+            <span class="text-sm text-purple-300 font-normal flex items-center">
+              <ArrowUpRight class="h-4 w-4 mr-1" />14%
+            </span>
+          </div>
+          <p class="text-sm text-gray-400 mt-1">Successful bot responses</p>
+
+          <div
+            class="absolute bottom-2 right-2 opacity-10 group-hover:opacity-20 transition-opacity"
+          >
+            <svg width="80" height="80" viewBox="0 0 24 24" class="fill-current text-purple-400">
+              <path
+                d="M3 4H5V20H3V4ZM7 4H9V20H7V4ZM11 4H13V20H11V4ZM15 4H17V20H15V4ZM19 4H21V20H19V4Z"
+              />
+            </svg>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
+    <div class="flex-1 overflow-auto px-8 pb-8">
+      <Table class="relative border border-gray-700 rounded-lg overflow-hidden">
+        <TableHeader class="sticky top-0 z-20">
+          <TableRow class="hover:bg-transparent">
+            <TableHead class="text-gray-300">Bot name</TableHead>
+            <TableHead class="text-gray-300">Trigger Event</TableHead>
+            <TableHead class="text-gray-300">Response Message</TableHead>
+            <TableHead class="text-gray-300">Status</TableHead>
+            <TableHead class="text-gray-300">Engagement Rate</TableHead>
+            <TableHead class="text-gray-300 text-right">Actions</TableHead>
+          </TableRow>
+        </TableHeader>
+
+        <TableBody class="divide-y divide-gray-700">
+          {#each listeners as listener (listener.id)}
+            <TableRow
+              class="transition-all hover:bg-gray-800/50 {listener.isActive
+                ? 'opacity-100'
+                : 'opacity-70 hover:opacity-90'}"
+            >
+              <TableCell class="font-medium text-gray-100">
+                <div class="flex items-center space-x-3">
+                  <div
+                    class={`h-2 w-2 rounded-full ${listener.isActive ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}
+                  />
+                  <span>Bot {listener.id}</span>
+                </div>
+              </TableCell>
+
+              <TableCell class="text-gray-300 capitalize"
+                >{listener.event.replace(/_/g, ' ')}</TableCell
+              >
+
+              <TableCell class="max-w-[300px]">
+                {#if editingListenerId === listener.id}
+                  <div class="flex gap-2 items-center animate-fade-in">
+                    <Input
+                      bind:value={newMessage}
+                      class="flex-1 bg-gray-700 border-gray-600 text-gray-100"
+                      placeholder="Enter response message..."
+                    />
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      on:click={() => saveMessage(listener)}
+                      class="text-green-400 hover:bg-green-400/10"
+                    >
+                      <Check class="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      on:click={() => (editingListenerId = null)}
+                      class="text-red-400 hover:bg-red-400/10"
+                    >
+                      <X class="h-4 w-4" />
+                    </Button>
+                  </div>
+                {:else}
+                  <button
+                    type="button"
+                    class="truncate text-gray-300 cursor-text hover:bg-gray-700/20 rounded px-2 py-1 transition-colors relative group"
+                    on:click={() => startEditing(listener)}
+                    on:keydown={(e) => e.key === 'Enter' && startEditing(listener)}
+                    aria-label="Edit message"
+                  >
+                    <span class="truncate">
+                      {listener.message?.length > 50
+                        ? `${listener.message.slice(0, 50)}...`
+                        : listener.message || 'No message set'}
+                    </span>
+                    {#if listener.message?.length > 50}
+                      <span
+                        class="absolute left-0 bottom-full mb-1 hidden group-hover:block bg-gray-800 text-white text-sm p-1 rounded max-w-xs"
+                      >
+                        {listener.message}
+                      </span>
+                    {/if}
+                  </button>
+                {/if}
+              </TableCell>
+
+              <TableCell>
+                <Switch
+                  checked={listener.isActive}
+                  on:click={() => toggleListener(listener)}
+                  disabled={isProcessing}
+                  class={`{listener.isActive ? 'bg-green-400' : 'bg-red-400'} {isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                />
+              </TableCell>
+              <TableCell class="text-gray-300">
+                {#if listener.numberOfMessageReceived > 0 && listener.numberOfMessageSent > 0}
+                  <span>
+                    {(
+                      (listener.numberOfMessageReceived / listener.numberOfMessageSent) *
+                      100
+                    ).toFixed(1)}%
+                  </span>
+                {:else}
+                  <span class="text-gray-400">0%</span>
+                {/if}
+              </TableCell>
+
+              <TableCell>
+                <div class="flex justify-end space-x-2">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    on:click={() => startEditing(listener)}
+                    class="text-blue-400 hover:bg-blue-400/10"
+                  >
+                    <Pencil class="h-4 w-4" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    on:click={() => deleteListener(listener.id)}
+                    class="text-red-400 hover:bg-red-400/10"
+                  >
+                    <Trash class="h-4 w-4" />
+                  </Button>
+                </div>
+              </TableCell>
+            </TableRow>
+          {/each}
+        </TableBody>
+      </Table>
+    </div>
+  </div>
+</main>
+
+<style global>
+  @keyframes fade-in-up {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .animate-fade-in-up {
+    animation: fade-in-up 0.6s ease-out forwards;
+  }
+</style>

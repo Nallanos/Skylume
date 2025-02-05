@@ -30,13 +30,20 @@ class QueueManager {
                 if (!account_id) {
                     throw new Error(`account id is not defined for the worker`)
                 }
+                // start the job file
                 await handle({ account_id })
+
                 const account = await Account.find(account_id)
+
                 if (!account || !job.repeatJobKey) {
                     throw new Error(`account id is not defined for the worker`)
                 }
+
+                await account?.load("listeners")
+
+
                 account.jobId = job.repeatJobKey
-                account.save()
+                await account.save()
             }, {
                 connection: {
                     family: 0,
@@ -85,7 +92,9 @@ class QueueManager {
 
     public async removeJob(account: Account) {
         const jobs = await redis.keys(`bull:${this.queueName}:repeat:${account.jobId}:*`)
-        await redis.del(jobs)
+        if (jobs.length > 0) {
+            await redis.del(jobs)
+        }
     }
 }
 

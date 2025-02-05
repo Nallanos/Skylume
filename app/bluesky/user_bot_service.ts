@@ -87,15 +87,17 @@ export default class UserBotService {
           return 0;
         });
         for (const listener of userListeners) {
-          let bot = this.handlers.get(listener.id)
-          if (bot === undefined) {
-            await this.initializeMapHandler()
-            bot = this.handlers.get(listener.id)
+          if (listener.isActive) {
+            let bot = this.handlers.get(listener.id)
             if (bot === undefined) {
-              throw new Error(`didn't find the handlers with ${listener.id} in the handlers map`)
+              await this.initializeMapHandler()
+              bot = this.handlers.get(listener.id)
+              if (bot === undefined) {
+                throw new Error(`didn't find the handlers with ${listener.id} in the handlers map`)
+              }
             }
+            await bot.on(notification.authorDid)
           }
-          await bot.on(notification.authorDid)
         }
       })
     } catch (err) {

@@ -12,6 +12,9 @@ export default class Listener extends BaseModel {
   declare id: string
 
   @column()
+  declare isActive: boolean
+
+  @column()
   declare account_id: string
 
   @column()

@@ -9,4 +9,11 @@ export default class UsersController {
         }
         return []
     }
+    public async getAuthentifactedUser({ auth }: HttpContext) {
+        const user = await auth.authenticate()
+        if (!user) {
+            throw new Error('User not found')
+        }
+        return user
+    }
 }

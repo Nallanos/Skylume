@@ -1,25 +1,28 @@
-<script context="module" lang="ts"></script>
+<script context="module" lang="ts">
+  import Button from '@/ui/button/button.svelte'
+</script>
 
-<header
-  class="container mx-auto w-full flex flex-col md:flex-row items-center justify-center gap-4 md:gap-8 px-4 md:px-6 py-4 md:py-6 shadow-md"
->
-  <nav
-    class="flex flex-col md:flex-row md:divide-none divide-y divide-gray-800 justify-evenly items-center h-auto md:h-12 w-full md:w-1/2 rounded-lg md:rounded-full border border-gray-900 shadow"
-  >
-    <a
-      href="/"
-      class="py-2 md:py-0 px-4 w-full text-gray-300 text-center hover:text-blue-400"
-      title="Navigate to Dashboard">Get started</a
-    >
-    <a
-      href="/pricing"
-      class="py-2 md:py-0 px-4 w-full text-gray-300 text-center hover:text-blue-400"
-      title="View Pricing Options">Pricing</a
-    >
-    <a
-      href="/landing-page"
-      class="py-2 md:py-0 px-4 w-full text-gray-300 text-center hover:text-blue-400"
-      title="Discover Features">Features</a
-    >
+<header class="bg-gray-900/50 backdrop-blur-md fixed w-full top-0 z-50 border-b border-gray-800">
+  <nav class="container mx-auto flex justify-between items-center px-6 py-4">
+    <a href="/" class="flex items-center gap-2">
+      <span
+        class="text-xl font-bold bg-gradient-to-r from-teal-400 to-blue-600 bg-clip-text text-transparent"
+      >
+        Bluesky Bot
+      </span>
+    </a>
+
+    <div class="hidden md:flex items-center gap-8">
+      <a href="#features" class="text-gray-300 hover:text-teal-400 transition-colors">Features</a>
+      <a href="#pricing" class="text-gray-300 hover:text-teal-400 transition-colors">Pricing</a>
+      <a href="#alpha" class="text-gray-300 hover:text-teal-400 transition-colors">Alpha Program</a>
+      <Button
+        href="/sign-up"
+        variant="outline"
+        class="border-teal-500 text-teal-400 hover:bg-teal-900/20"
+      >
+        Join Alpha
+      </Button>
+    </div>
   </nav>
 </header>
