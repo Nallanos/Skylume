@@ -13,9 +13,13 @@
     </a>
 
     <div class="hidden md:flex items-center gap-8">
-      <a href="#features" class="text-gray-300 hover:text-teal-400 transition-colors">Features</a>
-      <a href="#pricing" class="text-gray-300 hover:text-teal-400 transition-colors">Pricing</a>
-      <a href="#alpha" class="text-gray-300 hover:text-teal-400 transition-colors">Alpha Program</a>
+      <a href="/landing-page" class="text-gray-300 hover:text-teal-400 transition-colors"
+        >Features</a
+      >
+      <a href="/pricing" class="text-gray-300 hover:text-teal-400 transition-colors">Pricing</a>
+      <a href="/sign-up" class="text-gray-300 hover:text-teal-400 transition-colors"
+        >Alpha Program</a
+      >
       <Button
         href="/sign-up"
         variant="outline"
