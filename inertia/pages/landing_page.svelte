@@ -36,13 +36,6 @@
         >
           Join the Alpha Program ➔
         </Button>
-        <Button
-          href="/demo"
-          variant="outline"
-          class="h-14 px-8 text-lg rounded-xl border-blue-500 text-blue-400 hover:bg-blue-900/20"
-        >
-          See Demo
-        </Button>
       </div>
 
       <div class="flex flex-col md:flex-row justify-center gap-6 text-gray-400 text-sm">
