@@ -5,7 +5,6 @@ import { svelte } from '@sveltejs/vite-plugin-svelte'
 import adonisjs from '@adonisjs/vite/client'
 import { sveltePreprocess } from 'svelte-preprocess';
 
-
 export default defineConfig({
   plugins: [inertia({ ssr: { enabled: true, entrypoint: 'inertia/app/ssr.ts' } }), svelte({
     compilerOptions: { hydratable: true }, preprocess: [sveltePreprocess({ typescript: true })]

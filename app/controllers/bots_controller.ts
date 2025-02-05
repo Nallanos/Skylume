@@ -129,6 +129,8 @@ export default class BotsController {
 
                     const dateBotMessage = new Date(botConvo.last_message_sent_at);
 
+                    console.log("dateLatestMessage", dateLatestMessage > dateBotMessage && blueskyConvo.lastMessage.sender.did !== account.did)
+
                     if (dateLatestMessage > dateBotMessage && blueskyConvo.lastMessage.sender.did !== account.did) {
                         dbListener.number_of_message_received++
                         await dbListener.save()
@@ -141,6 +143,31 @@ export default class BotsController {
             return response.redirect().back()
         } catch (err) {
             console.log("error while refreshing bot data", err)
+            return response.redirect().back()
+        }
+    }
+
+    public async updateBot({ request, response, auth }: HttpContext) {
+        try {
+            const user = await auth.authenticate()
+            if (!user) {
+                throw new Error("no user found")
+            }
+            const { listenerId, message } = request.only(["listenerId", "message"]);
+
+            const listener = await Listener.find(listenerId)
+
+            if (!listener) {
+                throw new Error(`cannot find listner with ${listenerId}`)
+            }
+
+            listener.message = message
+
+            await listener.save()
+
+            return response.redirect().back()
+        } catch (err) {
+            console.log("error while updating bot", err)
             return response.redirect().back()
         }
     }

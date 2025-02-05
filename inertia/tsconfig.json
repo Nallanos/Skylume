@@ -2,6 +2,7 @@
   "extends": "@adonisjs/tsconfig/tsconfig.client.json",
   "compilerOptions": {
     "baseUrl": ".",
+    "allowArbitraryExtensions": true,
     "module": "ESNext",
     "types": ["svelte"],
     "paths": {

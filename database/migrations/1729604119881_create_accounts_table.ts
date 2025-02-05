@@ -9,7 +9,7 @@ export default class extends BaseSchema {
       table.string("app_password")
       table.string('id').primary()
       table.string('did').nullable()
-      table.string('handle')
+      table.string('handle').unique()
       table.string("session", 1600).nullable()
       table.string("seen_notification_at")
       table.string("job_id").nullable()
