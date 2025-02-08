@@ -11,7 +11,7 @@ services:
       - HOST=0.0.0.0
       - LOG_LEVEL=debug
       - APP_KEY=QU3bPZtVbBgV3Hjl5YSazM_UCp505C_x
-      - NODE_ENV=development
+      - NODE_ENV=production
       - SESSION_DRIVER=cookie
       - DB_HOST=postgresql
       - DB_PORT=5432
