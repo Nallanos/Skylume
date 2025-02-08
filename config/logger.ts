@@ -19,6 +19,7 @@ const loggerConfig = defineConfig({
           .pushIf(!app.inProduction, targets.pretty())
           .pushIf(app.inProduction, targets.file({ destination: 1 }))
           .toArray(),
+        
       },
     },
   },

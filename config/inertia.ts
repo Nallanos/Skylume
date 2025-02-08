@@ -1,4 +1,3 @@
-import type Account from '#models/account'
 import { defineConfig } from '@adonisjs/inertia'
 import type { InferSharedProps } from '@adonisjs/inertia/types'
 
