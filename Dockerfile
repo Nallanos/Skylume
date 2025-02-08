@@ -13,7 +13,7 @@ RUN npm ci
 FROM base AS production-deps
 WORKDIR /app
 ADD package.json package-lock.json ./
-RUN npm ci --omit=dev
+RUN npm ci --omit=dev --include=dev
 
 # Build stage
 FROM base AS build
