@@ -85,6 +85,7 @@
     "better-sqlite3": "^11.4.0",
     "bullmq": "^5.34.1",
     "chart.js": "^4.4.7",
+    "dequal": "^2.0.3",
     "edge.js": "^6.2.0",
     "graphile-worker": "^0.16.6",
     "lodash.clonedeep": "^4.5.0",
