@@ -45,17 +45,5 @@ services:
     ports:
       - 6379:6379
 
-  traefik:
-    image: traefik:v2.5
-    command:
-      - '--api.insecure=true'
-      - '--providers.docker=true'
-      - '--entrypoints.web.address=:80'
-    ports:
-      - '80:80'
-      - '8080:8080'
-    volumes:
-      - '/var/run/docker.sock:/var/run/docker.sock:ro'
-
 volumes:
   postgresql_data:
