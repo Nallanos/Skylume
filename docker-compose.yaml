@@ -1,125 +1,61 @@
+version: '3.8'
+
 services:
   app:
     build:
       context: .
       dockerfile: Dockerfile
     environment:
-      TZ: UTC
-      PORT: '8081'
-      HOST: 0.0.0.0
-      LOG_LEVEL: debug
-      APP_KEY: QU3bPZtVbBgV3Hjl5YSazM_UCp505C_x
-      NODE_ENV: production
-      SESSION_DRIVER: cookie
-      DB_HOST: postgresql
-      DB_PORT: '5432'
-      DB_USER: blueskybluesky
-      DB_PASSWORD: blueskybluesky
-      DB_DATABASE: blueskybluesky
-      QUEUE_REDIS_HOST: redis
-      QUEUE_REDIS_PORT: '6379'
-      QUEUE_REDIS_PASSWORD: ''
-      REDIS_HOST: redis
-      REDIS_PORT: '6379'
-      REDIS_PASSWORD: ''
-      COOLIFY_BRANCH: '"master"'
-      COOLIFY_RESOURCE_UUID: wg840k840gkwcoossso4o0gs
-      COOLIFY_CONTAINER_NAME: app-wg840k840gkwcoossso4o0gs-173415889514
-      COOLIFY_URL: 'http://lsso0080o88k4s880cco8ss8.74.235.166.230.sslip.io'
-      COOLIFY_FQDN: lsso0080o88k4s880cco8ss8.74.235.166.230.sslip.io
+      - TZ=UTC
+      - PORT=8081
+      - HOST=0.0.0.0
+      - LOG_LEVEL=debug
+      - APP_KEY=QU3bPZtVbBgV3Hjl5YSazM_UCp505C_x
+      - NODE_ENV=production
+      - SESSION_DRIVER=cookie
+      - DB_HOST=postgresql
+      - DB_PORT=5432
+      - DB_USER=blueskybluesky
+      - DB_PASSWORD=blueskybluesky
+      - DB_DATABASE=blueskybluesky
+      - QUEUE_REDIS_HOST=redis
+      - QUEUE_REDIS_PORT=6379
+      - QUEUE_REDIS_PASSWORD=
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
     depends_on:
       - postgresql
       - redis
-    container_name: app-wg840k840gkwcoossso4o0gs-173415889514
-    restart: unless-stopped
-    labels:
-      - coolify.managed=true
-      - coolify.version=4.0.0-beta.390
-      - coolify.applicationId=3
-      - coolify.type=application
-      - coolify.name=app-wg840k840gkwcoossso4o0gs-173415889514
-      - coolify.resourceName=nallanos-bluesky-copilotmain-ag8go0cwcgg48o0k4s0kgwoo
-      - coolify.projectName=my-first-project
-      - coolify.serviceName=nallanos-bluesky-copilotmain-ag8go0cwcgg48o0k4s0kgwoo
-      - coolify.environmentName=app
-      - coolify.pullRequestId=0
-      - traefik.enable=true
-      - traefik.http.middlewares.gzip.compress=true
-      - traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https
-      - traefik.http.routers.http-0-wg840k840gkwcoossso4o0gs-app.entryPoints=http
-      - traefik.http.routers.http-0-wg840k840gkwcoossso4o0gs-app.middlewares=gzip
-      - 'traefik.http.routers.http-0-wg840k840gkwcoossso4o0gs-app.rule=Host(`lsso0080o88k4s880cco8ss8.74.235.166.230.sslip.io`) && PathPrefix(`/`)'
-    networks:
-      wg840k840gkwcoossso4o0gs: null
+
   postgresql:
-    image: 'postgres:16.4'
+    image: postgres:16.4
     restart: always
     environment:
       POSTGRES_USER: blueskybluesky
       POSTGRES_PASSWORD: blueskybluesky
       POSTGRES_DB: blueskybluesky
-      COOLIFY_BRANCH: '"master"'
-      COOLIFY_RESOURCE_UUID: wg840k840gkwcoossso4o0gs
-      COOLIFY_CONTAINER_NAME: postgresql-wg840k840gkwcoossso4o0gs-173415895244
     ports:
-      - '5432:5432'
+      - 5432:5432
     volumes:
-      - 'wg840k840gkwcoossso4o0gs_postgresql-data:/var/lib/postgresql/data'
-    container_name: postgresql-wg840k840gkwcoossso4o0gs-173415895244
-    labels:
-      - coolify.managed=true
-      - coolify.version=4.0.0-beta.390
-      - coolify.applicationId=3
-      - coolify.type=application
-      - coolify.name=postgresql-wg840k840gkwcoossso4o0gs-173415895244
-      - coolify.resourceName=nallanos-bluesky-copilotmain-ag8go0cwcgg48o0k4s0kgwoo
-      - coolify.projectName=my-first-project
-      - coolify.serviceName=nallanos-bluesky-copilotmain-ag8go0cwcgg48o0k4s0kgwoo
-      - coolify.environmentName=app
-      - coolify.pullRequestId=0
-    networks:
-      wg840k840gkwcoossso4o0gs: null
+      - postgresql_data:/var/lib/postgresql/data
+
   redis:
-    image: 'redis:7.4.1-alpine'
+    image: redis:7.4.1-alpine
     ports:
-      - '6379:6379'
-    container_name: redis-wg840k840gkwcoossso4o0gs-173415898922
-    restart: unless-stopped
-    labels:
-      - coolify.managed=true
-      - coolify.version=4.0.0-beta.390
-      - coolify.applicationId=3
-      - coolify.type=application
-      - coolify.name=redis-wg840k840gkwcoossso4o0gs-173415898922
-      - coolify.resourceName=nallanos-bluesky-copilotmain-ag8go0cwcgg48o0k4s0kgwoo
-      - coolify.projectName=my-first-project
-      - coolify.serviceName=nallanos-bluesky-copilotmain-ag8go0cwcgg48o0k4s0kgwoo
-      - coolify.environmentName=app
-      - coolify.pullRequestId=0
+      - 6379:6379
 
   traefik:
-    image: traefik:v2.10
+    image: traefik:v2.5
     command:
-      - --providers.docker
-      - --entrypoints.web.address=:80
+      - '--api.insecure=true'
+      - '--providers.docker=true'
+      - '--entrypoints.web.address=:80'
     ports:
       - '80:80'
+      - '8080:8080'
     volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-    networks:
-      - wg840k840gkwcoossso4o0gs
-  networks:
-    wg840k840gkwcoossso4o0gs: null
-  environment:
-    COOLIFY_BRANCH: '"master"'
-    COOLIFY_RESOURCE_UUID: wg840k840gkwcoossso4o0gs
-    COOLIFY_CONTAINER_NAME: redis-wg840k840gkwcoossso4o0gs-173415898922
+      - '/var/run/docker.sock:/var/run/docker.sock:ro'
+
 volumes:
-  wg840k840gkwcoossso4o0gs_postgresql-data:
-    name: wg840k840gkwcoossso4o0gs_postgresql-data
-networks:
-  wg840k840gkwcoossso4o0gs:
-    name: wg840k840gkwcoossso4o0gs
-    external: true
-configs: {}
-secrets: {}
+  postgresql_data:
