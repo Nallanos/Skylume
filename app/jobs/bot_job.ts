@@ -41,7 +41,6 @@ const handle = async (data: BotJobPayload): Promise<void> => {
     accountWithMethod.seenNotificationAt = new Date().toISOString();
     await accountWithMethod.save();
 
-    console.log(`\n[INFO] Starting listeners for account: ${accountWithMethod.handle}`);
     await user_service.startAllListeners(notificationData, listeners);
 
   } catch (err) {
