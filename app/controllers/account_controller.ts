@@ -4,9 +4,7 @@ import AccountService from '#services/account_service'
 import Account from '#models/account'
 import { inject } from '@adonisjs/core'
 import queue_manager from '../bluesky/queue_manager.js'
-import Listeners_convos from '#models/listeners_convos'
 import users_bot_service_manager from '../bluesky/users_bot_service_manager.js'
-import type { ProfileView } from '@atproto/api/dist/client/types/app/bsky/actor/defs.js'
 import { getConvoFromMembers, getMessages, sendMessageToConvo } from '../bluesky/chatAPI.js'
 import type { MessageViewSender } from '@atproto/api/dist/client/types/chat/bsky/convo/defs.js'
 import Listener from '#models/listener'
@@ -110,79 +108,73 @@ export default class AccountController {
   }
 
   public async sendMessageToAllFollowers({ request, response, auth }: HttpContext) {
-    const user = auth.user
-    if (!user) {
-      throw new Error("no user found")
-    }
+    const user = auth.user;
+    if (!user) throw new Error("No user found");
 
-    const agent = users_bot_service_manager.userbotServiceMap.get(user.id)?.agent
-    if (!agent) {
-      throw new Error("no agent found")
-    }
+    const userBotService = users_bot_service_manager.userbotServiceMap.get(user.id);
+    if (!userBotService) throw new Error("User bot service not found");
 
-    const { account_id, listener_id } = request.only(["account_id", "listener_id"])
-    const account = await Account.find(account_id)
+    const { account_id, listener_id } = request.only(["account_id", "listener_id"]);
+    const [account, listener] = await Promise.all([
+      Account.find(account_id),
+      Listener.find(listener_id)
+    ]);
 
-    if (!account) {
-      throw new Error("no account found")
-    }
+    if (!account || !listener) throw new Error("Account or listener not found");
+    if (!account.at_session) throw new Error("Account session missing");
 
-    const listener = await Listener.find(listener_id)
-    if (!listener) {
-      throw new Error("no listener found")
-    }
-    let cursor: string = ''
+    const agent = userBotService.agent;
+    await userBotService.createOrResumeSession(account);
+
+    const [convoAuth, messagesAuth, sendMessageAuth] = await Promise.all([
+      agent.com.atproto.server.getServiceAuth(
+        { aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.getConvoForMembers" },
+        { headers: { Authorization: `Bearer ${account.at_session.accessJwt}` } }
+      ),
+      agent.com.atproto.server.getServiceAuth(
+        { aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.getMessages" },
+        { headers: { Authorization: `Bearer ${account.at_session.accessJwt}` } }
+      ),
+      agent.com.atproto.server.getServiceAuth(
+        { aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.sendMessage" },
+        { headers: { Authorization: `Bearer ${account.at_session.accessJwt}` } }
+      )
+    ]);
+
+    let cursor: string | undefined;
     try {
       while (true) {
-        let user_bot_service = users_bot_service_manager.userbotServiceMap.get(user.id)
-
-        await user_bot_service?.createOrResumeSession(account)
-
-        const response = await agent.getFollowers({
+        const followersResponse = await agent.getFollowers({
           actor: account.handle,
           limit: 100,
-          cursor,
+          cursor
         });
 
-        for (const follow of response.data.followers) {
-          if (!account.at_session) {
-            throw new Error("no account session found");
-          }
+        if (!followersResponse.data.followers.length) break;
 
-          let resAuth = await agent.com.atproto.server.getServiceAuth(
-            { aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.getConvoForMembers" },
-            { headers: { Authorization: `Bearer ${account.at_session.accessJwt}` } }
-          );
-          const convo = await getConvoFromMembers([account.did, follow.did], resAuth.data.token);
+        await Promise.all(followersResponse.data.followers.map(async (follow) => {
+          const convo = await getConvoFromMembers([account.did, follow.did], convoAuth.data.token);
 
-          if (convo && user_bot_service) {
-            resAuth = await user_bot_service.agent.com.atproto.server.getServiceAuth({
-              aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.getMessages"
-            }, { headers: { Authorization: `Bearer ${account.at_session.accessJwt}` } })
-
-            const messages = await getMessages(convo.id, resAuth.data.token) as unknown as MessageViewSender[]
-
+          if (convo) {
+            const messages = await getMessages(convo.id, messagesAuth.data.token) as unknown as MessageViewSender[];
 
             if (messages.length === 0) {
-              let resAuth = await agent.com.atproto.server.getServiceAuth(
-                {
-                  aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.sendMessage"
-                },
-                { headers: { Authorization: `Bearer ${account.at_session.accessJwt}` } }
+              await sendMessageToConvo(
+                { convoId: convo.id, message: { text: listener.message } },
+                sendMessageAuth.data.token
               );
-              await sendMessageToConvo({ convoId: convo.id, message: { text: listener.message } }, resAuth.data.token)
-              console.log("sent message to", follow.handle)
+              console.log("Message sent to", follow.handle);
             }
           }
+        }));
 
-          if (!response.data.cursor) {
-            break;
-          }
-          cursor = response.data.cursor;
-        }
+        cursor = followersResponse.data.cursor;
+        if (!cursor) break;
       }
     } catch (error) {
-      response.redirect().back()
+      console.error("Error:", error);
+      response.redirect().back();
     }
   }
+
 }

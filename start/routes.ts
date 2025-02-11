@@ -61,10 +61,15 @@ router.post("/account/followAll", [account_controller, 'sendMessageToAllFollower
 router.get('/dashboard', async ({ auth, inertia }) => {
     const user = auth.user!
     if (user) {
-        const accounts = await Account.query()
+        let accounts = await Account.query()
             .where('user_id', user.id)
-        const listeners = await Listener.findManyBy("user_id", user.id)
-        return inertia.render('dashboard', { accounts: accounts.map((a) => a.serialize()), listeners: listeners.map((a) => a.serialize()) })
+        accounts.map(async (a) => {
+            await a.load("listeners")
+            a.serialize()
+        })
+        return inertia.render('dashboard', {
+            accounts: accounts
+        })
     }
     return inertia.render('dashboard', { accounts: [] })
 }).use(middleware.auth())

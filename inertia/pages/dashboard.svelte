@@ -6,11 +6,9 @@
   import { Plus } from 'lucide-svelte'
   import type Account from '#models/account'
   import type User from '#models/user'
-  import type { Listener } from '@/type'
   import Button from '@/ui/button/button.svelte'
 
   export let accounts: Account[]
-  export let listeners: Listener[]
 
   const user = $page.props.user as User
 </script>
@@ -33,7 +31,7 @@
       <!-- Accounts Grid -->
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 pb-16">
         {#each accounts as account}
-          <AccountCard {account} {listeners} />
+          <AccountCard {account} />
         {/each}
       </div>
 
