@@ -15,7 +15,7 @@
   } from '@/ui/dialog'
 
   export let account: Account
-  export let listeners: Listener[]
+  let listeners: Listener[] = account.listeners as unknown as Listener[]
   const id = account.id
 
   let showDeleteDialog = false
