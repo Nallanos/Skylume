@@ -60,7 +60,7 @@
         <form class="space-y-6" on:submit|preventDefault={handleSubmit}>
           <!-- Account Selection -->
           <div class="space-y-2">
-            <label class="block text-sm font-medium">Account</label>
+            <p class="block text-sm font-medium">Account</p>
             <Select.Root portal={null}>
               <Select.Trigger
                 class="w-full px-3 py-2 border border-gray-800 rounded-lg hover:border-gray-400 "
@@ -86,7 +86,7 @@
 
           <!-- Event Selection -->
           <div class="space-y-2">
-            <label class="block text-sm font-medium">Event</label>
+            <p class="block text-sm font-medium">Event</p>
             <Select.Root portal={null}>
               <Select.Trigger
                 class="w-full px-3 py-2 border border-gray-800 rounded-lg hover:border-gray-400 "
@@ -109,7 +109,7 @@
 
           <!-- Action Selection -->
           <div class="space-y-2">
-            <label class="block text-sm font-medium">Action</label>
+            <p class="block text-sm font-medium">Action</p>
             <Select.Root portal={null}>
               <Select.Trigger
                 class="w-full px-3 py-2 border border-gray-800 rounded-lg hover:border-gray-400"

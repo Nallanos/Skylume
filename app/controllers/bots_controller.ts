@@ -35,7 +35,7 @@ export default class BotsController {
                 id: word
             })
 
-            return response.redirect("/dashboard")
+            return response.redirect(`account/${account.id}/dashboard`)
         } catch (err) {
             console.log("error while adding a bot", err)
             session.flash("error", err)
@@ -108,7 +108,10 @@ export default class BotsController {
                 let resAuth = await user_bot_service.agent.com.atproto.server.getServiceAuth({ aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.getConvoForMembers" }, { headers: { Authorization: `Bearer ${account.at_session.accessJwt}` } })
                 const chatToken = resAuth.data.token
                 for (const botConvo of listenerBotConvos) {
-                    const blueskyConvo = await getConvoFromMembers([botConvo.convoDid], chatToken)
+                    let blueskyConvo = await getConvoFromMembers([botConvo.convoDid], chatToken)
+                    if (!blueskyConvo) {
+                        throw new Error(`errro while getting convo from members ${JSON.stringify(blueskyConvo)}`)
+                    }
 
                     const dbListener = await Listener.find(botConvo.listeners_id)
                     const dbConvo = await Convo.find(blueskyConvo.id)
@@ -121,7 +124,7 @@ export default class BotsController {
                         throw new Error(`can't find convo in the db with the following id: ${botConvo.convoId}`)
                     }
 
-                    const dateLatestMessage = new Date(blueskyConvo.lastMessage.sentAt);
+                    const dateLatestMessage = new Date(blueskyConvo.lastMessage?.sentAt);
 
                     if (!dbConvo) {
                         throw new Error(`cannot find convo with ${botConvo.id}`)

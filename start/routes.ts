@@ -23,6 +23,7 @@ router.on("/pricing").renderInertia("pricing")
 router.on("/thank-you").renderInertia("thank-you")
 router.on("/password/reset").renderInertia("contact-us")
 router.on("/account/:id/ai-posts").renderInertia("AiPost").use(middleware.auth())
+router.on("add/account").renderInertia("AddAccount").use(middleware.auth())
 
 const session_controller = () => import('#controllers/session_controller')
 const account_controller = () => import('#controllers/account_controller')
@@ -54,6 +55,8 @@ router.post("/bot/toggle", async ({ response, request }) => {
 
     return response.redirect().back()
 }).use(middleware.auth())
+router.post("/account/followAll", [account_controller, 'sendMessageToAllFollowers']).use(middleware.auth())
+
 
 router.get('/dashboard', async ({ auth, inertia }) => {
     const user = auth.user!
@@ -97,15 +100,8 @@ router.get('/account/:id/dashboard', async ({ params, inertia }) => {
             throw new Error("Listeners not found")
         }
 
-        // const listeners_convos = await Listeners_convos.query().whereIn('listeners_id', account.listeners.map((l) => l.id))
-
-        // if (!listeners_convos) {
-        //     throw new Error("Bot convos not found")
-        // }
-
         return inertia.render('accountDashboard', {
             account: account.serialize(),
-            // listeners_convos: listeners_convos.map((l) => l.serialize())
         })
     } catch (error) {
         console.log(error)

@@ -5,7 +5,11 @@ import Account from '#models/account'
 import { inject } from '@adonisjs/core'
 import queue_manager from '../bluesky/queue_manager.js'
 import Listeners_convos from '#models/listeners_convos'
-
+import users_bot_service_manager from '../bluesky/users_bot_service_manager.js'
+import type { ProfileView } from '@atproto/api/dist/client/types/app/bsky/actor/defs.js'
+import { getConvoFromMembers, getMessages, sendMessageToConvo } from '../bluesky/chatAPI.js'
+import type { MessageViewSender } from '@atproto/api/dist/client/types/chat/bsky/convo/defs.js'
+import Listener from '#models/listener'
 @inject()
 export default class AccountController {
   constructor(protected account_service: AccountService) { }
@@ -79,10 +83,7 @@ export default class AccountController {
         return response.redirect().back()
       }
 
-      const account = await Account.query()
-        .where('id', id)
-        .preload("listeners")
-        .first()
+      const account = await Account.find(id)
 
       if (!account) {
         session.flash("errors.credentials", "Account not found.")
@@ -98,17 +99,6 @@ export default class AccountController {
         session.flash("errors.credentials", "Failed to remove account process from queue.")
         return response.redirect().back()
       }
-
-      // Delete listeners and associated conversations
-      for (const listener of account.listeners) {
-        try {
-          await Listeners_convos.query().where('listeners_id', listener.id).delete()
-          await listener.delete()
-        } catch (listenerError) {
-          console.error(`Error deleting listener (ID: ${listener.id}):`, listenerError)
-        }
-      }
-
       await account.delete()
       session.flash("success", "Account deleted successfully.")
       return response.redirect().back()
@@ -116,6 +106,83 @@ export default class AccountController {
       console.error("Unexpected error in deleteAccount:", err)
       session.flash("errors.credentials", "An error occurred while deleting the account. Please try again.")
       return response.redirect().back()
+    }
+  }
+
+  public async sendMessageToAllFollowers({ request, response, auth }: HttpContext) {
+    const user = auth.user
+    if (!user) {
+      throw new Error("no user found")
+    }
+
+    const agent = users_bot_service_manager.userbotServiceMap.get(user.id)?.agent
+    if (!agent) {
+      throw new Error("no agent found")
+    }
+
+    const { account_id, listener_id } = request.only(["account_id", "listener_id"])
+    const account = await Account.find(account_id)
+
+    if (!account) {
+      throw new Error("no account found")
+    }
+
+    const listener = await Listener.find(listener_id)
+    if (!listener) {
+      throw new Error("no listener found")
+    }
+    let cursor: string = ''
+    try {
+      while (true) {
+        let user_bot_service = users_bot_service_manager.userbotServiceMap.get(user.id)
+
+        await user_bot_service?.createOrResumeSession(account)
+
+        const response = await agent.getFollowers({
+          actor: account.handle,
+          limit: 100,
+          cursor,
+        });
+
+        for (const follow of response.data.followers) {
+          if (!account.at_session) {
+            throw new Error("no account session found");
+          }
+
+          let resAuth = await agent.com.atproto.server.getServiceAuth(
+            { aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.getConvoForMembers" },
+            { headers: { Authorization: `Bearer ${account.at_session.accessJwt}` } }
+          );
+          const convo = await getConvoFromMembers([account.did, follow.did], resAuth.data.token);
+
+          if (convo && user_bot_service) {
+            resAuth = await user_bot_service.agent.com.atproto.server.getServiceAuth({
+              aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.getMessages"
+            }, { headers: { Authorization: `Bearer ${account.at_session.accessJwt}` } })
+
+            const messages = await getMessages(convo.id, resAuth.data.token) as unknown as MessageViewSender[]
+
+
+            if (messages.length === 0) {
+              let resAuth = await agent.com.atproto.server.getServiceAuth(
+                {
+                  aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.sendMessage"
+                },
+                { headers: { Authorization: `Bearer ${account.at_session.accessJwt}` } }
+              );
+              await sendMessageToConvo({ convoId: convo.id, message: { text: listener.message } }, resAuth.data.token)
+              console.log("sent message to", follow.handle)
+            }
+          }
+
+          if (!response.data.cursor) {
+            break;
+          }
+          cursor = response.data.cursor;
+        }
+      }
+    } catch (error) {
+      response.redirect().back()
     }
   }
 }
