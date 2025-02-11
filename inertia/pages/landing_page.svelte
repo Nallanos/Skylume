@@ -188,7 +188,7 @@
         href="/sign-up"
         class="h-16 px-12 text-xl bg-gradient-to-r from-teal-500 to-blue-600 hover:from-teal-600 hover:to-blue-700 rounded-lg"
       >
-        Join the Alpha Program - Free Trial
+        Join the Alpha Program
       </Button>
       <p class="mt-4 text-sm text-gray-400">No credit card required - Cancel anytime</p>
     </div>
