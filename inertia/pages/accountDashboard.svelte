@@ -5,18 +5,7 @@
   import { Card, CardContent, CardHeader, CardTitle } from '@/ui/card'
   import { Input } from '@/ui/input'
   import { Switch } from '@/ui/switch'
-  import {
-    Trash,
-    Pencil,
-    Plus,
-    Check,
-    X,
-    ArrowUpRight,
-    MessageSquareText,
-    ArrowDownRight,
-    Server,
-    Activity,
-  } from 'lucide-svelte'
+  import { Trash, Pencil, Plus, Check, X, MessageSquareText, Server, Activity } from 'lucide-svelte'
   import Sidebar from '@/components/Sidebar.svelte'
   import type User from '#models/user'
   import type Account from '#models/account'
@@ -83,6 +72,10 @@
   function deleteListener(listener_id: string) {
     router.post('/bot/remove', { listener_id: listener_id })
   }
+
+  function sendToAllFollowers(account_id: string, listener_id: string) {
+    router.post('/account/followAll', { account_id: account_id, listener_id: listener_id })
+  }
 </script>
 
 <main class="flex min-h-screen">
@@ -130,9 +123,7 @@
         <CardContent>
           <div class="text-3xl font-bold text-blue-400 flex items-center gap-2">
             {totalEngagement}
-            <span class="text-sm text-blue-300 font-normal flex items-center">
-              <ArrowUpRight class="h-4 w-4 mr-1" />8%
-            </span>
+            <span class="text-sm text-blue-300 font-normal flex items-center"> </span>
           </div>
           <p class="text-sm text-gray-400 mt-1">Engagement rate this month</p>
 
@@ -172,9 +163,7 @@
         <CardContent>
           <div class="text-3xl font-bold text-green-400 flex items-center gap-2">
             {activeListeners}
-            <span class="text-sm text-green-300 font-normal flex items-center">
-              <ArrowDownRight class="h-4 w-4 mr-1" />3%
-            </span>
+            <span class="text-sm text-green-300 font-normal flex items-center"> </span>
           </div>
           <p class="text-sm text-gray-400 mt-1">Real-time monitoring</p>
 
@@ -211,9 +200,6 @@
         <CardContent>
           <div class="text-3xl font-bold text-purple-400 flex items-center gap-2">
             {totalResponses}
-            <span class="text-sm text-purple-300 font-normal flex items-center">
-              <ArrowUpRight class="h-4 w-4 mr-1" />14%
-            </span>
           </div>
           <p class="text-sm text-gray-400 mt-1">Successful bot responses</p>
 
@@ -350,6 +336,19 @@
                   >
                     <Trash class="h-4 w-4" />
                   </Button>
+
+                  {#if listener.action === 'Send a Message'}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      class="border-gray-800 border"
+                      on:click={() => {
+                        sendToAllFollowers(account.id, listener.id)
+                      }}
+                    >
+                      Send to all followers
+                    </Button>
+                  {/if}
                 </div>
               </TableCell>
             </TableRow>

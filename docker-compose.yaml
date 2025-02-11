@@ -2,6 +2,9 @@ version: '3.8'
 
 services:
   app:
+    ports:
+      - 8081:8081
+
     build:
       context: .
       dockerfile: Dockerfile
@@ -11,7 +14,7 @@ services:
       - HOST=0.0.0.0
       - LOG_LEVEL=debug
       - APP_KEY=QU3bPZtVbBgV3Hjl5YSazM_UCp505C_x
-      - NODE_ENV=production
+      - NODE_ENV=development
       - SESSION_DRIVER=cookie
       - DB_HOST=postgresql
       - DB_PORT=5432
@@ -27,6 +30,14 @@ services:
     depends_on:
       - postgresql
       - redis
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.app.rule=Host(`bluesky-bot.com`)
+      - traefik.http.routers.app.entrypoints=web
+      - traefik.http.services.app.loadbalancer.server.port=8081
+      - traefik.docker.network=traefik_public
+    networks:
+      - traefik_public
 
   postgresql:
     image: postgres:16.4
@@ -40,6 +51,20 @@ services:
     volumes:
       - postgresql_data:/var/lib/postgresql/data
 
+  reverse-proxy:
+    image: traefik:v3.3
+    command:
+      - --api.insecure=true
+      - --providers.docker
+      - --entrypoints.web.address=:80
+    ports:
+      - '80:80'
+      - '8080:8080'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - traefik_public
+
   redis:
     image: redis:7.4.1-alpine
     ports:
@@ -47,3 +72,7 @@ services:
 
 volumes:
   postgresql_data:
+
+networks:
+  traefik_public:
+    driver: bridge
