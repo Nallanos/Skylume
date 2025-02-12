@@ -35,7 +35,7 @@ export default class BotsController {
                 id: word
             })
 
-            return response.redirect(`account/${account.id}/dashboard`)
+            return response.redirect(`/account/${account.id}/dashboard`)
         } catch (err) {
             console.log("error while adding a bot", err)
             session.flash("error", err)

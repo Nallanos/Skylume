@@ -1,8 +1,4 @@
-import type { ConvoView } from "@atproto/api/dist/client/types/chat/bsky/convo/defs.js";
 import type { MessagePayload } from "./types.js";
-
-
-
 
 export async function getMessages(
     convoId: string,
@@ -44,7 +40,6 @@ export async function getMessages(
         return undefined;
     }
 }
-
 
 export async function getConvoFromMembers(
     members: Array<string>,

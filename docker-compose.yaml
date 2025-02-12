@@ -46,8 +46,8 @@ services:
       POSTGRES_USER: blueskybluesky
       POSTGRES_PASSWORD: blueskybluesky
       POSTGRES_DB: blueskybluesky
-    expose:
-      - 5432
+    ports:
+      - 5432:5432
     volumes:
       - postgresql_data:/var/lib/postgresql/data
     networks:
@@ -60,8 +60,8 @@ services:
 
   redis:
     image: redis:7.4.1-alpine
-    expose:
-      - 6379
+    ports:
+      - 6379:6379
     networks:
       - bluesky-copilot_default
     healthcheck:
