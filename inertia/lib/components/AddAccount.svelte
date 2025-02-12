@@ -58,11 +58,6 @@
             2. Copy generated token
           </p>
         </div>
-        <img
-          src="../../resources/images/CreateAppPassword.png"
-          alt="App password setup"
-          class="rounded-xl border border-gray-700 shadow-xl hover:shadow-2xl transition-shadow"
-        />
       </CardContent>
     </Card>
 

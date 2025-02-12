@@ -26,5 +26,4 @@ yarn-error.log
 commands/follow.ts
 app/models/follow.ts
 commands/unfollow.ts
-Dockerfile
 docker-compose.yaml

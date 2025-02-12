@@ -112,7 +112,7 @@
 
         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle class="text-sm font-medium text-gray-300">
-            Platform Activity
+            Total Engagment (Follows + messages)
             <span class="text-blue-400 text-xs ml-1">(+24h)</span>
           </CardTitle>
           <div class="relative p-2 bg-gradient-to-br from-blue-600 to-blue-400 rounded-lg">
@@ -125,7 +125,7 @@
             {totalEngagement}
             <span class="text-sm text-blue-300 font-normal flex items-center"> </span>
           </div>
-          <p class="text-sm text-gray-400 mt-1">Engagement rate this month</p>
+          <p class="text-sm text-gray-400 mt-1">Engagement this month</p>
 
           <div
             class="absolute bottom-2 right-2 opacity-10 group-hover:opacity-20 transition-opacity"
@@ -189,7 +189,7 @@
 
         <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle class="text-sm font-medium text-gray-300">
-            Automated Replies
+            Replies to your auto-sent messages
             <span class="text-purple-400 text-xs ml-1">(+24h)</span>
           </CardTitle>
           <div class="relative p-2 bg-gradient-to-br from-purple-600 to-purple-400 rounded-lg">
@@ -201,7 +201,6 @@
           <div class="text-3xl font-bold text-purple-400 flex items-center gap-2">
             {totalResponses}
           </div>
-          <p class="text-sm text-gray-400 mt-1">Successful bot responses</p>
 
           <div
             class="absolute bottom-2 right-2 opacity-10 group-hover:opacity-20 transition-opacity"
@@ -221,9 +220,9 @@
           <TableRow class="hover:bg-transparent">
             <TableHead class="text-gray-300">Bot name</TableHead>
             <TableHead class="text-gray-300">Trigger Event</TableHead>
-            <TableHead class="text-gray-300">Response Message</TableHead>
+            <TableHead class="text-gray-300">Message Sent / Listener Action</TableHead>
             <TableHead class="text-gray-300">Status</TableHead>
-            <TableHead class="text-gray-300">Engagement Rate</TableHead>
+            <TableHead class="text-gray-300">Response rate</TableHead>
             <TableHead class="text-gray-300 text-right">Actions</TableHead>
           </TableRow>
         </TableHeader>
@@ -249,51 +248,55 @@
               >
 
               <TableCell class="max-w-[300px]">
-                {#if editingListenerId === listener.id}
-                  <div class="flex gap-2 items-center animate-fade-in">
-                    <Input
-                      bind:value={newMessage}
-                      class="flex-1 bg-gray-700 border-gray-600 text-gray-100"
-                      placeholder="Enter response message..."
-                    />
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      on:click={() => saveMessage(listener)}
-                      class="text-green-400 hover:bg-green-400/10"
-                    >
-                      <Check class="h-4 w-4" />
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      on:click={() => (editingListenerId = null)}
-                      class="text-red-400 hover:bg-red-400/10"
-                    >
-                      <X class="h-4 w-4" />
-                    </Button>
-                  </div>
-                {:else}
-                  <button
-                    type="button"
-                    class="truncate text-gray-300 cursor-text hover:bg-gray-700/20 rounded px-2 py-1 transition-colors relative group"
-                    on:click={() => startEditing(listener)}
-                    on:keydown={(e) => e.key === 'Enter' && startEditing(listener)}
-                    aria-label="Edit message"
-                  >
-                    <span class="truncate">
-                      {listener.message?.length > 50
-                        ? `${listener.message.slice(0, 50)}...`
-                        : listener.message || 'No message set'}
-                    </span>
-                    {#if listener.message?.length > 50}
-                      <span
-                        class="absolute left-0 bottom-full mb-1 hidden group-hover:block bg-gray-800 text-white text-sm p-1 rounded max-w-xs"
+                {#if listener.action === 'Send a Message'}
+                  {#if editingListenerId === listener.id}
+                    <div class="flex gap-2 items-center animate-fade-in">
+                      <Input
+                        bind:value={newMessage}
+                        class="flex-1 bg-gray-700 border-gray-600 text-gray-100"
+                        placeholder="Enter response message..."
+                      />
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        on:click={() => saveMessage(listener)}
+                        class="text-green-400 hover:bg-green-400/10"
                       >
-                        {listener.message}
+                        <Check class="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        on:click={() => (editingListenerId = null)}
+                        class="text-red-400 hover:bg-red-400/10"
+                      >
+                        <X class="h-4 w-4" />
+                      </Button>
+                    </div>
+                  {:else}
+                    <button
+                      type="button"
+                      class="truncate text-gray-300 cursor-text hover:bg-gray-700/20 rounded px-2 py-1 transition-colors relative group"
+                      on:click={() => startEditing(listener)}
+                      on:keydown={(e) => e.key === 'Enter' && startEditing(listener)}
+                      aria-label="Edit message"
+                    >
+                      <span class="truncate">
+                        {listener.message?.length > 50
+                          ? `${listener.message.slice(0, 50)}...`
+                          : listener.message || 'No message set'}
                       </span>
-                    {/if}
-                  </button>
+                      {#if listener.message?.length > 50}
+                        <span
+                          class="absolute left-0 bottom-full mb-1 hidden group-hover:block bg-gray-800 text-white text-sm p-1 rounded max-w-xs"
+                        >
+                          {listener.message}
+                        </span>
+                      {/if}
+                    </button>
+                  {/if}
+                {:else}
+                  {listener.action}
                 {/if}
               </TableCell>
 
@@ -306,15 +309,19 @@
                 />
               </TableCell>
               <TableCell class="text-gray-300">
-                {#if listener.numberOfMessageReceived > 0 && listener.numberOfMessageSent > 0}
-                  <span>
-                    {(
-                      (listener.numberOfMessageReceived / listener.numberOfMessageSent) *
-                      100
-                    ).toFixed(1)}%
-                  </span>
+                {#if listener.action === 'Send a Message'}
+                  {#if listener.numberOfMessageReceived > 0 && listener.numberOfMessageSent > 0}
+                    <span>
+                      {(
+                        (listener.numberOfMessageReceived / listener.numberOfMessageSent) *
+                        100
+                      ).toFixed(1)}%
+                    </span>
+                  {:else}
+                    <span class="text-gray-400">0%</span>
+                  {/if}
                 {:else}
-                  <span class="text-gray-400">0%</span>
+                  N/A
                 {/if}
               </TableCell>
 

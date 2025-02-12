@@ -38,7 +38,7 @@
       <div class="text-left">
         <h3 class="text-lg font-semibold text-gray-100">{account.handle}</h3>
         <p class="text-sm text-muted-foreground mt-1">
-          <span class="text-blue-400 font-medium">{listeners.length}</span> bots actifs
+          <span class="text-blue-400 font-medium">{listeners.length}</span> active bots
         </p>
       </div>
     </div>

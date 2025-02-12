@@ -107,7 +107,7 @@ export default class AccountController {
     }
   }
 
-  public async sendMessageToAllFollowers({ request, response, auth }: HttpContext) {
+  public async sendMessageToAllFollowers({ request, response, auth, session }: HttpContext) {
     const user = auth.user;
     if (!user) throw new Error("No user found");
 
@@ -159,11 +159,18 @@ export default class AccountController {
             const messages = await getMessages(convo.id, messagesAuth.data.token) as unknown as MessageViewSender[];
 
             if (messages.length === 0) {
-              await sendMessageToConvo(
-                { convoId: convo.id, message: { text: listener.message } },
-                sendMessageAuth.data.token
-              );
-              console.log("Message sent to", follow.handle);
+              try {
+                await sendMessageToConvo(
+                  { convoId: convo.id, message: { text: listener.message } },
+                  sendMessageAuth.data.token
+                );
+                console.log("Message sent to", follow.handle);
+              } catch (err) {
+                if (err.error == "RateLimitExceeded") {
+                  session.flash("errors.RateLimitExceeded", err.message)
+                  return response.redirect().back()
+                }
+              }
             }
           }
         }));

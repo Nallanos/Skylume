@@ -2,7 +2,7 @@
   import type User from '#models/user'
   import type Account from '#models/account'
   import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/ui/accordion'
-  import { Settings, Bot, Calendar, Sparkles, LayoutDashboard, Puzzle } from 'lucide-svelte'
+  import { Bot, Calendar, Sparkles, LayoutDashboard, Puzzle } from 'lucide-svelte'
 
   export let user: User
   export let accounts: Account[]
@@ -74,12 +74,6 @@
       <div class="flex-1">
         <p class="text-sm font-medium truncate text-foreground">{user.email}</p>
       </div>
-      <a
-        href="/settings"
-        class="p-2 rounded-md hover:bg-accent transition-colors text-muted-foreground hover:text-foreground"
-      >
-        <Settings class="h-4 w-4" />
-      </a>
     </div>
   </div>
 </aside>

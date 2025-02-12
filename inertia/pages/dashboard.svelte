@@ -22,7 +22,7 @@
     {:else}
       <!-- Title and Stats -->
       <div class="mb-8 space-y-2">
-        <h1 class="text-3xl font-bold text-gray-100">Your Bots Manager</h1>
+        <h1 class="text-3xl font-bold text-gray-100">Your Bluesky Accounts</h1>
         <p class="text-gray-400">
           {accounts.length} connected account{accounts.length > 1 ? 's' : ''}
         </p>

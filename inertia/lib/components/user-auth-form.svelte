@@ -74,7 +74,4 @@
       <Button type="submit" class="text-white">Submit</Button>
     </div>
   </form>
-  <!-- <Button variant="outline" type="button" disabled={isLoading} class="flex gap-1 "
-    ><img src={srcLogoBSKY} class="size-4" alt="bluesky logo" />BlueSky</Button
-  > -->
 </div>
