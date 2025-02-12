@@ -31,15 +31,18 @@ export default class SessionController {
     public async signUp({ request, auth, response, session }: HttpContext) {
         try {
             const { email, password, marketing_consent } = request.only(['email', 'password', "marketing_consent"])
+            console.log({ email, password, marketing_consent })
             const userAlreadyExists = await User.findBy('email', email)
 
             if (userAlreadyExists !== null) {
                 session.flash('errors.credentials', 'Account already exists')
+                console.log("Account already exists")
                 return response.redirect().back()
             }
 
             if (!await isEmailValid(email)) {
                 session.flash('errors.credentials', 'Please enter a valid email')
+                console.log("email is invalid")
                 return response.redirect().back()
             }
 
