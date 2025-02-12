@@ -59,7 +59,7 @@ router.post("/account/followAll", [account_controller, 'sendMessageToAllFollower
 
 
 router.get('/dashboard', async ({ auth, inertia }) => {
-    const user = auth.user!
+    const user = auth.user
     if (user) {
         let accounts = await Account.query()
             .where('user_id', user.id)

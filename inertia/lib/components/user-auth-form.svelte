@@ -14,8 +14,8 @@
   let marketing_consent = true
   let response: Response | undefined
   async function handleSubmit() {
-    console.log(marketing_consent)
     const res = await router.post(`/${apiAuth}`, { password, email, marketing_consent })
+    console.log(res)
     response == res
   }
   let className: string | undefined | null = undefined

@@ -1,78 +1,96 @@
-# version: '3.8'
+version: '3.8'
 
-# services:
-#   app:
-#     ports:
-#       - 8081:8081
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - TZ=UTC
+      - PORT=8081
+      - HOST=0.0.0.0
+      - LOG_LEVEL=debug
+      - APP_KEY=QU3bPZtVbBgV3Hjl5YSazM_UCp505C_x
+      - NODE_ENV=production
+      - SESSION_DRIVER=cookie
+      - DB_HOST=postgresql
+      - DB_PORT=5432
+      - DB_USER=blueskybluesky
+      - DB_PASSWORD=blueskybluesky
+      - DB_DATABASE=blueskybluesky
+      - QUEUE_REDIS_HOST=redis
+      - QUEUE_REDIS_PORT=6379
+      - QUEUE_REDIS_PASSWORD=
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - REDIS_PASSWORD=
+    ports:
+      - 8081:8081
+    depends_on:
+      - postgresql
+      - redis
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.app.rule=Host(`bluesky-bot.com`)
+      - traefik.http.routers.app.entrypoints=websecure
+      - traefik.http.services.app.loadbalancer.server.port=8081
+      - traefik.docker.network=traefik_public
+    networks:
+      - traefik_public
+      - bluesky-copilot_default
 
-#     build:
-#       context: .
-#       dockerfile: Dockerfile
-#     environment:
-#       - TZ=UTC
-#       - PORT=8081
-#       - HOST=0.0.0.0
-#       - LOG_LEVEL=debug
-#       - APP_KEY=QU3bPZtVbBgV3Hjl5YSazM_UCp505C_x
-#       - NODE_ENV=development
-#       - SESSION_DRIVER=cookie
-#       - DB_HOST=postgresql
-#       - DB_PORT=5432
-#       - DB_USER=blueskybluesky
-#       - DB_PASSWORD=blueskybluesky
-#       - DB_DATABASE=blueskybluesky
-#       - QUEUE_REDIS_HOST=redis
-#       - QUEUE_REDIS_PORT=6379
-#       - QUEUE_REDIS_PASSWORD=
-#       - REDIS_HOST=redis
-#       - REDIS_PORT=6379
-#       - REDIS_PASSWORD=
-#     depends_on:
-#       - postgresql
-#       - redis
-#     labels:
-#       - traefik.enable=true
-#       - traefik.http.routers.app.rule=Host(`bluesky-bot.com`)
-#       - traefik.http.routers.app.entrypoints=web
-#       - traefik.http.services.app.loadbalancer.server.port=8081
-#       - traefik.docker.network=traefik_public
-#     networks:
-#       - traefik_public
+  postgresql:
+    image: postgres:16.4
+    restart: always
+    environment:
+      POSTGRES_USER: blueskybluesky
+      POSTGRES_PASSWORD: blueskybluesky
+      POSTGRES_DB: blueskybluesky
+    expose:
+      - 5432
+    volumes:
+      - postgresql_data:/var/lib/postgresql/data
+    networks:
+      - bluesky-copilot_default
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U blueskybluesky']
+      interval: 10s
+      retries: 5
+      timeout: 5s
 
-#   postgresql:
-#     image: postgres:16.4
-#     restart: always
-#     environment:
-#       POSTGRES_USER: blueskybluesky
-#       POSTGRES_PASSWORD: blueskybluesky
-#       POSTGRES_DB: blueskybluesky
-#     ports:
-#       - 5432:5432
-#     volumes:
-#       - postgresql_data:/var/lib/postgresql/data
+  redis:
+    image: redis:7.4.1-alpine
+    expose:
+      - 6379
+    networks:
+      - bluesky-copilot_default
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      retries: 5
+      timeout: 5s
 
-#   reverse-proxy:
-#     image: traefik:v3.3
-#     command:
-#       - --api.insecure=true
-#       - --providers.docker
-#       - --entrypoints.web.address=:80
-#     ports:
-#       - '80:80'
-#       - '8080:8080'
-#     volumes:
-#       - /var/run/docker.sock:/var/run/docker.sock
-#     networks:
-#       - traefik_public
+  reverse-proxy:
+    image: traefik:v3.3
+    command:
+      - --api.dashboard=true
+      - --api.insecure=false
+      - --providers.docker
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+    ports:
+      - '80:80'
+      - '443:443'
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - traefik_public
 
-#   redis:
-#     image: redis:7.4.1-alpine
-#     ports:
-#       - 6379:6379
+volumes:
+  postgresql_data:
 
-# volumes:
-#   postgresql_data:
-
-# networks:
-#   traefik_public:
-#     driver: bridge
+networks:
+  traefik_public:
+    driver: bridge
+  bluesky-copilot_default:
+    driver: bridge
