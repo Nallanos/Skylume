@@ -27,3 +27,4 @@ commands/follow.ts
 app/models/follow.ts
 commands/unfollow.ts
 docker-compose.yaml
+letsencrypt/acme.json
