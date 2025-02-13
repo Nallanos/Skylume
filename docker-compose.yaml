@@ -35,6 +35,8 @@ services:
       - traefik.http.routers.app.entrypoints=web
       - traefik.http.services.app.loadbalancer.server.port=8081
       - traefik.docker.network=traefik_public
+      - traefik.http.routers.app.tls=true
+      - traefik.http.routers.app.tls.certresolver=myresolver
     networks:
       - traefik_public
       - bluesky-copilot_default
@@ -73,15 +75,15 @@ services:
     image: traefik:v3.3
     command:
       - --api.dashboard=true
-      - --api.insecure=true
+      - --api.insecure=false
       - --providers.docker=true
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.myresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory
       - --certificatesresolvers.myresolver.acme.httpchallenge=true
       - --certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web
       - --certificatesresolvers.myresolver.acme.email=benameurallan06@gmail.com
-      - --certificatesresolvers.myresolver.acme.storage=/acme.json
-      - --certificatesresolvers.myresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory
+      - --certificatesresolvers.myresolver.acme.storage=./acme.json
     ports:
       - '80:80'
       - '443:443'
