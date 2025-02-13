@@ -36,7 +36,8 @@ services:
       - traefik.http.services.app.loadbalancer.server.port=8081
       - traefik.docker.network=traefik_public
       - traefik.http.routers.app.tls.certresolver=myresolver
-
+      - traefik.http.routers.app.middlewares=acme@docker
+      - traefik.http.middlewares.acme.chain.middlewares=redirect,compressed
     networks:
       - traefik_public
       - bluesky-copilot_default
