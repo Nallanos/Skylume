@@ -30,13 +30,10 @@ services:
     labels:
       - traefik.enable=true
       - traefik.http.routers.app.rule=Host(`bluesky-bot.com`)
-      - traefik.http.routers.app.entrypoints=websecure
-      - traefik.docker.network=traefik_public
       - traefik.http.services.app.loadbalancer.server.port=8081
-      - traefik.http.routers.app.tls=true
+      - traefik.http.routers.app.entrypoints=websecure
       - traefik.http.routers.app.tls.certresolver=myresolver
     networks:
-      - traefik_public
       - bluesky-copilot_default
   postgresql:
     image: postgres:16.4
@@ -72,18 +69,16 @@ services:
   reverse-proxy:
     image: traefik:v3.3
     command:
-      - --api.dashboard=true
-      - --api.insecure=true
-      - --providers.docker=true
-      - --providers.docker.network=traefik_public
-      - --providers.docker.exposedbydefault=false
-      - --entrypoints.web.address=:80
-      - --entrypoints.websecure.address=:443
-      - --certificatesresolvers.myresolver.acme.caserver=https://acme-v02.api.letsencrypt.org/directory
-      - --certificatesresolvers.myresolver.acme.httpchallenge=true
-      - --certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web
-      - --certificatesresolvers.myresolver.acme.email=benameurallan06@gmail.com
-      - --certificatesresolvers.myresolver.acme.storage=/acme.json
+      - '--api.insecure=true'
+      - '--providers.docker=true'
+      - '--providers.docker.exposedbydefault=false'
+      - '--entryPoints.web.address=:80'
+      - '--entryPoints.websecure.address=:443'
+      - '--certificatesresolvers.myresolver.acme.httpchallenge=true'
+      - '--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web'
+      #- "--certificatesresolvers.myresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
+      - '--certificatesresolvers.myresolver.acme.email=benameurallan06@gmail.com'
+      - '--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json'
     ports:
       - '80:80'
       - '443:443'
@@ -92,16 +87,13 @@ services:
       - traefik.enable=true
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - ./:/letsencrypt
+      - './letsencrypt:/letsencrypt'
     networks:
-      - traefik_public
       - bluesky-copilot_default
 
 volumes:
   postgresql_data:
 
 networks:
-  traefik_public:
-    driver: bridge
   bluesky-copilot_default:
     driver: bridge
