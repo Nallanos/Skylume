@@ -86,6 +86,9 @@ export default class BotsController {
                 throw new Error(`cannot find listner with ${listenerId}`)
             }
 
+
+
+
             const listenerBotConvos = await BotConvo.findManyBy("listeners_convos.listeners_id", listenerId)
 
             let user_bot_service = users_bot_service_manager.userbotServiceMap.get(user.id)
@@ -96,13 +99,12 @@ export default class BotsController {
                     throw new Error("no user bot service found")
                 }
             }
-
             const account = await Account.find(listener.account_id)
-            if (!account?.at_session && account) {
-                await user_bot_service.createOrResumeSession(account)
-            } else if (!account) {
-                throw new Error(`no account found for the listener ${account} `)
+            if (!account) {
+                throw new Error(`cannot find account with ${listener.id}`)
             }
+
+            await user_bot_service.createOrResumeSession(account)
 
             if (account.at_session != undefined) {
                 let resAuth = await user_bot_service.agent.com.atproto.server.getServiceAuth({ aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.getConvoForMembers" }, { headers: { Authorization: `Bearer ${account.at_session.accessJwt}` } })
