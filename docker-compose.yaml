@@ -74,11 +74,14 @@ services:
     image: traefik:v3.3
     command:
       - --api.dashboard=true
-      - --api.insecure=false
+      - --api.insecure=true
       - --providers.docker
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
+      - --entrypoints.web.http.redirections.entryPoint.to=websecure
+      - --entrypoints.web.http.redirections.entryPoint.scheme=https
     ports:
+      - '8080:8080'
       - '80:80'
       - '443:443'
     volumes:
