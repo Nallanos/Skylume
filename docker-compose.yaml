@@ -75,7 +75,7 @@ services:
     image: traefik:v3.3
     command:
       - --api.dashboard=true
-      - --api.insecure=true
+      - --api.insecure=false
       - --providers.docker
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
@@ -94,6 +94,10 @@ services:
       - './:/letsencrypt'
     networks:
       - traefik_public
+    labels:
+      - 'traefik.enable=true'
+      - 'traefik.http.routers.api.rule=Host(`traefik.localhost`)'
+      - 'traefik.http.services.api.loadbalancer.server.port=8080'
 
 volumes:
   postgresql_data:
