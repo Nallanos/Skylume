@@ -9,7 +9,7 @@ services:
       - TZ=UTC
       - PORT=8081
       - HOST=0.0.0.0
-      - LOG_LEVEL=info # Passage en level info pour la production
+      - LOG_LEVEL=debug
       - APP_KEY=QU3bPZtVbBgV3Hjl5YSazM_UCp505C_x
       - NODE_ENV=production
       - SESSION_DRIVER=cookie
@@ -24,19 +24,22 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=
+    ports:
+      - 8081:8081
     depends_on:
       - postgresql
       - redis
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.app.rule=Host(`bluesky-bot.com`)
+      - traefik.http.routers.app.entrypoints=web
+      - traefik.http.services.app.loadbalancer.server.port=8081
+      - traefik.docker.network=traefik_public
+      - traefik.http.routers.app.tls=true
+      - traefik.http.routers.app.tls.certresolver=myresolver
     networks:
-      - caddy_network
-      - backend_network
-    # Plus besoin d'exposer le port, géré par le reverse proxy
-    healthcheck:
-      test: ['CMD', 'curl', '-f', 'http://localhost:8081/health']
-      interval: 30s
-      timeout: 10s
-      retries: 3
-
+      - traefik_public
+      - bluesky-copilot_default
   postgresql:
     image: postgres:16.4
     restart: always
@@ -44,10 +47,12 @@ services:
       POSTGRES_USER: blueskybluesky
       POSTGRES_PASSWORD: blueskybluesky
       POSTGRES_DB: blueskybluesky
+    ports:
+      - 5432:5432
     volumes:
       - postgresql_data:/var/lib/postgresql/data
     networks:
-      - backend_network
+      - bluesky-copilot_default
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U blueskybluesky']
       interval: 10s
@@ -56,36 +61,47 @@ services:
 
   redis:
     image: redis:7.4.1-alpine
+    ports:
+      - 6379:6379
     networks:
-      - backend_network
+      - bluesky-copilot_default
     healthcheck:
       test: ['CMD', 'redis-cli', 'ping']
       interval: 10s
       retries: 5
       timeout: 5s
 
-  caddy:
-    image: caddy:latest
-    restart: always
+  reverse-proxy:
+    image: traefik:v3.3
+    command:
+      - --api.dashboard=true
+      - --api.insecure=false
+      - --providers.docker=true
+      - --entrypoints.web.address=:80
+      - --entrypoints.websecure.address=:443
+      - --certificatesresolvers.myresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory
+      - --certificatesresolvers.myresolver.acme.httpchallenge=true
+      - --certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web
+      - --certificatesresolvers.myresolver.acme.email=benameurallan06@gmail.com
+      - --certificatesresolvers.myresolver.acme.storage=./acme.json
     ports:
-      - 80:80
-      - 443:443
+      - '80:80'
+      - '443:443'
+      - '8080:8080'
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.api.rule=Host(`traefik.localhost`)
     volumes:
-      - ./Caddyfile:/etc/caddy/Caddyfile
-      - caddy_data:/data
-      - caddy_config:/config
+      - /var/run/docker.sock:/var/run/docker.sock
+      - './acme.json:/acme.json'
     networks:
-      - caddy_network
-    depends_on:
-      - app
+      - traefik_public
 
 volumes:
   postgresql_data:
-  caddy_data:
-  caddy_config:
 
 networks:
-  caddy_network:
+  traefik_public:
     driver: bridge
-  backend_network:
+  bluesky-copilot_default:
     driver: bridge

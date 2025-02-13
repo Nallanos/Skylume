@@ -3,9 +3,14 @@
   import type Account from '#models/account'
   import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/ui/accordion'
   import { Bot, Calendar, Sparkles, LayoutDashboard, Puzzle } from 'lucide-svelte'
-
+  import Button from '@/ui/button/button.svelte'
+  import { router } from '@inertiajs/svelte'
   export let user: User
   export let accounts: Account[]
+
+  async function handleLogout() {
+    await router.put('/logout')
+  }
 </script>
 
 <aside class="w-64 h-screen flex flex-col border-r border-border bg-background">
@@ -71,9 +76,8 @@
   </nav>
   <div class="p-4 border-t border-border">
     <div class="flex items-center justify-between">
-      <div class="flex-1">
-        <p class="text-sm font-medium truncate text-foreground">{user.email}</p>
-      </div>
+      <p class="text-sm font-medium truncate text-foreground">{user.email}</p>
+      <Button variant="outline" on:click={handleLogout}>Logout</Button>
     </div>
   </div>
 </aside>
