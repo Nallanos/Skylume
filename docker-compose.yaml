@@ -35,7 +35,8 @@ services:
       - traefik.http.routers.app.entrypoints=web
       - traefik.http.services.app.loadbalancer.server.port=8081
       - traefik.docker.network=traefik_public
-
+      - traefik.http.routers.app.tls=true
+      - traefik.http.routers.app.tls.certresolver=myresolve
     networks:
       - traefik_public
       - bluesky-copilot_default
