@@ -24,8 +24,6 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=
-    ports:
-      - 8081:8081
     depends_on:
       - postgresql
       - redis
@@ -77,6 +75,8 @@ services:
       - --api.dashboard=true
       - --api.insecure=true
       - --providers.docker=true
+      - --providers.docker.network=traefik_public
+      - --providers.docker.exposedbydefault=false
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
       - --certificatesresolvers.myresolver.acme.caserver=https://acme-v02.api.letsencrypt.org/directory
@@ -95,6 +95,7 @@ services:
       - ./:/letsencrypt
     networks:
       - traefik_public
+      - bluesky-copilot_default
 
 volumes:
   postgresql_data:
