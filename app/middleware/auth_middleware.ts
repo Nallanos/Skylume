@@ -20,6 +20,7 @@ export default class AuthMiddleware {
     } = {}
   ) {
     try {
+      console.log(ctx.session.all())
       await ctx.auth.authenticateUsing(options.guards, {
         loginRoute: this.redirectTo
       })
