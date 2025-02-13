@@ -36,8 +36,6 @@ services:
       - traefik.http.services.app.loadbalancer.server.port=8081
       - traefik.docker.network=traefik_public
       - traefik.http.routers.app.tls.certresolver=myresolver
-      - traefik.http.routers.app.middlewares=acme@docker
-      - traefik.http.middlewares.acme.chain.middlewares=redirect,compressed
     networks:
       - traefik_public
       - bluesky-copilot_default
@@ -77,30 +75,22 @@ services:
     command:
       - --api.dashboard=true
       - --api.insecure=false
-      - --providers.docker
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
-      - '--entrypoints.web.http.middlewares=redirect@docker'
-      - '--entrypoints.websecure.http.middlewares=compress@docker'
-      - '--http.middlewares.redirect.redirectscheme.scheme=https'
-      - '--certificatesresolvers.myresolver.acme.httpchallenge=true'
-      - '--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web'
-      - '--certificatesresolvers.myresolver.acme.email=benameurallan06@gmail.com'
-      - '--certificatesresolvers.myresolver.acme.storage=/acme.json'
-      - '--certificatesresolvers.myresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory'
+      - --certificatesresolvers.myresolver.acme.httpchallenge=true
+      - --certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web
+      - --certificatesresolvers.myresolver.acme.email=benameurallan06@gmail.com
+      - --certificatesresolvers.myresolver.acme.storage=/acme.json
+      - --certificatesresolvers.myresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory
     ports:
-      - '8080:8080'
       - '80:80'
       - '443:443'
+      - '8080:8080'
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - './:/letsencrypt'
+      - './acme.json:/acme.json'
     networks:
       - traefik_public
-    labels:
-      - 'traefik.enable=true'
-      - 'traefik.http.routers.api.rule=Host(`traefik.localhost`)'
-      - 'traefik.http.services.api.loadbalancer.server.port=8080'
 
 volumes:
   postgresql_data:
