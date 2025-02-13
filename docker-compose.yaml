@@ -35,10 +35,11 @@ services:
       - traefik.http.routers.app.entrypoints=websecure
       - traefik.http.services.app.loadbalancer.server.port=8081
       - traefik.docker.network=traefik_public
+      - traefik.http.routers.app.tls.certresolver=myresolver
+
     networks:
       - traefik_public
       - bluesky-copilot_default
-
   postgresql:
     image: postgres:16.4
     restart: always
@@ -80,12 +81,17 @@ services:
       - --entrypoints.websecure.address=:443
       - --entrypoints.web.http.redirections.entryPoint.to=websecure
       - --entrypoints.web.http.redirections.entryPoint.scheme=https
+      - '--certificatesresolvers.myresolver.acme.httpchallenge=true'
+      - '--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web'
+      - '--certificatesresolvers.myresolver.acme.email=benameurallan06@gmail.com'
+      - '--certificatesresolvers.myresolver.acme.storage=/acme.json'
     ports:
       - '8080:8080'
       - '80:80'
       - '443:443'
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - './:/letsencrypt'
     networks:
       - traefik_public
 
