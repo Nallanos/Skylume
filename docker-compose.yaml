@@ -85,6 +85,7 @@ services:
       - '--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web'
       - '--certificatesresolvers.myresolver.acme.email=benameurallan06@gmail.com'
       - '--certificatesresolvers.myresolver.acme.storage=/acme.json'
+      - '--certificatesresolvers.myresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory'
     ports:
       - '8080:8080'
       - '80:80'
