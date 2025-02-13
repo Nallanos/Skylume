@@ -74,7 +74,7 @@ services:
     image: traefik:v3.3
     command:
       - --api.dashboard=true
-      - --api.insecure=false
+      - --api.insecure=true
       - --entrypoints.web.address=:80
       - --entrypoints.websecure.address=:443
       - --certificatesresolvers.myresolver.acme.httpchallenge=true
