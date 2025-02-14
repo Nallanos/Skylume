@@ -124,24 +124,59 @@ export default class AccountController {
     if (!account.at_session) throw new Error("Account session missing");
 
     const agent = userBotService.agent;
-    await userBotService.createOrResumeSession(account);
 
-    const [convoAuth, messagesAuth, sendMessageAuth] = await Promise.all([
-      agent.com.atproto.server.getServiceAuth(
-        { aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.getConvoForMembers" },
-        { headers: { Authorization: `Bearer ${account.at_session.accessJwt}` } }
-      ),
-      agent.com.atproto.server.getServiceAuth(
-        { aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.getMessages" },
-        { headers: { Authorization: `Bearer ${account.at_session.accessJwt}` } }
-      ),
-      agent.com.atproto.server.getServiceAuth(
-        { aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.sendMessage" },
-        { headers: { Authorization: `Bearer ${account.at_session.accessJwt}` } }
-      )
-    ]);
+    // Fonction de rafraîchissement de session et d'authentifications
+    const refreshSessionAndAuths = async () => {
+      await userBotService.createOrResumeSession(account);
+      await account.refresh();
+
+      if (!account.at_session) throw new Error("Account session missing")
+
+      return Promise.all([
+        agent.com.atproto.server.getServiceAuth(
+          { aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.getConvoForMembers" },
+          { headers: { Authorization: `Bearer ${account.at_session.accessJwt}` } }
+        ),
+        agent.com.atproto.server.getServiceAuth(
+          { aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.getMessages" },
+          { headers: { Authorization: `Bearer ${account.at_session.accessJwt}` } }
+        ),
+        agent.com.atproto.server.getServiceAuth(
+          { aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.sendMessage" },
+          { headers: { Authorization: `Bearer ${account.at_session.accessJwt}` } }
+        )
+      ]);
+    };
+
+    // Initialisation des authentifications
+    let [convoAuth, messagesAuth, sendMessageAuth] = await refreshSessionAndAuths();
+
+    // Vérification d'expiration JWT
+    const isJwtExpired = (token: string) => {
+      try {
+        const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64').toString());
+        return payload.exp * 1000 < Date.now() + 5000; // Marge de sécurité de 5s
+      } catch {
+        return true;
+      }
+    };
+
+    // Wrapper de réessai automatique
+    const withRetry = async (fn: () => Promise<any>, context: string) => {
+      try {
+        return await fn();
+      } catch (err) {
+        if (err.message.includes('JwtExpired')) {
+          console.log(`JWT expiré détecté (${context}), tentative de rafraîchissement...`);
+          [convoAuth, messagesAuth, sendMessageAuth] = await refreshSessionAndAuths();
+          return await fn();
+        }
+        throw err;
+      }
+    };
 
     let cursor: string | undefined;
+    if (account.followersCursor) cursor = account.followersCursor
     try {
       while (true) {
         const followersResponse = await agent.getFollowers({
@@ -152,36 +187,70 @@ export default class AccountController {
 
         if (!followersResponse.data.followers.length) break;
 
-        await Promise.all(followersResponse.data.followers.map(async (follow) => {
-          const convo = await getConvoFromMembers([account.did, follow.did], convoAuth.data.token);
+        for (const follow of followersResponse.data.followers) {
+          try {
+            console.log("Processing account:", follow.handle)
+            // Vérification proactive avant chaque follower
+            if (isJwtExpired(account.at_session.accessJwt)) {
+              [convoAuth, messagesAuth, sendMessageAuth] = await refreshSessionAndAuths();
+            }
 
-          if (convo) {
-            const messages = await getMessages(convo.id, messagesAuth.data.token) as unknown as MessageViewSender[];
+            // Utilisation du wrapper de réessai
+            const convo = await withRetry(
+              () => getConvoFromMembers([account.did, follow.did], convoAuth.data.token),
+              'getConvoFromMembers'
+            );
 
-            if (messages.length === 0) {
-              try {
-                await sendMessageToConvo(
-                  { convoId: convo.id, message: { text: listener.message } },
-                  sendMessageAuth.data.token
+            if (convo) {
+              const messages = await withRetry(
+                () => getMessages(convo.id, messagesAuth.data.token),
+                'getMessages'
+              ) as unknown as MessageViewSender[];
+
+              console.log(messages.length === 0)
+              if (messages.length === 0) {
+                await withRetry(
+                  () => sendMessageToConvo(
+                    { convoId: convo.id, message: { text: listener.message } },
+                    sendMessageAuth.data.token
+                  ),
+                  'sendMessageToConvo'
                 );
                 console.log("Message sent to", follow.handle);
-              } catch (err) {
-                if (err.error == "RateLimitExceeded") {
-                  session.flash("errors.RateLimitExceeded", err.message)
-                  return response.redirect().back()
-                }
+
+                // Délai anti-rate-limit
+                await new Promise(resolve => setTimeout(resolve, 1500));
               }
             }
+          } catch (err) {
+            console.error("error catché avec", err.statusCode)
+            if (err.statusCode === 429) {
+              const retryAfter = err.response?.headers?.['retry-after'] || 60;
+              console.log(`Rate limit (${retryAfter}s)`);
+              await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
+              continue;
+            }
+            console.error(`Erreur avec ${follow.handle}:`, err.message);
           }
-        }));
+        }
 
         cursor = followersResponse.data.cursor;
+        account.followersCursor = cursor
+        await account.save()
+        console.log("Cursor updated")
         if (!cursor) break;
+
+        // Délai entre les pages
+        await new Promise(resolve => setTimeout(resolve, 3000));
       }
     } catch (error) {
-      console.error("Error:", error);
-      response.redirect().back();
+      console.error("Erreur globale:", error);
+      session.flash('error', 'Erreur: ' + error.message);
+      return response.redirect().back();
     }
+
+    session.flash('success', 'Messages envoyés avec succès');
+    return response.redirect().back();
   }
 
 }

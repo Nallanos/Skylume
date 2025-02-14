@@ -1,40 +1,41 @@
 version: '3.8'
 
 services:
-  app:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    environment:
-      - TZ=UTC
-      - PORT=8081
-      - HOST=0.0.0.0
-      - LOG_LEVEL=debug
-      - APP_KEY=QU3bPZtVbBgV3Hjl5YSazM_UCp505C_x
-      - NODE_ENV=production
-      - SESSION_DRIVER=cookie
-      - DB_HOST=postgresql
-      - DB_PORT=5432
-      - DB_USER=blueskybluesky
-      - DB_PASSWORD=blueskybluesky
-      - DB_DATABASE=blueskybluesky
-      - QUEUE_REDIS_HOST=redis
-      - QUEUE_REDIS_PORT=6379
-      - QUEUE_REDIS_PASSWORD=
-      - REDIS_HOST=redis
-      - REDIS_PORT=6379
-      - REDIS_PASSWORD=
-    depends_on:
-      - postgresql
-      - redis
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.app.rule=Host(`bluesky-bot.com`)
-      - traefik.http.services.app.loadbalancer.server.port=8081
-      - traefik.http.routers.app.entrypoints=websecure
-      - traefik.http.routers.app.tls.certresolver=myresolver
-    networks:
-      - bluesky-copilot_default
+  # app:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   environment:
+  #     - TZ=UTC
+  #     - PORT=8081
+  #     - HOST=0.0.0.0
+  #     - LOG_LEVEL=debug
+  #     - APP_KEY=QU3bPZtVbBgV3Hjl5YSazM_UCp505C_x
+  #     - NODE_ENV=production
+  #     - SESSION_DRIVER=cookie
+  #     - DB_HOST=postgresql
+  #     - DB_PORT=5432
+  #     - DB_USER=blueskybluesky
+  #     - DB_PASSWORD=blueskybluesky
+  #     - DB_DATABASE=blueskybluesky
+  #     - QUEUE_REDIS_HOST=redis
+  #     - QUEUE_REDIS_PORT=6379
+  #     - QUEUE_REDIS_PASSWORD=
+  #     - REDIS_HOST=redis
+  #     - REDIS_PORT=6379
+  #     - REDIS_PASSWORD=
+  #   depends_on:
+  #     - postgresql
+  #     - redis
+  #   labels:
+  #     - traefik.enable=true
+  #     - traefik.http.routers.app.rule=Host(`bluesky-bot.com`)
+  #     - traefik.http.services.app.loadbalancer.server.port=8081
+  #     - traefik.http.routers.app.entrypoints=websecure
+  #     - traefik.http.routers.app.tls.certresolver=myresolver
+  #   networks:
+  #     - bluesky-copilot_default
+
   postgresql:
     image: postgres:16.4
     restart: always

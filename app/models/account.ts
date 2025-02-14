@@ -21,6 +21,9 @@ export default class Account extends BaseModel {
   declare appPassword: string
 
   @column()
+  declare followersCursor: string | undefined
+
+  @column()
   declare session: string | null
 
   @computed()
