@@ -31,6 +31,8 @@ const bots_controller = () => import('#controllers/bots_controller')
 router.post("/sign-up", [session_controller, 'signUp'])
 router.post("/login", [session_controller, 'login'])
 
+
+
 router.put("/account", [account_controller, 'createAccount']).use(middleware.auth())
 router.post("/dashboard/accounts/delete", [account_controller, 'deleteAccount']).use(middleware.auth())
 router.post("/bot/add", [bots_controller, 'addBot']).use(middleware.auth())
@@ -55,7 +57,7 @@ router.post("/bot/toggle", async ({ response, request }) => {
 
     return response.redirect().back()
 }).use(middleware.auth())
-router.post("/account/followAll", [account_controller, 'sendMessageToAllFollowers']).use(middleware.auth())
+router.post("/account/followAll", [bots_controller, 'sendMessageToAllFollowers']).use(middleware.auth())
 
 
 router.get('/dashboard', async ({ auth, inertia }) => {
@@ -99,12 +101,15 @@ router.get('/account/:id/dashboard', async ({ params, inertia }) => {
         if (!account) {
             throw new Error("Account not found")
         }
+        await account.refresh()
         await account.load('listeners')
 
         if (!account.listeners) {
             throw new Error("Listeners not found")
         }
 
+
+        
         return inertia.render('accountDashboard', {
             account: account.serialize(),
         })
