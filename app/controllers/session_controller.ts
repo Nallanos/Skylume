@@ -21,7 +21,7 @@ export default class SessionController {
             const user = await User.verifyCredentials(email, password)
 
             await auth.use('web').login(user)
-            response.redirect('/thank-you')
+            response.redirect('/dashboard')
         } catch (error) {
             session.flash("errors.credentials", "Invalid email or password")
             response.redirect().back()
@@ -52,7 +52,7 @@ export default class SessionController {
             await auth.use('web').login(user)
 
             await UsersBotServiceManager.startUserBotService(user)
-            return response.redirect('/thank-you')
+            return response.redirect('/dashboard')
         } catch (err) {
             console.log("error while signin up:", err)
         }

@@ -37,7 +37,7 @@ export async function getMessages(
         return data.messages
     } catch (error) {
         console.error("Échec de la récupération des messages de la conversation", error);
-        return undefined;
+        throw error;
     }
 }
 
@@ -65,6 +65,7 @@ export async function getConvoFromMembers(
         return data.convo;
     } catch (error) {
         console.error("Échec de la récupération de la conversation à partir des membres", error);
+        throw error
     }
 }
 

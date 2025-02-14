@@ -13,6 +13,7 @@ export default class extends BaseSchema {
       table.string("session", 1600).nullable()
       table.string("seen_notification_at")
       table.string("job_id").nullable()
+      table.string("followers_cursor").nullable()
     })
   }
 

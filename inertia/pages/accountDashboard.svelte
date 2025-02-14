@@ -5,13 +5,22 @@
   import { Card, CardContent, CardHeader, CardTitle } from '@/ui/card'
   import { Input } from '@/ui/input'
   import { Switch } from '@/ui/switch'
-  import { Trash, Pencil, Plus, Check, X, MessageSquareText, Server, Activity } from 'lucide-svelte'
+  import {
+    Trash,
+    Pencil,
+    Plus,
+    Check,
+    X,
+    MessageSquareText,
+    Server,
+    Activity,
+    Loader,
+  } from 'lucide-svelte'
   import Sidebar from '@/components/Sidebar.svelte'
   import type User from '#models/user'
   import type Account from '#models/account'
   import type { Listener } from '@/type'
   import { onMount } from 'svelte'
-
   export let account: Account | undefined
 
   onMount(async () => {
@@ -26,6 +35,7 @@
   let editingListenerId: string | null = null
   let newMessage = ''
   let isProcessing = false
+  $: sendingListenerId = ''
 
   if (!account) {
     throw new Error('Account not found')
@@ -73,16 +83,20 @@
     router.post('/bot/remove', { listener_id: listener_id })
   }
 
-  function sendToAllFollowers(account_id: string, listener_id: string) {
-    router.post('/account/followAll', { account_id: account_id, listener_id: listener_id })
+  async function sendToAllFollowers(account_id: string, listener_id: string) {
+    sendingListenerId = listener_id
+    console.log('sendingListenerId', sendingListenerId, listener_id)
+    console.log(sendingListenerId === listener_id)
+    router.post('/account/followAll', {
+      account_id: account_id,
+      listener_id: listener_id,
+    })
   }
 </script>
 
 <main class="flex min-h-screen">
   <Sidebar {user} {accounts} />
-
   <div class="flex flex-col flex-1 overflow-hidden">
-    <!-- Header avec animation au scroll -->
     <header class="sticky top-0 z-10 backdrop-blur-sm border-b border-gray-800 transition-all">
       <div class="flex items-center justify-between px-8 py-6">
         <div class="space-y-1">
@@ -100,9 +114,7 @@
       </div>
     </header>
 
-    <!-- Statistiques avec entrée animée -->
     <div class="flex w-full gap-6 px-8 py-6 animate-fade-in-up">
-      <!-- Total Engagement Card -->
       <Card
         class="hover:border-blue-400 transition-all duration-300 w-full group relative overflow-hidden"
       >
@@ -348,12 +360,18 @@
                     <Button
                       variant="ghost"
                       size="sm"
-                      class="border-gray-800 border"
-                      on:click={() => {
-                        sendToAllFollowers(account.id, listener.id)
-                      }}
+                      class="border-gray-800 border relative transition-all"
+                      on:click={() => sendToAllFollowers(account.id, listener.id)}
+                      disabled={sendingListenerId === listener.id}
                     >
-                      Send to all followers
+                      <div class="flex items-center gap-2">
+                        {#if sendingListenerId === listener.id}
+                          Sending messages
+                          <Loader class="h-4 w-4 mr-2 animate-spin" />
+                        {:else}
+                          Send to all followers
+                        {/if}
+                      </div>
                     </Button>
                   {/if}
                 </div>
