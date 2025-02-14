@@ -263,8 +263,8 @@ export default class BotsController {
                 for (const follow of followersResponse.data.followers) {
                     try {
                         console.log("Processing account:", follow.handle)
-                        if (!account.at_session) throw new Error("Account session missing");
 
+                        if (!account.at_session) throw new Error("Account session missing");
                         if (isJwtExpired(account.at_session.accessJwt)) {
                             [convoAuth, messagesAuth, sendMessageAuth] = await refreshSessionAndAuths();
                         }
