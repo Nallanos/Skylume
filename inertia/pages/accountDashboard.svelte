@@ -14,6 +14,7 @@
     MessageSquareText,
     Server,
     Activity,
+    Info,
     Loader,
   } from 'lucide-svelte'
   import Sidebar from '@/components/Sidebar.svelte'
@@ -47,7 +48,6 @@
   )
   $: totalResponses = listeners.reduce((sum, l) => sum + l.numberOfMessageReceived, 0)
   $: activeListeners = listeners.filter((l) => l.isActive).length
-
   // Gestion des états
   async function toggleListener(listener: Listener) {
     try {
@@ -235,16 +235,21 @@
             <TableHead class="text-gray-300">Message Sent / Listener Action</TableHead>
             <TableHead class="text-gray-300">Status</TableHead>
             <TableHead class="text-gray-300">Response rate</TableHead>
-            <TableHead class="text-gray-300 text-right">Actions</TableHead>
+            <TableHead class="text-gray-300 text-right">
+              Actions
+              <div
+                class="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-gray-800 border-b border-r border-gray-700 transform rotate-45"
+              />
+            </TableHead>
           </TableRow>
         </TableHeader>
 
         <TableBody class="divide-y divide-gray-700">
           {#each listeners as listener (listener.id)}
             <TableRow
-              class="transition-all hover:bg-gray-800/50 {listener.isActive
+              class="transition-all hover:bg-gray-800/50 listener.isActive
                 ? 'opacity-100'
-                : 'opacity-70 hover:opacity-90'}"
+                : 'opacity-70 hover:opacity-90'} "
             >
               <TableCell class="font-medium text-gray-100">
                 <div class="flex items-center space-x-3">
@@ -337,7 +342,7 @@
                 {/if}
               </TableCell>
 
-              <TableCell>
+              <TableCell class="h-24">
                 <div class="flex justify-end space-x-2">
                   <Button
                     variant="ghost"
@@ -359,7 +364,7 @@
                     <Button
                       variant="ghost"
                       size="sm"
-                      class="border-gray-800 border relative transition-all"
+                      class="border-gray-800 border relative transition-all group/button"
                       on:click={() => sendToAllFollowers(account.id, listener.id)}
                       disabled={listener.stateSendToAll}
                     >
@@ -368,7 +373,24 @@
                           Sending messages
                           <Loader class="h-4 w-4 mr-2 animate-spin" />
                         {:else}
-                          Send to all followers
+                          <div class="relative inline-flex items-center h-full">
+                            Send to all followers
+                            <Info
+                              class="h-3 w-3 ml-1.5 text-gray-400 hover:text-gray-200 transition-colors cursor-help"
+                            />
+
+                            <div
+                              class="absolute hidden group-hover/button:block w-50 h-12 -bottom-10 left-1/2 -translate-x-1/2 px-2 py-2 text-xs bg-gray-800 border border-gray-700 rounded-lg shadow-lg"
+                            >
+                              <div class="text-center text-gray-300">
+                                Sends this message to all followers <br />
+                                you haven't interacted with yet
+                              </div>
+                              <div
+                                class="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-gray-800 transform rotate-45 border-l border-t border-gray-700"
+                              />
+                            </div>
+                          </div>
                         {/if}
                       </div>
                     </Button>
