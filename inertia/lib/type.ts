@@ -18,6 +18,7 @@ export type Listener = {
     numberOfMessageSent: number
     numberOfMessageReceived: number
     isActive: boolean
+    stateSendToAll: boolean | undefined
 }
 
 export type MetricData = {

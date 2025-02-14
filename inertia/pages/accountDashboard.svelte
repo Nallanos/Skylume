@@ -29,13 +29,12 @@
       await router.post('/bot/refresh', { listenerId: listener.id })
     }
   })
-  // États réactifs
+
   let user: User = $page.props.user
   let accounts = user.account as unknown as Account[]
   let editingListenerId: string | null = null
   let newMessage = ''
   let isProcessing = false
-  $: sendingListenerId = ''
 
   if (!account) {
     throw new Error('Account not found')
@@ -84,14 +83,14 @@
   }
 
   async function sendToAllFollowers(account_id: string, listener_id: string) {
-    sendingListenerId = listener_id
-    console.log('sendingListenerId', sendingListenerId, listener_id)
-    console.log(sendingListenerId === listener_id)
+    if (!account) return
     router.post('/account/followAll', {
       account_id: account_id,
       listener_id: listener_id,
     })
+    router.get(`/account/${account.id}/dashboard`)
   }
+  console.log()
 </script>
 
 <main class="flex min-h-screen">
@@ -226,6 +225,7 @@
         </CardContent>
       </Card>
     </div>
+
     <div class="flex-1 overflow-auto px-8 pb-8">
       <Table class="relative border border-gray-700 rounded-lg overflow-hidden">
         <TableHeader class="sticky top-0 z-20">
@@ -355,17 +355,16 @@
                   >
                     <Trash class="h-4 w-4" />
                   </Button>
-
                   {#if listener.action === 'Send a Message'}
                     <Button
                       variant="ghost"
                       size="sm"
                       class="border-gray-800 border relative transition-all"
                       on:click={() => sendToAllFollowers(account.id, listener.id)}
-                      disabled={sendingListenerId === listener.id}
+                      disabled={listener.stateSendToAll}
                     >
                       <div class="flex items-center gap-2">
-                        {#if sendingListenerId === listener.id}
+                        {#if listener.stateSendToAll}
                           Sending messages
                           <Loader class="h-4 w-4 mr-2 animate-spin" />
                         {:else}

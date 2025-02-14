@@ -4,7 +4,8 @@ import { AtpAgent } from "@atproto/api";
 import Listener from "#models/listener";
 import Convo from "#models/convo";
 import BotConvo from "#models/listeners_convos";
-import { getConvoFromMembers, sendMessageToConvo } from "./chatAPI.js";
+import { getConvoFromMembers, getMessages, sendMessageToConvo } from "./chatAPI.js";
+import type { MessageView } from "@atproto/api/dist/client/types/chat/bsky/convo/defs.js";
 export class EventListener {
     constructor(
         private agent: AtpAgent,
@@ -37,20 +38,28 @@ export class EventListener {
 
             const chatToken = await this.getChatToken(account);
             const convoToken = await this.getConvoToken(account)
+            const messageToken = await this.getMessagesToken(account)
 
             const convo = await this.getConvo(authorDid, convoToken);
 
             await this.updateConvo(listener, convo, authorDid);
 
+            const res = await getMessages(convo.id, messageToken, 100)
+            if (!res) throw new Error("error while getting messages")
+            console.log(res)
+            const isAlreadySent = res.length > 0 && res.some(msg => msg.text === this.message);
+            console.log(isAlreadySent)
+
             const sendMessagePayload: MessagePayload = {
                 convoId: convo.id,
                 message: { text: this.message || '' }
             };
-
-            this.sendMessageToConvo(sendMessagePayload, chatToken).then(async () => {
-                listener.number_of_message_sent++;
-                await listener.save();
-            })
+            if (!isAlreadySent) {
+                this.sendMessageToConvo(sendMessagePayload, chatToken).then(async () => {
+                    listener.number_of_message_sent++;
+                    await listener.save();
+                });
+            }
         } catch (err) {
             console.log("error while sending message on follow:", err);
         }
@@ -73,6 +82,13 @@ export class EventListener {
             throw new Error(`can't find listener with the following listener_id: ${this.listener_id}`);
         }
         return listener;
+    }
+
+    private async getMessagesToken(account: any) {
+        let res = await this.agent.com.atproto.server.getServiceAuth({
+            aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.getMessages"
+        }, { headers: { Authorization: `Bearer ${account.at_session.accessJwt}` } });
+        return res.data.token;
     }
 
     private async getConvoToken(account: any) {

@@ -16,6 +16,8 @@ export default class extends BaseSchema {
       table.string("message")
       table.integer("number_of_message_sent").defaultTo(0)
       table.integer("number_of_message_received").defaultTo(0)
+      table.string("followers_cursor").nullable()
+      table.boolean("state_send_to_all").nullable()
     })
   }
 

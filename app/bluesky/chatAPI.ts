@@ -1,3 +1,4 @@
+import type { MessageView } from "@atproto/api/dist/client/types/chat/bsky/convo/defs.js";
 import type { MessagePayload } from "./types.js";
 
 export async function getMessages(
@@ -5,7 +6,7 @@ export async function getMessages(
     authToken: string,
     limit: number = 50,
     cursor?: string
-): Promise<{ messages: unknown[]; cursor?: string } | undefined> {
+): Promise<MessageView[] | undefined> {
     try {
         const params = new URLSearchParams();
         params.append('convoId', convoId);
