@@ -55,36 +55,6 @@
     </div>
   </section>
 
-  <!-- Early Adopter Benefits -->
-  <section class="py-16">
-    <div class="max-w-6xl mx-auto px-4">
-      <div class="text-center mb-12">
-        <h3 class="text-sm uppercase tracking-widest text-blue-400 mb-4">Why Join the Alpha?</h3>
-        <h2 class="text-3xl font-bold mb-6">Shape the Future of Bluesky Automation</h2>
-        <p class="text-gray-400 max-w-2xl mx-auto">
-          As an alpha user, you'll get exclusive benefits and direct influence on product
-          development
-        </p>
-      </div>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div class="bg-gray-800/20 p-6 rounded-xl border border-gray-700">
-          <div class="text-2xl font-bold text-teal-400 mb-4">1. Lifetime Discount</div>
-          <p class="text-gray-400">
-            Alpha users will receive special pricing that will never increase
-          </p>
-        </div>
-        <div class="bg-gray-800/20 p-6 rounded-xl border border-gray-700">
-          <div class="text-2xl font-bold text-blue-400 mb-4">2. Direct Influence</div>
-          <p class="text-gray-400">Your feedback will shape the product roadmap and features</p>
-        </div>
-        <div class="bg-gray-800/20 p-6 rounded-xl border border-gray-700">
-          <div class="text-2xl font-bold text-purple-400 mb-4">3. Early Access</div>
-          <p class="text-gray-400">Be the first to access new features before public release</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
   <!-- Features -->
   <section class="py-20 px-4">
     <div class="max-w-6xl mx-auto">
@@ -170,6 +140,37 @@
               <span>Custom alerts</span>
             </li>
           </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Early Adopter Benefits -->
+
+  <section class="py-16">
+    <div class="max-w-6xl mx-auto px-4">
+      <div class="text-center mb-12">
+        <h3 class="text-sm uppercase tracking-widest text-blue-400 mb-4">Why Join the Alpha?</h3>
+        <h2 class="text-3xl font-bold mb-6">Shape the Future of Bluesky Automation</h2>
+        <p class="text-gray-400 max-w-2xl mx-auto">
+          As an alpha user, you'll get exclusive benefits and direct influence on product
+          development
+        </p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+        <div class="bg-gray-800/20 p-6 rounded-xl border border-gray-700">
+          <div class="text-2xl font-bold text-teal-400 mb-4">1. Lifetime Discount</div>
+          <p class="text-gray-400">
+            Alpha users will receive special pricing that will never increase
+          </p>
+        </div>
+        <div class="bg-gray-800/20 p-6 rounded-xl border border-gray-700">
+          <div class="text-2xl font-bold text-blue-400 mb-4">2. Direct Influence</div>
+          <p class="text-gray-400">Your feedback will shape the product roadmap and features</p>
+        </div>
+        <div class="bg-gray-800/20 p-6 rounded-xl border border-gray-700">
+          <div class="text-2xl font-bold text-purple-400 mb-4">3. Early Access</div>
+          <p class="text-gray-400">Be the first to access new features before public release</p>
         </div>
       </div>
     </div>
