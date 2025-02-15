@@ -30,7 +30,7 @@ const handle = async (data: BotJobPayload): Promise<void> => {
 
     const listeners = await Listener.findManyBy('account_id', accountWithMethod.id);
     await user_service.createOrResumeSession(accountWithMethod);
-
+    await accountWithMethod.refresh()
     const notificationData: NotificationData[] | undefined = await user_service.fetchAccountNotifications(accountWithMethod);
     if (!notificationData) {
       console.log(`\n[INFO] No notifications found for account: ${accountWithMethod.handle}`);
