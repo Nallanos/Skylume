@@ -44,7 +44,7 @@
 <div class="flex h-screen w-screen">
   <Sidebar {user} {accounts} />
 
-  <div class="flex-1 flex flex-col items-center overflow-auto p-8">
+  <div class="flex-1 flex flex-col items-center overflow-auto p-8 pt-16">
     <header class="w-full max-w-2xl mb-12">
       <h3 class="text-3xl font-bold mb-4">Bot Management</h3>
       <p class="leading-relaxed text-gray-300">

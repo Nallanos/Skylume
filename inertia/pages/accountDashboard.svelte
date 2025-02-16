@@ -48,6 +48,7 @@
   )
   $: totalResponses = listeners.reduce((sum, l) => sum + l.numberOfMessageReceived, 0)
   $: activeListeners = listeners.filter((l) => l.isActive).length
+
   // Gestion des états
   async function toggleListener(listener: Listener) {
     try {
@@ -93,10 +94,13 @@
   console.log()
 </script>
 
-<main class="flex min-h-screen">
+<main class="flex flex-col md:flex-row min-h-screen">
+  <!-- Sidebar: vous pouvez également intégrer un bouton hamburger dans le composant pour les petits écrans -->
   <Sidebar {user} {accounts} />
-  <div class="flex flex-col flex-1 overflow-hidden">
-    <header class="sticky top-0 z-10 backdrop-blur-sm border-b border-gray-800 transition-all">
+
+  <div class="flex flex-col flex-1 overflow-hidden pt-6">
+    <!-- En-tête -->
+    <header class="flex flex-col md:flex-row w-full gap-4 px-4 md:px-8 py-4 md:py-6">
       <div class="flex items-center justify-between px-8 py-6">
         <div class="space-y-1">
           <h1 class="text-3xl font-bold">Account Dashboard</h1>
@@ -113,9 +117,10 @@
       </div>
     </header>
 
-    <div class="flex w-full gap-6 px-8 py-6 animate-fade-in-up">
+    <!-- Cartes de résumé sous forme de grille (responsive : 1 colonne sur mobile, 3 colonnes sur md et plus) -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 px-4 md:px-8 py-6 animate-fade-in-up">
       <Card
-        class="hover:border-blue-400 transition-all duration-300 w-full group relative overflow-hidden"
+        class="hover:border-blue-400 transition-all duration-300 w-full group relative overflow-hidden mb-4"
       >
         <div
           class="absolute top-0 right-0 w-16 h-16 bg-blue-500/10 rounded-bl-2xl transition-colors"
@@ -134,7 +139,6 @@
         <CardContent>
           <div class="text-3xl font-bold text-blue-400 flex items-center gap-2">
             {totalEngagement}
-            <span class="text-sm text-blue-300 font-normal flex items-center"> </span>
           </div>
           <p class="text-sm text-gray-400 mt-1">Engagement this month</p>
 
@@ -150,9 +154,9 @@
         </CardContent>
       </Card>
 
-      <!-- Active Bots Card -->
+      <!-- Active Listeners Card -->
       <Card
-        class="hover:border-green-400 transition-all duration-300 w-full group relative overflow-hidden"
+        class="hover:border-green-400 transition-all duration-300 w-full group relative overflow-hidden mb-4"
       >
         <div
           class="absolute top-0 right-0 w-16 h-16 bg-green-500/10 rounded-bl-2xl transition-colors"
@@ -174,7 +178,6 @@
         <CardContent>
           <div class="text-3xl font-bold text-green-400 flex items-center gap-2">
             {activeListeners}
-            <span class="text-sm text-green-300 font-normal flex items-center"> </span>
           </div>
           <p class="text-sm text-gray-400 mt-1">Real-time monitoring</p>
 
@@ -190,9 +193,9 @@
         </CardContent>
       </Card>
 
-      <!-- Total Responses Card (déjà modifié) -->
+      <!-- Total Responses Card -->
       <Card
-        class="hover:border-purple-400 transition-all duration-300 w-full group relative overflow-hidden"
+        class="hover:border-purple-400 transition-all duration-300 w-full group relative overflow-hidden mb-4"
       >
         <div
           class="absolute top-0 right-0 w-16 h-16 bg-purple-500/10 rounded-bl-2xl transition-colors"
@@ -212,7 +215,6 @@
           <div class="text-3xl font-bold text-purple-400 flex items-center gap-2">
             {totalResponses}
           </div>
-
           <div
             class="absolute bottom-2 right-2 opacity-10 group-hover:opacity-20 transition-opacity"
           >
@@ -226,51 +228,212 @@
       </Card>
     </div>
 
-    <div class="flex-1 overflow-auto px-8 pb-8">
-      <Table class="relative border border-gray-700 rounded-lg overflow-hidden">
-        <TableHeader class="sticky top-0 z-20">
-          <TableRow class="hover:bg-transparent">
-            <TableHead class="text-gray-300">Bot name</TableHead>
-            <TableHead class="text-gray-300">Trigger Event</TableHead>
-            <TableHead class="text-gray-300">Message Sent / Listener Action</TableHead>
-            <TableHead class="text-gray-300">Status</TableHead>
-            <TableHead class="text-gray-300">Response rate</TableHead>
-            <TableHead class="text-gray-300 text-right">
-              Actions
-              <div
-                class="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-gray-800 border-b border-r border-gray-700 transform rotate-45"
-              />
-            </TableHead>
-          </TableRow>
-        </TableHeader>
+    <!-- Tableau avec défilement horizontal sur mobile -->
+    <div class="px-4 md:px-8 pb-4 md:pb-8">
+      <!-- Vue desktop : Tableau classique -->
+      <div class="hidden md:block overflow-x-auto">
+        <Table
+          class="relative border border-gray-700 rounded-lg overflow-hidden min-w-[800px] md:min-w-full"
+        >
+          <TableHeader class="sticky top-0 z-20">
+            <TableRow class="hover:bg-transparent">
+              <TableHead class="text-gray-300">Bot name</TableHead>
+              <TableHead class="text-gray-300">Trigger Event</TableHead>
+              <TableHead class="text-gray-300">Message Sent / Listener Action</TableHead>
+              <TableHead class="text-gray-300">Status</TableHead>
+              <TableHead class="text-gray-300 hidden md:table-cell">Response rate</TableHead>
+              <TableHead class="text-gray-300 text-right">
+                Actions
+                <div
+                  class="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-gray-800 border-b border-r border-gray-700 transform rotate-45"
+                />
+              </TableHead>
+            </TableRow>
+          </TableHeader>
 
-        <TableBody class="divide-y divide-gray-700">
-          {#each listeners as listener (listener.id)}
-            <TableRow
-              class="transition-all hover:bg-gray-800/50 listener.isActive
-                ? 'opacity-100'
-                : 'opacity-70 hover:opacity-90'} "
-            >
-              <TableCell class="font-medium text-gray-100">
-                <div class="flex items-center space-x-3">
-                  <div
-                    class={`h-2 w-2 rounded-full ${listener.isActive ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}
-                  />
-                  <span>Bot {listener.id}</span>
-                </div>
-              </TableCell>
-
-              <TableCell class="text-gray-300 capitalize"
-                >{listener.event.replace(/_/g, ' ')}</TableCell
+          <TableBody class="divide-y divide-gray-700">
+            {#each listeners as listener (listener.id)}
+              <TableRow
+                class="transition-all hover:bg-gray-800/50 {listener.isActive
+                  ? 'opacity-100'
+                  : 'opacity-70 hover:opacity-90'}"
               >
+                <TableCell class="font-medium text-gray-100 px-2 md:px-4 py-3 text-sm">
+                  <div class="flex items-center space-x-3">
+                    <div
+                      class={`h-2 w-2 rounded-full ${listener.isActive ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}
+                    />
+                    <span>Bot {listener.id}</span>
+                  </div>
+                </TableCell>
 
-              <TableCell class="max-w-[300px]">
+                <TableCell class="text-gray-300 capitalize px-2 md:px-4 py-3 text-sm">
+                  {listener.event.replace(/_/g, ' ')}
+                </TableCell>
+
+                <TableCell class="max-w-[300px] px-2 md:px-4 py-3 text-sm">
+                  {#if listener.action === 'Send a Message'}
+                    {#if editingListenerId === listener.id}
+                      <div class="flex gap-2 items-center animate-fade-in">
+                        <Input
+                          bind:value={newMessage}
+                          class="flex-1 bg-gray-700 border-gray-600 text-gray-100"
+                          placeholder="Enter response message..."
+                        />
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          on:click={() => saveMessage(listener)}
+                          class="text-green-400 hover:bg-green-400/10"
+                        >
+                          <Check class="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          on:click={() => (editingListenerId = null)}
+                          class="text-red-400 hover:bg-red-400/10"
+                        >
+                          <X class="h-4 w-4" />
+                        </Button>
+                      </div>
+                    {:else}
+                      <button
+                        type="button"
+                        class="truncate text-gray-300 cursor-text hover:bg-gray-700/20 rounded px-2 py-1 transition-colors relative group"
+                        on:click={() => startEditing(listener)}
+                        on:keydown={(e) => e.key === 'Enter' && startEditing(listener)}
+                        aria-label="Edit message"
+                      >
+                        <span class="truncate">
+                          {listener.message?.length > 50
+                            ? `${listener.message.slice(0, 50)}...`
+                            : listener.message || 'No message set'}
+                        </span>
+                        {#if listener.message?.length > 50}
+                          <span
+                            class="absolute left-0 bottom-full mb-1 hidden group-hover:block bg-gray-800 text-white text-sm p-1 rounded max-w-xs"
+                          >
+                            {listener.message}
+                          </span>
+                        {/if}
+                      </button>
+                    {/if}
+                  {:else}
+                    {listener.action}
+                  {/if}
+                </TableCell>
+
+                <TableCell class="px-2 md:px-4 py-3 text-sm">
+                  <Switch
+                    checked={listener.isActive}
+                    on:click={() => toggleListener(listener)}
+                    disabled={isProcessing}
+                    class={`${listener.isActive ? 'bg-green-400' : 'bg-red-400'} ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  />
+                </TableCell>
+                <TableCell class="text-gray-300 px-2 md:px-4 py-3 text-sm">
+                  {#if listener.action === 'Send a Message'}
+                    {#if listener.numberOfMessageReceived > 0 && listener.numberOfMessageSent > 0}
+                      <span>
+                        {(
+                          (listener.numberOfMessageReceived / listener.numberOfMessageSent) *
+                          100
+                        ).toFixed(1)}
+                        %
+                      </span>
+                    {:else}
+                      <span class="text-gray-400">0%</span>
+                    {/if}
+                  {:else}
+                    N/A
+                  {/if}
+                </TableCell>
+
+                <TableCell class="h-24 px-2 md:px-4 py-3 text-sm">
+                  <div class="flex justify-end space-x-2">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      on:click={() => startEditing(listener)}
+                      class="text-blue-400 hover:bg-blue-400/10"
+                    >
+                      <Pencil class="h-4 w-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      on:click={() => deleteListener(listener.id)}
+                      class="text-red-400 hover:bg-red-400/10"
+                    >
+                      <Trash class="h-4 w-4" />
+                    </Button>
+                    {#if listener.action === 'Send a Message'}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        class="border-gray-800 border relative transition-all group/button"
+                        on:click={() => sendToAllFollowers(account.id, listener.id)}
+                        disabled={listener.stateSendToAll}
+                      >
+                        <div class="flex items-center gap-2">
+                          {#if listener.stateSendToAll}
+                            Sending messages
+                            <Loader class="h-4 w-4 mr-2 animate-spin" />
+                          {:else}
+                            <div class="relative inline-flex items-center h-full">
+                              Send to all followers
+                              <Info
+                                class="h-3 w-3 ml-1.5 text-gray-400 hover:text-gray-200 transition-colors cursor-help"
+                              />
+                            </div>
+                          {/if}
+                        </div>
+                      </Button>
+                    {/if}
+                  </div>
+                </TableCell>
+              </TableRow>
+            {/each}
+          </TableBody>
+        </Table>
+      </div>
+
+      <!-- Vue mobile : Affichage en cartes -->
+      <div class="block md:hidden space-y-4">
+        {#each listeners as listener (listener.id)}
+          <div class="border border-gray-800 rounded-lg p-4">
+            <!-- En-tête de la carte -->
+            <div class="flex justify-between items-center">
+              <div class="flex items-center gap-2">
+                <div
+                  class={`h-2 w-2 rounded-full ${listener.isActive ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}
+                ></div>
+                <span class="font-medium text-gray-100">Bot {listener.id}</span>
+              </div>
+              <Switch
+                checked={listener.isActive}
+                on:click={() => toggleListener(listener)}
+                disabled={isProcessing}
+                class={`${listener.isActive ? 'bg-green-400' : 'bg-red-400'} ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
+              />
+            </div>
+
+            <!-- Détails -->
+            <div class="mt-2 space-y-1">
+              <p>
+                <strong>Trigger Event: </strong>
+                {listener.event.replace(/_/g, ' ')}
+              </p>
+
+              <p class="line-clamp-2">
+                <strong>Action: </strong>
                 {#if listener.action === 'Send a Message'}
                   {#if editingListenerId === listener.id}
-                    <div class="flex gap-2 items-center animate-fade-in">
+                    <div class="flex gap-2 items-center mt-1">
                       <Input
                         bind:value={newMessage}
-                        class="flex-1 bg-gray-700 border-gray-600 text-gray-100"
+                        class="flex-1 border-gray-800"
                         placeholder="Enter response message..."
                       />
                       <Button
@@ -293,114 +456,84 @@
                   {:else}
                     <button
                       type="button"
-                      class="truncate text-gray-300 cursor-text hover:bg-gray-700/20 rounded px-2 py-1 transition-colors relative group"
+                      class="truncate text-gray-300 cursor-text hover:bg-gray-700/20 rounded px-2 py-1 transition-colors"
                       on:click={() => startEditing(listener)}
                       on:keydown={(e) => e.key === 'Enter' && startEditing(listener)}
                       aria-label="Edit message"
                     >
-                      <span class="truncate">
-                        {listener.message?.length > 50
-                          ? `${listener.message.slice(0, 50)}...`
-                          : listener.message || 'No message set'}
-                      </span>
-                      {#if listener.message?.length > 50}
-                        <span
-                          class="absolute left-0 bottom-full mb-1 hidden group-hover:block bg-gray-800 text-white text-sm p-1 rounded max-w-xs"
-                        >
-                          {listener.message}
-                        </span>
-                      {/if}
+                      {listener.message?.length > 50
+                        ? `${listener.message.slice(0, 50)}...`
+                        : listener.message || 'No message set'}
                     </button>
                   {/if}
                 {:else}
                   {listener.action}
                 {/if}
-              </TableCell>
+              </p>
 
-              <TableCell>
-                <Switch
-                  checked={listener.isActive}
-                  on:click={() => toggleListener(listener)}
-                  disabled={isProcessing}
-                  class={`{listener.isActive ? 'bg-green-400' : 'bg-red-400'} {isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
-                />
-              </TableCell>
-              <TableCell class="text-gray-300">
+              <p class="text-gray-300">
+                <strong>Response Rate: </strong>
                 {#if listener.action === 'Send a Message'}
                   {#if listener.numberOfMessageReceived > 0 && listener.numberOfMessageSent > 0}
-                    <span>
-                      {(
-                        (listener.numberOfMessageReceived / listener.numberOfMessageSent) *
-                        100
-                      ).toFixed(1)}%
-                    </span>
+                    {(
+                      (listener.numberOfMessageReceived / listener.numberOfMessageSent) *
+                      100
+                    ).toFixed(1)}
+                    %
                   {:else}
                     <span class="text-gray-400">0%</span>
                   {/if}
                 {:else}
                   N/A
                 {/if}
-              </TableCell>
+              </p>
+            </div>
 
-              <TableCell class="h-24">
-                <div class="flex justify-end space-x-2">
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    on:click={() => startEditing(listener)}
-                    class="text-blue-400 hover:bg-blue-400/10"
-                  >
-                    <Pencil class="h-4 w-4" />
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    on:click={() => deleteListener(listener.id)}
-                    class="text-red-400 hover:bg-red-400/10"
-                  >
-                    <Trash class="h-4 w-4" />
-                  </Button>
-                  {#if listener.action === 'Send a Message'}
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      class="border-gray-800 border relative transition-all group/button"
-                      on:click={() => sendToAllFollowers(account.id, listener.id)}
-                      disabled={listener.stateSendToAll}
-                    >
-                      <div class="flex items-center gap-2">
-                        {#if listener.stateSendToAll}
-                          Sending messages
-                          <Loader class="h-4 w-4 mr-2 animate-spin" />
-                        {:else}
-                          <div class="relative inline-flex items-center h-full">
-                            Send to all followers
-                            <Info
-                              class="h-3 w-3 ml-1.5 text-gray-400 hover:text-gray-200 transition-colors cursor-help"
-                            />
-
-                            <div
-                              class="absolute hidden group-hover/button:block w-50 h-12 -bottom-10 left-1/2 -translate-x-1/2 px-2 py-2 text-xs bg-gray-800 border border-gray-700 rounded-lg shadow-lg"
-                            >
-                              <div class="text-center text-gray-300">
-                                Sends this message to all followers <br />
-                                you haven't interacted with yet
-                              </div>
-                              <div
-                                class="absolute -top-1.5 left-1/2 -translate-x-1/2 w-3 h-3 bg-gray-800 transform rotate-45 border-l border-t border-gray-700"
-                              />
-                            </div>
-                          </div>
-                        {/if}
+            <!-- Actions -->
+            <div class="mt-2 flex justify-end space-x-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                on:click={() => startEditing(listener)}
+                class="text-blue-400 hover:bg-blue-400/10"
+              >
+                <Pencil class="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                on:click={() => deleteListener(listener.id)}
+                class="text-red-400 hover:bg-red-400/10"
+              >
+                <Trash class="h-4 w-4" />
+              </Button>
+              {#if listener.action === 'Send a Message'}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  class="border-gray-800 border relative transition-all"
+                  on:click={() => sendToAllFollowers(account.id, listener.id)}
+                  disabled={listener.stateSendToAll}
+                >
+                  <div class="flex items-center gap-2">
+                    {#if listener.stateSendToAll}
+                      Sending messages
+                      <Loader class="h-4 w-4 mr-2 animate-spin" />
+                    {:else}
+                      <div class="relative inline-flex items-center">
+                        Send to all followers
+                        <Info
+                          class="h-3 w-3 ml-1.5 text-gray-400 hover:text-gray-200 transition-colors cursor-help"
+                        />
                       </div>
-                    </Button>
-                  {/if}
-                </div>
-              </TableCell>
-            </TableRow>
-          {/each}
-        </TableBody>
-      </Table>
+                    {/if}
+                  </div>
+                </Button>
+              {/if}
+            </div>
+          </div>
+        {/each}
+      </div>
     </div>
   </div>
 </main>
@@ -416,7 +549,6 @@
       transform: translateY(0);
     }
   }
-
   .animate-fade-in-up {
     animation: fade-in-up 0.6s ease-out forwards;
   }
