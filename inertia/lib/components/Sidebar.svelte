@@ -1,20 +1,59 @@
 <script lang="ts">
   import type User from '#models/user'
   import type Account from '#models/account'
-  import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/ui/accordion'
-  import { Bot, Calendar, Sparkles, LayoutDashboard, Puzzle } from 'lucide-svelte'
+  import {
+    Accordion,
+    AccordionContent,
+    AccordionItem,
+    AccordionTrigger
+  } from '@/ui/accordion'
+  import {
+    Bot,
+    Calendar,
+    Sparkles,
+    LayoutDashboard,
+    Puzzle,
+    Menu,
+    X as CloseIcon
+  } from 'lucide-svelte'
   import Button from '@/ui/button/button.svelte'
   import { router } from '@inertiajs/svelte'
+  
   export let user: User
   export let accounts: Account[]
+
+  let isSidebarOpen = false
 
   async function handleLogout() {
     await router.put('/logout')
   }
 </script>
 
-<aside class="w-64 h-screen flex flex-col border-r border-border bg-background">
-  <nav class="flex-1 px-3 py-4 overflow-y-auto">
+<!-- Bouton hamburger (visible sur mobile lorsque la sidebar est fermée) -->
+{#if !isSidebarOpen}
+  <button
+    class="md:hidden fixed top-4 left-4 z-50 p-2 bg-background border border-border rounded-md"
+    on:click={() => (isSidebarOpen = true)}
+  >
+    <Menu class="h-6 w-6" />
+  </button>
+{/if}
+
+<!-- Sidebar -->
+<aside
+  class="fixed inset-y-0 left-0 z-40 w-64 bg-background border-r border-border transform transition-transform duration-300 ease-in-out md:translate-x-0 md:static md:z-auto"
+  class:translate-x-0={isSidebarOpen}
+  class:-translate-x-full={!isSidebarOpen}
+>
+  <!-- Bouton de fermeture (visible sur mobile) -->
+  <button
+    class="absolute top-4 right-4 md:hidden p-2"
+    on:click={() => (isSidebarOpen = false)}
+  >
+    <CloseIcon class="h-6 w-6" />
+  </button>
+
+  <nav class="flex-1 px-3 py-4 overflow-y-auto mt-8">
     <div class="mb-6 px-2 space-y-1">
       <a
         href="/dashboard"

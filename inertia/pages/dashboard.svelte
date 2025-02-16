@@ -16,7 +16,7 @@
 <div class="flex min-h-screen">
   <Sidebar {user} {accounts} />
 
-  <main class="flex-1 p-8 relative">
+  <main class="flex-1 p-8 relative pt-20">
     {#if accounts.length === 0}
       <AddAccount />
     {:else}
