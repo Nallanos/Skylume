@@ -5,7 +5,7 @@ export default class BootQueue extends BaseCommand {
   static commandName = 'boot:queue'
   static description = ''
 
-  static options: CommandOptions = { startApp: true }
+  static options: CommandOptions = { startApp: true, staysAlive: true }
 
   async run() {
     await queue_manager.createAndStartListenersQueue()
