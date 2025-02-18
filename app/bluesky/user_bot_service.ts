@@ -191,7 +191,7 @@ export default class UserBotService {
         account.save()
       }
       else if (account.at_session) {
-        console.log("will login")
+        console.log("will resume")
         await this.agent.resumeSession({
           accessJwt: account.at_session.accessJwt,
           refreshJwt: account.at_session.refreshJwt,
