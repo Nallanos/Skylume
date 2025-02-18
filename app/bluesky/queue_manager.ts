@@ -65,7 +65,7 @@ class QueueManager {
         try {
             const account_id = account.id
             const job = await this.queue.add(`bot`, { account_id }, {
-                repeat: { every: 10000 },
+                repeat: { every: 100000 },
                 jobId: account_id,
                 repeatJobKey: account_id
             })

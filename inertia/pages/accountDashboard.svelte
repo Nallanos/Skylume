@@ -98,19 +98,19 @@
   <!-- Sidebar: vous pouvez également intégrer un bouton hamburger dans le composant pour les petits écrans -->
   <Sidebar {user} {accounts} />
 
-  <div class="flex flex-col flex-1 overflow-hidden pt-6">
+  <div class="flex flex-col w-full flex-2 overflow-hidden pt-6">
     <!-- En-tête -->
-    <header class="flex flex-col md:flex-row w-full gap-4 px-4 md:px-8 py-4 md:py-6">
-      <div class="flex items-center justify-between px-8 py-6">
-        <div class="space-y-1">
-          <h1 class="text-3xl font-bold">Account Dashboard</h1>
+    <header class="flex md:flex-row gap-4 px-4 md:px-8 py-4 md:py-6">
+      <div class="flex flex-col md:flex-row items-center justify-between px-8 py-6 w-full">
+        <div class="space-y-1 text-center md:text-left">
+          <h1 class="text-3xl font-bold">Bot Dashboard</h1>
           <p class="text-sm text-gray-400">
             Managing automation for <span class="font-semibold text-blue-300"
               >@{account.handle}</span
             >
           </p>
         </div>
-        <Button href="/bot" class="group hover:scale-[1.02] transition-transform">
+        <Button href="/bot" class="group hover:scale-[1.02] transition-transform mt-4 md:ml-auto">
           <Plus class="mr-2 h-4 w-4 transition-transform group-hover:rotate-90" />
           Add New Bot
         </Button>
@@ -350,7 +350,10 @@
                   {/if}
                 </TableCell>
 
-                <TableCell class="h-24 px-2 md:px-4 py-3 text-sm">
+                <TableCell
+                  class="h-24 px-2 md:px-4 py-3 text-  import {page}
+sm"
+                >
                   <div class="flex justify-end space-x-2">
                     <Button
                       variant="ghost"

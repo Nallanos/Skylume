@@ -6,7 +6,7 @@
 
 <LayoutLandingPage />
 
-<main class="container mx-auto text-gray-300">
+<main class="container mx-auto text-gray-300 mt-20">
   <!-- Hero Section -->
   <section class="min-h-screen flex flex-col justify-center items-center text-center px-4">
     <div class="max-w-4xl mb-8">
