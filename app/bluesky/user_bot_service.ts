@@ -181,6 +181,7 @@ export default class UserBotService {
   public async createOrResumeSession(account: Account): Promise<void> {
     try {
       if (!this.agent.sessionManager.hasSession) {
+        console.log("will login")
         const session = (await this.agent.login({
           identifier: account.did,
           password: account.appPassword,
@@ -190,6 +191,7 @@ export default class UserBotService {
         account.save()
       }
       else if (account.at_session) {
+        console.log("will login")
         await this.agent.resumeSession({
           accessJwt: account.at_session.accessJwt,
           refreshJwt: account.at_session.refreshJwt,

@@ -1,12 +1,7 @@
 <script lang="ts">
   import type User from '#models/user'
   import type Account from '#models/account'
-  import {
-    Accordion,
-    AccordionContent,
-    AccordionItem,
-    AccordionTrigger
-  } from '@/ui/accordion'
+  import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/ui/accordion'
   import {
     Bot,
     Calendar,
@@ -14,11 +9,12 @@
     LayoutDashboard,
     Puzzle,
     Menu,
-    X as CloseIcon
+    MessageSquare,
+    X as CloseIcon,
   } from 'lucide-svelte'
   import Button from '@/ui/button/button.svelte'
   import { router } from '@inertiajs/svelte'
-  
+
   export let user: User
   export let accounts: Account[]
 
@@ -46,10 +42,7 @@
   class:-translate-x-full={!isSidebarOpen}
 >
   <!-- Bouton de fermeture (visible sur mobile) -->
-  <button
-    class="absolute top-4 right-4 md:hidden p-2"
-    on:click={() => (isSidebarOpen = false)}
-  >
+  <button class="absolute top-4 right-4 md:hidden p-2" on:click={() => (isSidebarOpen = false)}>
     <CloseIcon class="h-6 w-6" />
   </button>
 
@@ -92,7 +85,7 @@
               class="flex items-center gap-3 rounded-md px-3 py-2 ml-4 text-sm transition-colors hover:bg-accent text-muted-foreground hover:text-foreground"
             >
               <LayoutDashboard class="h-4 w-4" />
-              Dashboard
+              Bot Dashboard
             </a>
             <a
               href={`/schedule`}
@@ -107,6 +100,13 @@
             >
               <Sparkles class="h-4 w-4" />
               AI posts generation
+            </a>
+            <a
+              href="/DM_Campaigns"
+              class="flex items-center gap-3 rounded-md px-3 py-2 ml-4 text-sm transition-colors hover:bg-accent text-muted-foreground hover:text-foreground"
+            >
+              <MessageSquare class="h-4 w-4" />
+              DM Campaings
             </a>
           </AccordionContent>
         </AccordionItem>
