@@ -13,7 +13,7 @@ export default class extends BaseSchema {
       table.float("wait_time")
       table.string("action")
       table.boolean("is_active").defaultTo(true)
-      table.string("message")
+      table.string("message", 20000)
       table.integer("number_of_message_sent").defaultTo(0)
       table.integer("number_of_message_received").defaultTo(0)
       table.string("followers_cursor").nullable()
