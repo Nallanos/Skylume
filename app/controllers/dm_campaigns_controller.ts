@@ -6,8 +6,6 @@ import { getMessages, sendMessageToConvo, getConvoFromMembers } from '../bluesky
 import type { MessageViewSender } from '@atproto/api/dist/client/types/chat/bsky/convo/defs.js'
 import type UserBotService from '../bluesky/user_bot_service.js'
 import type { Agent } from '@atproto/api'
-import { TargetAudienceService } from '#services/target_audience_service'
-import type { FollowerWithScore } from '../bluesky/types.js'
 import type { ProfileView } from '@atproto/api/dist/client/types/app/bsky/actor/defs.js'
 
 interface AuthTokens {
@@ -23,7 +21,6 @@ export default class DmCampaignsController {
     private userBotService!: UserBotService | undefined
     private agent!: Agent
     private authTokens!: AuthTokens
-    private targetAudienceService = new TargetAudienceService()
     public async createDmCampaign({ request, response, auth, session }: HttpContext) {
         try {
             const { account_handle, campaign_name, campaign_message, campaign_target, keywords } = request.only(["account_handle", "campaign_name", "campaign_message", "campaign_target", "keywords"])
