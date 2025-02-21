@@ -26,6 +26,15 @@ export default class Account extends BaseModel {
   @column()
   declare session: string | null
 
+  @column()
+  declare numberOfMessageSent: string | null
+
+  @column()
+  declare number_of_message_sent: number
+
+  @column()
+  declare number_of_message_received: number
+
   @computed()
   get at_session(): AtpSessionData | undefined {
     if (this.session) {

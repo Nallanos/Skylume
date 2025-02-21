@@ -5,7 +5,6 @@ import Listener from "#models/listener";
 import Convo from "#models/convo";
 import BotConvo from "#models/listeners_convos";
 import { getConvoFromMembers, getMessages, sendMessageToConvo } from "./chatAPI.js";
-import type { MessageView } from "@atproto/api/dist/client/types/chat/bsky/convo/defs.js";
 export class EventListener {
     constructor(
         private agent: AtpAgent,

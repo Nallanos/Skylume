@@ -42,9 +42,6 @@ export default class Listener extends BaseModel {
   declare followersCursor: string | undefined
 
   @column()
-  declare state_send_to_all: boolean | undefined
-
-  @column()
   declare number_of_message_received: number
 
   @manyToMany(() => Convo)

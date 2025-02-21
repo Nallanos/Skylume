@@ -44,10 +44,10 @@
   ]
 </script>
 
-<main class="min-h-screen pt-20">
+<main class="min-h-screen">
   <LayoutLandingPage />
 
-  <section id="pricing" class="relative py-20">
+  <section id="pricing" class="relative pt-12">
     <div class="container mx-auto px-4">
       <div class="text-center mb-16">
         <h2

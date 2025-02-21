@@ -98,11 +98,11 @@
   <!-- Sidebar: vous pouvez également intégrer un bouton hamburger dans le composant pour les petits écrans -->
   <Sidebar {user} {accounts} />
 
-  <div class="flex flex-col w-full flex-2 overflow-hidden pt-6">
+  <div class="flex flex-col w-full flex-2 overflow-hidden px-4 pt-6">
     <!-- En-tête -->
-    <header class="flex md:flex-row gap-4 px-4 md:px-8 py-4 md:py-6">
-      <div class="flex flex-col md:flex-row items-center justify-between px-8 py-6 w-full">
-        <div class="space-y-1 text-center md:text-left">
+    <header class="flex gap-4 p-4 md:py-6">
+      <div class="flex flex-col md:flex-row py-6 w-full">
+        <div class="space-y-1 text-left">
           <h1 class="text-3xl font-bold">Bot Dashboard</h1>
           <p class="text-sm text-gray-400">
             Managing automation for <span class="font-semibold text-blue-300"
@@ -110,7 +110,7 @@
             >
           </p>
         </div>
-        <Button href="/bot" class="group hover:scale-[1.02] transition-transform mt-4 md:ml-auto">
+        <Button href="/bot" class="group hover:scale-[1.02] transition-transform mt-4 ml-auto ">
           <Plus class="mr-2 h-4 w-4 transition-transform group-hover:rotate-90" />
           Add New Bot
         </Button>
