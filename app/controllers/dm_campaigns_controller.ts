@@ -117,9 +117,11 @@ export default class DmCampaignsController {
             if (!response.data.cursor) {
                 break
             }
-
+            cursor = response.data.cursor
             await this.processFollowersBatch(response.data.followers)
         }
+        this.currentDmCampaign.followersCursor = cursor
+        await this.currentDmCampaign.save()
     }
 
     private async processFollowersBatch(followers: ProfileView[]) {
