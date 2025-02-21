@@ -9,8 +9,8 @@
   import Button from '@/ui/button/button.svelte'
 
   export let accounts: Account[]
-
-  const user = $page.props.user as User
+  console.log(accounts)
+  $: user = $page.props.user as User
 </script>
 
 <div class="flex min-h-screen">
@@ -21,11 +21,23 @@
       <AddAccount />
     {:else}
       <!-- Title and Stats -->
-      <div class="mb-8 space-y-2">
-        <h1 class="text-3xl font-bold text-gray-100">Your Bluesky Accounts</h1>
-        <p class="text-gray-400">
-          {accounts.length} connected account{accounts.length > 1 ? 's' : ''}
-        </p>
+      <div class="mb-8 space-y-2 flex flex-col w-full md:flex md:justify-between">
+        <div>
+          <h1 class="text-2xl font-bold w-full text-justify">Your Bluesky Accounts</h1>
+          <p class="text-gray-400">
+            {accounts.length} connected account{accounts.length > 1 ? 's' : ''}
+          </p>
+        </div>
+        <!-- Floating Add Button -->
+        <div class=" animate-fade-in">
+          <Button
+            href="/add/account"
+            class="group shadow-xl hover:shadow-2xl transition-all rounded-md px-6 py-4 bg-gradient-to-r bg-blue-500  hover:bg-blue-400"
+          >
+            <Plus class="h-5 w-5 mr-2 transition-transform group-hover:rotate-90" />
+            Add New Account
+          </Button>
+        </div>
       </div>
       <div
         class="mb-8 p-4 rounded-lg bg-amber-900/20 border border-amber-800/50 flex items-start gap-3"
@@ -44,17 +56,6 @@
         {#each accounts as account}
           <AccountCard {account} />
         {/each}
-      </div>
-
-      <!-- Floating Add Button -->
-      <div class="fixed top-8 right-8 animate-fade-in">
-        <Button
-          href="/add/account"
-          class="group shadow-xl hover:shadow-2xl transition-all rounded-full px-6 py-4 bg-gradient-to-r bg-blue-500  hover:bg-blue-400"
-        >
-          <Plus class="h-5 w-5 mr-2 transition-transform group-hover:rotate-90" />
-          Add New Account
-        </Button>
       </div>
     {/if}
   </main>

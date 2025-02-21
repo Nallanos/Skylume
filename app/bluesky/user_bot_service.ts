@@ -180,7 +180,7 @@ export default class UserBotService {
 
   public async createOrResumeSession(account: Account): Promise<void> {
     try {
-      if (!this.agent.sessionManager.hasSession) {
+      if (!this.agent.sessionManager.hasSession || !account.session) {
         console.log("will login")
         const session = (await this.agent.login({
           identifier: account.did,
@@ -188,7 +188,7 @@ export default class UserBotService {
         })).data;
 
         account.session = JSON.stringify(session)
-        account.save()
+        await account.save()
       }
       else if (account.at_session) {
         console.log("will resume")

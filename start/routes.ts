@@ -11,29 +11,31 @@ import router from '@adonisjs/core/services/router'
 import { middleware } from './kernel.js'
 import Account from '#models/account'
 import Listener from '#models/listener'
+import DmCampaign from '#models/dm_campaign'
 
 router.on('/').renderInertia('home')
 router.on('/schedule').renderInertia('schedule').use(middleware.auth())
-router.on('/sign-up').renderInertia('sign-up')
 router.on('/login').renderInertia('login')
-router.on("/landing-page").renderInertia("landing_page")
 router.on("/terms").renderInertia("terms")
 router.on("/privacy").renderInertia("privacy")
 router.on("/pricing").renderInertia("pricing")
-router.on("/thank-you").renderInertia("thank-you")
 router.on("/password/reset").renderInertia("contact-us")
 router.on("/account/:id/ai-posts").renderInertia("AiPost").use(middleware.auth())
-router.on("add/account").renderInertia("AddAccount").use(middleware.auth())
+router.on("/add/account").renderInertia("AddAccount").use(middleware.auth())
+router.on("/add/campaign").renderInertia("AddCampaign").use(middleware.auth())
 
+const dm_campaign_controller = () => import('#controllers/dm_campaigns_controller')
 const session_controller = () => import('#controllers/session_controller')
 const account_controller = () => import('#controllers/account_controller')
 const bots_controller = () => import('#controllers/bots_controller')
-router.post("/sign-up", [session_controller, 'signUp'])
 router.post("/login", [session_controller, 'login'])
+router.delete("/delete", [session_controller, "deleteUser"])
 
-
-
-router.put("/account", [account_controller, 'createAccount']).use(middleware.auth())
+router.post("/dm_campaign/toggle", [dm_campaign_controller, "toggleDmCampaignStatus"]).use(middleware.auth())
+router.post("/dm_campaign/start", [dm_campaign_controller, "startCampaign"]).use(middleware.auth())
+router.put("/dm_campaign/delete", [dm_campaign_controller, "removeDmCampaign"]).use(middleware.auth())
+router.post("/dm_campaign/create", [dm_campaign_controller, "createDmCampaign"]).use(middleware.auth())
+router.put("/account", [account_controller, 'createAccount'])
 router.post("/dashboard/accounts/delete", [account_controller, 'deleteAccount']).use(middleware.auth())
 router.post("/bot/add", [bots_controller, 'addBot']).use(middleware.auth())
 router.post("/bot/remove", [bots_controller, 'removeBot']).use(middleware.auth())
@@ -57,24 +59,31 @@ router.post("/bot/toggle", async ({ response, request }) => {
 
     return response.redirect().back()
 }).use(middleware.auth())
-router.post("/account/followAll", [bots_controller, 'sendMessageToAllFollowers']).use(middleware.auth())
 
-
-router.get('/dashboard', async ({ auth, inertia }) => {
-    const user = auth.user
-    if (user) {
+router.get('/dashboard', async ({ auth, inertia, response }) => {
+    try {
+        let user = await auth.authenticate()
         let accounts = await Account.query()
             .where('user_id', user.id)
         accounts.map(async (a) => {
             await a.load("listeners")
+            console.log(a.listeners)
             a.serialize()
         })
+
         return inertia.render('dashboard', {
-            accounts: accounts
+            accounts: accounts,
         })
+    } catch (err) {
+        if (err.status === 401) {
+            console.error(err)
+            return inertia.render('dashboard', { accounts: [] })
+        }
+        console.error(err)
+        return response.redirect().back()
+
     }
-    return inertia.render('dashboard', { accounts: [] })
-}).use(middleware.auth())
+})
 
 router.get('/bot', async ({ auth, inertia }) => {
     const user = auth.user!
@@ -108,9 +117,7 @@ router.get('/account/:id/dashboard', async ({ params, inertia }) => {
             throw new Error("Listeners not found")
         }
 
-
-        
-        return inertia.render('accountDashboard', {
+        return inertia.render('botDashboard', {
             account: account.serialize(),
         })
     } catch (error) {
@@ -119,3 +126,17 @@ router.get('/account/:id/dashboard', async ({ params, inertia }) => {
 
 }).use(middleware.auth())
 
+router.get('/DM_Campaigns', async ({ auth, inertia }) => {
+    const user = auth.user
+    if (user) {
+        let dmCampaigns = await DmCampaign.query()
+            .where('user_id', user.id)
+        dmCampaigns.sort((a, b) =>
+            b.accountHandle.localeCompare(a.accountHandle)
+        );
+        return inertia.render('DM_Campaigns', {
+            campaigns: dmCampaigns
+        })
+    }
+    return inertia.render('DM_Campaigns', { campaigns: [] })
+}).use(middleware.auth())

@@ -1,11 +1,10 @@
 <script lang="ts">
-  import { page, router } from '@inertiajs/svelte'
+  import { router } from '@inertiajs/svelte'
   import { Button } from '@/ui/button'
   import { Input } from '@/ui/input/'
   import { cn } from '@/utils'
   import Label from '@/ui/label/label.svelte'
   import Checkbox from '@/ui/checkbox/checkbox.svelte'
-  page.URL
   export let apiAuth: string
   export let error: any
 
@@ -30,12 +29,11 @@
     {/if}
     <div class="grid gap-4">
       <div class="grid gap-2">
-        <Label for="email">Email</Label>
+        <Label for="email">Bluesky Handle</Label>
         <Input
           bind:value={email}
           id="email"
-          placeholder="name@example.com"
-          type="email"
+          placeholder="nallanos.bsky.social"
           autocapitalize="none"
           autocomplete="email"
           autocorrect="off"
@@ -45,7 +43,7 @@
       </div>
 
       <div class="grid gap-2 pt-2">
-        <Label class="text-white" for="password">Password</Label>
+        <Label class="text-white" for="password">App Password</Label>
         <Input
           bind:value={password}
           id="password"

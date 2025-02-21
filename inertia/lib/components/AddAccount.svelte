@@ -31,7 +31,7 @@
   <!-- Hero Section -->
   <div class="text-center space-y-4">
     <h1
-      class="text-4xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent"
+      class="text-4xl font-bold bg-gradient-to-r from-teal-400 to-blue-600 bg-clip-text text-transparent"
     >
       Connect Your Bluesky Account
     </h1>

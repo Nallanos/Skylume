@@ -16,6 +16,7 @@
 
   export let account: Account
   let listeners: Listener[] = account.listeners as unknown as Listener[]
+  console.log(listeners)
   const id = account.id
 
   let showDeleteDialog = false
@@ -31,13 +32,13 @@
     href={`/account/${account.id}/dashboard`}
     class="flex flex-col sm:flex-row items-start sm:items-center justify-between p-6 border border-gray-800 rounded-lg hover:bg-gray-800 transition-all duration-200 hover:shadow-xl gap-4"
   >
-    <div class="flex items-center gap-4">
+    <div class="flex items-center gap-4 min-w-0 flex-1">
       <div class="p-3 rounded-full">
         <Bot class="h-6 w-6 text-blue-400" />
       </div>
-      <div class="text-left">
-        <h3 class="text-lg font-semibold text-gray-100">{account.handle}</h3>
-        <p class="text-sm text-muted-foreground mt-1">
+      <div class="text-left min-w-0 flex-1">
+        <h3 class="text-lg font-semibold truncate">{account.handle}</h3>
+        <p class="text-sm text-muted-foreground truncate mt-1">
           <span class="text-blue-400 font-medium">{listeners.length}</span> active bots
         </p>
       </div>
