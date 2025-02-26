@@ -46,7 +46,7 @@
         >
           Login
         </a>
-        <Button href="/sign-up" size="sm" class="gap-2">Join Alpha</Button>
+        <Button href="/dashboard" size="sm" class="gap-2">Join Alpha</Button>
       </div>
     </nav>
   </div>
