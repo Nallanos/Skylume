@@ -48,7 +48,7 @@
 
 <!-- Sidebar -->
 <aside
-  class="fixed left-0 z-40 w-64 bg-background border-r border-border transform transition-transform duration-300 ease-in-out md:translate-x-0 md:static md:z-auto flex flex-col"
+  class="fixed left-0 h-full z-40 w-64 bg-background border-r border-border transform transition-transform duration-300 ease-in-out md:translate-x-0 md:static md:z-auto flex flex-col"
   class:translate-x-0={isSidebarOpen}
   class:-translate-x-full={!isSidebarOpen}
 >
