@@ -35,7 +35,10 @@
     >
       Connect Your Bluesky Account
     </h1>
-    <p class="text-gray-300 text-lg">Secure integration using app passwords for granular control</p>
+    <p class="text-gray-300 text-lg">
+      Grant us limited access to your Bluesky account using an app password. To do this, go to
+      Bluesky and follow the steps below:
+    </p>
   </div>
 
   <!-- Steps Container -->
@@ -48,7 +51,7 @@
         </div>
         <div>
           <CardTitle class="text-xl">Step 1: Create App Password</CardTitle>
-          <p class="text-gray-400">Settings → Advanced → App Passwords</p>
+          <p class="text-gray-400">Settings → Privacy and security → App Passwords</p>
         </div>
       </CardHeader>
       <CardContent class="grid md:grid-cols-2 gap-6 items-center">
