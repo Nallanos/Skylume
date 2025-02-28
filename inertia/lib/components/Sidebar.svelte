@@ -48,7 +48,7 @@
 
 <!-- Sidebar -->
 <aside
-  class="fixed left-0 h-full z-40 w-64 bg-background border-r border-border transform transition-transform duration-300 ease-in-out md:translate-x-0 md:static md:z-auto flex flex-col"
+  class="fixed left-0 h-full z-40 w-64 bg-background border-r border-border transform transition-transform duration-300 ease-in-out md:translate-x-0 md:static flex flex-col"
   class:translate-x-0={isSidebarOpen}
   class:-translate-x-full={!isSidebarOpen}
 >
@@ -57,8 +57,18 @@
     <CloseIcon class="h-6 w-6" />
   </button>
 
-  <nav class="px-3 py-4 overflow-y-auto mt-8 flex-1">
+  <nav class="px-3 py-4 overflow-y-auto flex-1">
     <div class="mb-6 px-2 space-y-1">
+      <a
+        href="/"
+        class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors text-foreground/90 hover:text-foreground"
+      >
+        <span
+          class="text-2xl font-bold bg-gradient-to-r from-teal-400 to-blue-600 bg-clip-text text-transparent"
+        >
+          Bluesky Bot
+        </span>
+      </a>
       <a
         href="/dashboard"
         class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent text-foreground/90 hover:text-foreground"

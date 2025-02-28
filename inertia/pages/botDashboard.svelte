@@ -5,18 +5,7 @@
   import { Card, CardContent, CardHeader, CardTitle } from '@/ui/card'
   import { Input } from '@/ui/input'
   import { Switch } from '@/ui/switch'
-  import {
-    Trash,
-    Pencil,
-    Plus,
-    Check,
-    X,
-    MessageSquareText,
-    Server,
-    Activity,
-    Info,
-    Loader,
-  } from 'lucide-svelte'
+  import { Trash, Pencil, Plus, Check, X, MessageSquareText, Server, Activity } from 'lucide-svelte'
   import Sidebar from '@/components/Sidebar.svelte'
   import type User from '#models/user'
   import type Account from '#models/account'
@@ -82,16 +71,6 @@
   function deleteListener(listener_id: string) {
     router.post('/bot/remove', { listener_id: listener_id })
   }
-
-  async function sendToAllFollowers(account_id: string, listener_id: string) {
-    if (!account) return
-    router.post('/account/followAll', {
-      account_id: account_id,
-      listener_id: listener_id,
-    })
-    router.get(`/account/${account.id}/dashboard`)
-  }
-  console.log()
 </script>
 
 <main class="flex flex-col md:flex-row min-h-screen">
@@ -371,29 +350,6 @@ sm"
                     >
                       <Trash class="h-4 w-4" />
                     </Button>
-                    {#if listener.action === 'Send a Message'}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        class="border-gray-800 border relative transition-all group/button"
-                        on:click={() => sendToAllFollowers(account.id, listener.id)}
-                        disabled={listener.stateSendToAll}
-                      >
-                        <div class="flex items-center gap-2">
-                          {#if listener.stateSendToAll}
-                            Sending messages
-                            <Loader class="h-4 w-4 mr-2 animate-spin" />
-                          {:else}
-                            <div class="relative inline-flex items-center h-full">
-                              Send to all followers
-                              <Info
-                                class="h-3 w-3 ml-1.5 text-gray-400 hover:text-gray-200 transition-colors cursor-help"
-                              />
-                            </div>
-                          {/if}
-                        </div>
-                      </Button>
-                    {/if}
                   </div>
                 </TableCell>
               </TableRow>
@@ -510,29 +466,6 @@ sm"
               >
                 <Trash class="h-4 w-4" />
               </Button>
-              {#if listener.action === 'Send a Message'}
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  class="border-gray-800 border relative transition-all"
-                  on:click={() => sendToAllFollowers(account.id, listener.id)}
-                  disabled={listener.stateSendToAll}
-                >
-                  <div class="flex items-center gap-2">
-                    {#if listener.stateSendToAll}
-                      Sending messages
-                      <Loader class="h-4 w-4 mr-2 animate-spin" />
-                    {:else}
-                      <div class="relative inline-flex items-center">
-                        Send to all followers
-                        <Info
-                          class="h-3 w-3 ml-1.5 text-gray-400 hover:text-gray-200 transition-colors cursor-help"
-                        />
-                      </div>
-                    {/if}
-                  </div>
-                </Button>
-              {/if}
             </div>
           </div>
         {/each}

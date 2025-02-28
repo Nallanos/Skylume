@@ -14,7 +14,9 @@
 </script>
 
 <div class="flex min-h-screen">
-  <Sidebar {user} {accounts} />
+  <div class="h-screen">
+    <Sidebar {user} {accounts} />
+  </div>
 
   <main class="flex-1 p-8 relative pt-20">
     {#if accounts.length === 0}
