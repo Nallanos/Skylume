@@ -6,9 +6,14 @@ import { generate } from 'random-words';
 import users_bot_service_manager from '../bluesky/users_bot_service_manager.js';
 import BotConvo from '#models/listeners_convos';
 import Convo from '#models/convo';
-import { getConvoFromMembers } from '../bluesky/chatAPI.js';
+import AccountService from '#services/account_service';
+import { inject } from '@adonisjs/core';
 
+@inject()
 export default class BotsController {
+    private accountService: AccountService | undefined;
+
+
     public async addBot({ request, response, session, auth }: HttpContext) {
         try {
             if (UsersBotServiceManager === undefined) {
@@ -104,14 +109,13 @@ export default class BotsController {
             if (!account) {
                 throw new Error(`cannot find account with ${listener.id}`)
             }
-
-            await user_bot_service.createOrResumeSession(account)
+            if (!this.accountService) this.accountService = new AccountService(user_bot_service.agent)
+            await this.accountService.createOrResumeSession(account)
 
             if (account.at_session != undefined) {
-                let resAuth = await user_bot_service.agent.com.atproto.server.getServiceAuth({ aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.getConvoForMembers" }, { headers: { Authorization: `Bearer ${account.at_session.accessJwt}` } })
-                const chatToken = resAuth.data.token
+                const chatToken = await this.accountService.getConvoToken(account)
                 for (const botConvo of listenerBotConvos) {
-                    let blueskyConvo = await getConvoFromMembers([botConvo.convoDid], chatToken)
+                    let blueskyConvo = await this.accountService.getConvoFromMembers(account, [botConvo.convoDid], chatToken)
                     if (!blueskyConvo) {
                         throw new Error(`errro while getting convo from members ${JSON.stringify(blueskyConvo)}`)
                     }

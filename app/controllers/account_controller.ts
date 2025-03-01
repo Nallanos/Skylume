@@ -9,7 +9,7 @@ import User from '#models/user'
 import users_bot_service_manager from '../bluesky/users_bot_service_manager.js'
 @inject()
 export default class AccountController {
-  constructor(protected account_service: AccountService) { }
+  private accountService: AccountService | undefined
 
   public async createAccount({ request, auth, response, session }: HttpContext) {
     try {
@@ -43,8 +43,19 @@ export default class AccountController {
       }
 
       let did: string | undefined
+      if (!this.accountService) {
+        let agent = users_bot_service_manager.userbotServiceMap.get(user.id)?.agent
+        if (!agent) {
+          await users_bot_service_manager.initOneUserBotService(user.id)
+          agent = users_bot_service_manager.userbotServiceMap.get(user.id)?.agent
+          console.log("agent:", agent)
+          console.log("user:", users_bot_service_manager.userbotServiceMap.get(user.id))
+          if (!agent) throw new Error(`Error while creating user bot service for ${user.id}`)
+        }
+        this.accountService = new AccountService(agent)
+      }
       try {
-        did = await this.account_service.getAccountDid(bksy_social, token_app_password)
+        did = await this.accountService.getAccountDid()
       } catch (innerError) {
         session.flash("errors.credentials", "Failed to retrieve account information. Please verify your credentials.")
         return response.redirect().back()
@@ -140,6 +151,4 @@ export default class AccountController {
       return response.redirect().back()
     }
   }
-
-
 }

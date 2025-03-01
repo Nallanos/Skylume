@@ -18,6 +18,9 @@ export default class Account extends BaseModel {
   declare userId: string
 
   @column()
+  declare isRateLimited: boolean
+
+  @column()
   declare appPassword: string
 
   @column()

@@ -1,7 +1,6 @@
 import Account from "#models/account";
 import User from "#models/user";
 import UserBotService from "./user_bot_service.js";
-
 class UsersBotServiceManager {
     public userbotServiceMap: Map<string, UserBotService> = new Map();
 
@@ -48,12 +47,15 @@ class UsersBotServiceManager {
      */
     private async initializeUserService(user_id: string): Promise<void> {
         try {
+            console.log(`[INFO] Initializing bot service for user_id:`);
+
             const accounts = await Account.findManyBy("userId", user_id);
+            const userService = new UserBotService(accounts);
+
             if (accounts.length === 0) {
                 console.warn(`[WARN] No accounts found for user_id: ${user_id}`);
-                return;
             }
-            const userService = new UserBotService(accounts);
+
             this.userbotServiceMap.set(user_id, userService);
             await userService.initializeMapHandler();
         } catch (error) {

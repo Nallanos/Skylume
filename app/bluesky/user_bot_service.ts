@@ -1,6 +1,6 @@
 import Account from '#models/account'
 import Listener from '#models/listener'
-import { type AtpSessionData, AtpAgent, } from '@atproto/api'
+import { AtpAgent, } from '@atproto/api'
 import { EventListener } from './bot.js'
 import type { NotificationData } from './types.js'
 
@@ -74,7 +74,7 @@ export default class UserBotService {
   /**
    * Starts all the given listeners for the given events
    */
-  public async startAllListeners(notificationData: NotificationData[], listeners: Listener[]): Promise<void> {
+  public async startAllListeners(notificationData: NotificationData[], listeners: Listener[], account: Account): Promise<void> {
     try {
       notificationData.forEach(async (notification) => {
         const userListeners = await this.getListenersOn(notification.event, listeners)
@@ -87,7 +87,7 @@ export default class UserBotService {
           return 0;
         });
         for (const listener of userListeners) {
-          if (listener.isActive) {
+          if (listener.isActive && account.isRateLimited === false) {
             let bot = this.handlers.get(listener.id)
             if (bot === undefined) {
               await this.initializeMapHandler()
@@ -96,7 +96,7 @@ export default class UserBotService {
                 throw new Error(`didn't find the handlers with ${listener.id} in the handlers map`)
               }
             }
-            await bot.on(notification.authorDid)
+            await bot.on(notification.authorDid, account)
           }
         }
       })
@@ -150,7 +150,6 @@ export default class UserBotService {
       if (bot == undefined) {
         throw new Error("Bot is undefined")
       }
-      bot.removeListener()
       this.removeHandlerFromMap(listener_id)
     } catch (err) {
       console.error('Stopping listener failed:', err)
@@ -160,7 +159,7 @@ export default class UserBotService {
   /**
    * Starts a specific listener
    */
-  public async start(listener_id: string, did: string): Promise<void> {
+  public async start(listener_id: string, did: string, account: Account): Promise<void> {
     try {
       await this.addHandlerToMap(listener_id).then(async () => {
         let bot = this.handlers.get(listener_id)
@@ -170,56 +169,11 @@ export default class UserBotService {
             throw new Error(`can't find mapped bot in handlermap with ${listener_id} as listener_id`)
           }
         }
-        await bot.on(did)
+        await bot.on(did, account)
       })
 
     } catch (err) {
       console.error('Starting listener failed:', err)
-    }
-  }
-
-  public async createOrResumeSession(account: Account): Promise<void> {
-    try {
-      if (!this.agent.sessionManager.hasSession || !account.session) {
-        console.log("will login")
-        const session = (await this.agent.login({
-          identifier: account.did,
-          password: account.appPassword,
-        })).data;
-
-        account.session = JSON.stringify(session)
-        await account.save()
-      }
-      else if (account.at_session) {
-        console.log("will resume")
-        await this.agent.resumeSession({
-          accessJwt: account.at_session.accessJwt,
-          refreshJwt: account.at_session.refreshJwt,
-          handle: account.handle,
-          did: account.did,
-        } as AtpSessionData);
-      }
-      return;
-    } catch (err) {
-      console.error("Error while creating or resuming the session in the userBotService:", err);
-    }
-  }
-
-  public async fetchAccountNotifications(account: Account): Promise<NotificationData[] | undefined> {
-    try {
-      const response = await this.agent.listNotifications();
-      if (!response) {
-        throw new Error("list notification response is undefined");
-      }
-      const newNotification = response.data.notifications.filter((notification) => new Date(notification.indexedAt) > new Date(account.seenNotificationAt))
-      return newNotification.map((notification) => ({
-        authorDid: notification.author.did,
-        event: notification.reason,
-        indexedAt: notification.indexedAt
-      }));
-    } catch (err) {
-      console.error("Error while fetching Account Notifications in the userBotService: ", err);
-      return undefined;
     }
   }
 }

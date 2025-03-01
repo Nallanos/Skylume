@@ -12,7 +12,7 @@ type KeywordData = {
 export class TargetAudienceService {
   private static model: ai.UniversalSentenceEncoder
   private static modelPromise: Promise<void>
-  private apiQueue = new pQueue({ concurrency: 5 })
+  private apiQueue = new pQueue({ concurrency: 5, interval: 1000, intervalCap: 1 })
 
   constructor() {
     TargetAudienceService.modelPromise = this.initModel()
@@ -73,61 +73,55 @@ export class TargetAudienceService {
   private async getProfileData(did: string, agent: Agent) {
     return Promise.all([
       agent.getFollows({ actor: did, limit: 100 }).then(r => r.data.follows),
-      agent.getAuthorFeed({ actor: did, limit: 50 }).then(r => r.data.feed)
+      agent.getAuthorFeed({ actor: did, limit: 50 }).then(r => r.data.feed),
     ])
+
   }
 
   public async getTargetedAudience(
     agent: Agent,
     did: string,
     keywords: string[],
-    numberOfMessage: number,
     cursor: string | undefined
-  ): Promise<FollowerWithScore[]> {
+  ) {
     await TargetAudienceService.modelPromise
     const keywordData = await this.prepareKeywords(keywords)
     const followers: FollowerWithScore[] = []
 
-    do {
-      const response = await agent.getFollowers({ actor: did, limit: 100, cursor: cursor })
-      console.log(`Fetched ${response.data.followers.length} followers.`)
+    const response = await agent.getFollowers({ actor: did, limit: 100, cursor: cursor })
+    console.log(`Fetched ${response.data.followers.length} followers.`)
 
-      await this.apiQueue.addAll(response.data.followers.map(follow => async () => {
-        const [following, posts] = await this.getProfileData(follow.did, agent)
+    await this.apiQueue.addAll(response.data.followers.map(follow => async () => {
+      const [following, posts] = await this.getProfileData(follow.did, agent)
+      Date.now() % 2 === 0 && await new Promise(r => setTimeout(r, 2000))
 
-        // Calcul des composants du score
-        const descriptionMatches = follow.description
-          ? await this.countMatches(follow.description.split(/\s+/), keywordData)
-          : 0
+      // Calcul des composants du score
+      const descriptionMatches = follow.description
+        ? await this.countMatches(follow.description.split(/\s+/), keywordData)
+        : 0
 
-        const followingMatches = following.filter(f =>
-          f.description && keywordData.set.has(f.description.toLowerCase())
-        ).length
+      const followingMatches = following.filter(f =>
+        f.description && keywordData.set.has(f.description.toLowerCase())
+      ).length
 
-        const postMatches = posts.reduce((sum, post) => {
-          const text: string = (post.post.record as any)?.text || ''
-          return sum + text.split(/\s+/).filter(w => keywordData.set.has(w.toLowerCase())).length
-        }, 0)
+      const postMatches = posts.reduce((sum, post) => {
+        const text: string = (post.post.record as any)?.text || ''
+        return sum + text.split(/\s+/).filter(w => keywordData.set.has(w.toLowerCase())).length
+      }, 0)
 
-        console.log("Valeur spécifiée:", postMatches, descriptionMatches)
-        // Formule de score optimisée
-        const score = (posts.length > 0 ? 1 * (postMatches) / posts.length : 0)
-          + (posts.length > 0 ? 0.4 : 0.6) * Math.sqrt(descriptionMatches)
-          + (posts.length > 0 ? 0.3 : 0.4) * (following.length > 0 ? followingMatches / Math.log2(following.length + 1) : 0);
+      console.log("Valeur spécifiée:", postMatches, descriptionMatches)
+      // Formule de score optimisée
+      const score = (posts.length > 0 ? 1 * (postMatches) / posts.length : 0)
+        + (posts.length > 0 ? 0.4 : 0.6) * Math.sqrt(descriptionMatches)
+        + (posts.length > 0 ? 0.3 : 0.4) * (following.length > 0 ? followingMatches / Math.log2(following.length + 1) : 0);
 
+      followers.push({ profile: follow, score })
+      console.log(`Follower ${follow.did} scored: ${score}`)
+      cursor = response.data.cursor
+    }))
 
-        followers.push({ profile: follow, score })
-        console.log(`Follower ${follow.did} scored: ${score}`)
-        cursor = response.data.cursor
-        console.log(cursor)
-      }))
-
-      numberOfMessage--
-
-      console.warn(`Have ${numberOfMessage} of iteration left !`)
-    } while (numberOfMessage > 0)
 
     console.log('Deleting low scored followers...')
-    return followers.filter(follower => follower.score >= 0.5);
+    return { followers: followers.filter(follower => follower.score >= 0.6), responseCursor: cursor };
   }
 }
