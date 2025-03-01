@@ -4,8 +4,9 @@ import { AtpAgent } from "@atproto/api";
 import Listener from "#models/listener";
 import Convo from "#models/convo";
 import BotConvo from "#models/listeners_convos";
-import { getConvoFromMembers, getMessages, sendMessageToConvo } from "./chatAPI.js";
+import AccountService from "#services/account_service";
 export class EventListener {
+    protected accountService: AccountService;
     constructor(
         private agent: AtpAgent,
         private event: string,
@@ -13,21 +14,18 @@ export class EventListener {
         public listener_id: string,
         private account_id: string,
         private message?: string,
-    ) { }
+    ) {
+        this.accountService = new AccountService(this.agent)
+    }
 
-    async on(did: string): Promise<void> {
+    async on(did: string, account: Account): Promise<void> {
         if (this.event === "follow" || this.event === "like" || this.event === "mention" || this.event === "reply") {
             if (this.action === "Send a Message" && this.message) {
                 await this.sendMessage(did);
             } else if (this.action === "Follow") {
-                await this.followUser(did);
+                await this.accountService.followUser(account, did);
             }
         }
-    }
-
-    private async followUser(did: string): Promise<void> {
-        console.log(`following ${did}`);
-        await this.agent.follow(did);
     }
 
     public async sendMessage(authorDid: string): Promise<void> {
@@ -35,15 +33,15 @@ export class EventListener {
             const account = await this.getAccount();
             const listener = await this.getListener();
 
-            const chatToken = await this.getChatToken(account);
-            const convoToken = await this.getConvoToken(account)
-            const messageToken = await this.getMessagesToken(account)
+            const chatToken = await this.accountService.getChatToken(account);
+            const convoToken = await this.accountService.getConvoToken(account)
+            const messageToken = await this.accountService.getMessagesToken(account)
 
-            const convo = await this.getConvo(authorDid, convoToken);
+            const convo = await this.getConvo(authorDid, convoToken, account);
 
             await this.updateConvo(listener, convo, authorDid);
 
-            const res = await getMessages(convo.id, messageToken, 100)
+            const res = await this.accountService.getMessages(account, convo.id, messageToken, 100)
             if (!res) throw new Error("error while getting messages")
             console.log(res)
             const isAlreadySent = res.length > 0 && res.some(msg => msg.text === this.message);
@@ -54,7 +52,7 @@ export class EventListener {
                 message: { text: this.message || '' }
             };
             if (!isAlreadySent) {
-                this.sendMessageToConvo(sendMessagePayload, chatToken).then(async () => {
+                this.accountService.sendMessageToConvo(account, sendMessagePayload, chatToken).then(async () => {
                     listener.number_of_message_sent++;
                     await listener.save();
                 });
@@ -83,24 +81,8 @@ export class EventListener {
         return listener;
     }
 
-    private async getMessagesToken(account: any) {
-        let res = await this.agent.com.atproto.server.getServiceAuth({
-            aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.getMessages"
-        }, { headers: { Authorization: `Bearer ${account.at_session.accessJwt}` } });
-        return res.data.token;
-    }
-
-    private async getConvoToken(account: any) {
-        let res = await this.agent.com.atproto.server.getServiceAuth({ aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.getConvoForMembers" }, { headers: { Authorization: `Bearer ${account.at_session.accessJwt}` } });
-        return res.data.token;
-    }
-    private async getChatToken(account: any) {
-        let res = await this.agent.com.atproto.server.getServiceAuth({ aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.sendMessage" }, { headers: { Authorization: `Bearer ${account.at_session.accessJwt}` } });
-        return res.data.token;
-    }
-
-    private async getConvo(authorDid: string, chatToken: string) {
-        const convo = await getConvoFromMembers([authorDid], chatToken);
+    private async getConvo(authorDid: string, chatToken: string, account: Account) {
+        const convo = await this.accountService.getConvoFromMembers(account, [authorDid], chatToken);
         if (!convo) {
             throw new Error("convos is undefined");
         }
@@ -129,10 +111,4 @@ export class EventListener {
             await DbBotConvo.save();
         }
     }
-
-    private async sendMessageToConvo(payload: MessagePayload, chatToken: string) {
-        await sendMessageToConvo(payload, chatToken);
-    }
-
-    public removeListener(): void { }
 }

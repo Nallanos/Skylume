@@ -2,6 +2,7 @@ import Account from '#models/account';
 import Listener from '#models/listener';
 import users_bot_service_manager from '../bluesky/users_bot_service_manager.js';
 import type { NotificationData } from '../bluesky/types.js';
+import AccountService from '#services/account_service';
 
 interface BotJobPayload {
   account_id: string;
@@ -28,10 +29,12 @@ const handle = async (data: BotJobPayload): Promise<void> => {
 
     await user_service.initializeMapHandler();
 
+    const accountService = new AccountService(user_service.agent)
+
     const listeners = await Listener.findManyBy('account_id', accountWithMethod.id);
-    await user_service.createOrResumeSession(accountWithMethod);
+    await accountService.createOrResumeSession(accountWithMethod);
     await accountWithMethod.refresh()
-    const notificationData: NotificationData[] | undefined = await user_service.fetchAccountNotifications(accountWithMethod);
+    const notificationData: NotificationData[] | undefined = await accountService.fetchAccountNotifications(accountWithMethod);
     if (!notificationData) {
       console.log(`\n[INFO] No notifications found for account: ${accountWithMethod.handle}`);
       return;
@@ -41,7 +44,7 @@ const handle = async (data: BotJobPayload): Promise<void> => {
     accountWithMethod.seenNotificationAt = new Date().toISOString();
     await accountWithMethod.save();
 
-    await user_service.startAllListeners(notificationData, listeners);
+    await user_service.startAllListeners(notificationData, listeners, accountWithMethod);
 
   } catch (err) {
     console.error("[ERROR] Error in BotJob:", err);

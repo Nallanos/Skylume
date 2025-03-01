@@ -41,6 +41,14 @@
         <p class="text-sm text-muted-foreground truncate mt-1">
           <span class="text-blue-400 font-medium">{listeners.length}</span> active bots
         </p>
+        {#if account.isRateLimited}
+          <p class="text-sm text-red-400 truncate mt-1">
+            Rate limited, our application can't interact anymore with you bluesky account, for more
+            information, check <a href="https://docs.bsky.app/docs/advanced-guides/rate-limits"
+              >this</a
+            >
+          </p>
+        {/if}
       </div>
     </div>
   </a>

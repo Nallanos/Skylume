@@ -1,5 +1,7 @@
 import User from '#models/user'
 import { HttpContext } from '@adonisjs/core/http'
+import { inject } from '@adonisjs/core'
+@inject()
 export default class SessionController {
     constructor() { }
     public async login({ request, auth, response, session }: HttpContext) {

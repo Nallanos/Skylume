@@ -2,25 +2,32 @@ import DmCampaign from '#models/dm_campaign'
 import { HttpContext } from '@adonisjs/core/http'
 import users_bot_service_manager from '../bluesky/users_bot_service_manager.js'
 import Account from '#models/account'
-import { getMessages, sendMessageToConvo, getConvoFromMembers } from '../bluesky/chatAPI.js'
 import type { MessageViewSender } from '@atproto/api/dist/client/types/chat/bsky/convo/defs.js'
 import type UserBotService from '../bluesky/user_bot_service.js'
-import type { Agent } from '@atproto/api'
+import type { AtpAgent } from '@atproto/api'
 import type { ProfileView } from '@atproto/api/dist/client/types/app/bsky/actor/defs.js'
-
+import AccountService from '#services/account_service'
+import { inject } from '@adonisjs/core'
 interface AuthTokens {
     convoAuth: any
     messagesAuth: any
     sendMessageAuth: any
 }
-
+@inject()
 export default class DmCampaignsController {
     // Variables d'état pour le traitement en cours
     private currentAccount!: Account
     private currentDmCampaign!: DmCampaign
     private userBotService!: UserBotService | undefined
-    private agent!: Agent
+    private agent!: AtpAgent
     private authTokens!: AuthTokens
+    private accountService: AccountService
+
+    constructor() {
+        this.accountService = new AccountService(this.agent)
+    }
+
+
     public async createDmCampaign({ request, response, auth, session }: HttpContext) {
         try {
             const { account_handle, campaign_name, campaign_message, campaign_target, keywords } = request.only(["account_handle", "campaign_name", "campaign_message", "campaign_target", "keywords"])
@@ -42,7 +49,6 @@ export default class DmCampaignsController {
             return response.redirect().back()
         }
     }
-
 
     public async toggleDmCampaignStatus({ request, response }: HttpContext) {
         try {
@@ -100,35 +106,35 @@ export default class DmCampaignsController {
         const account_handle = this.currentDmCampaign.accountHandle
         this.currentAccount = await Account.findByOrFail("handle", account_handle)
 
-        this.agent = this.userBotService.agent
         await this.refreshAuthTokens()
     }
 
     private async processFollowers() {
         let cursor = this.currentDmCampaign.followersCursor || undefined
-
-        while (await this.shouldContinueProcessing()) {
-            let response = await this.agent.getFollowers(
-                {
-                    actor: this.currentAccount.did,
-                    cursor: cursor
+        try {
+            while (await this.shouldContinueProcessing()) {
+                console.log("Fetching followers...")
+                let response = await this.accountService.getFollowers(this.currentAccount, this.currentAccount.at_session?.did as string, cursor)
+                console.log(response.cursor)
+                if (!response.cursor) {
+                    break
                 }
-            )
-            if (!response.data.cursor) {
-                break
+                cursor = response.cursor
+                await this.processFollowersBatch(response.followers, this.currentAccount)
             }
-            cursor = response.data.cursor
-            await this.processFollowersBatch(response.data.followers)
+            this.currentDmCampaign.followersCursor = cursor
+            await this.currentDmCampaign.save()
+        } catch (err) {
+            console.log(err)
+            return
         }
-        this.currentDmCampaign.followersCursor = cursor
-        await this.currentDmCampaign.save()
     }
 
-    private async processFollowersBatch(followers: ProfileView[]) {
+    private async processFollowersBatch(followers: ProfileView[], account: Account) {
         for (const follow of followers) {
             try {
                 if (await this.shouldContinueProcessing())
-                    await this.processFollower(follow)
+                    await this.processFollower(follow, account)
                 else
                     return
             } catch (err) {
@@ -137,48 +143,61 @@ export default class DmCampaignsController {
         }
     }
 
-    private async processFollower(follow: ProfileView) {
+    private async processFollower(follow: ProfileView, account: Account) {
         console.log("Procesing:", follow.handle)
-        await this.checkAndRefreshAuth()
+        try {
+            await this.checkAndRefreshAuth()
+            if (!this.currentAccount.at_session) {
+                throw new Error("Account session missing")
+            }
+            const did = this.currentAccount.at_session.did
+            const convo = await this.withRetry(
+                () => this.accountService.getConvoFromMembers(account, [did as string, follow.did], this.authTokens.convoAuth),
+                'getConvoFromMembers'
+            )
 
-        const convo = await this.withRetry(
-            () => getConvoFromMembers([this.currentAccount.did, follow.did], this.authTokens.convoAuth.data.token),
-            'getConvoFromMembers'
-        )
-
-        if (convo) {
-            await this.processConversation(convo)
+            if (convo) {
+                await this.processConversation(convo, account)
+            }
+        } catch (err) {
+            console.error("Error while processing follower:", err)
+            if (err.message === "TypeError: Cannot read properties of undefined (reading 'token')") {
+                await this.refreshAuthTokens()
+                await this.processFollower(follow, account)
+            }
         }
+
     }
 
-    private async processConversation(convo: any) {
+    private async processConversation(convo: any, account: Account) {
         const messages = await this.withRetry(
-            () => getMessages(convo.id, this.authTokens.messagesAuth.data.token),
+            () => this.accountService.getMessages(account, convo.id, this.authTokens.messagesAuth),
             'getMessages'
         ) as unknown as MessageViewSender[]
 
 
         if (messages.length === 0 && this.currentDmCampaign.strategy === "no-interaction") {
-            await this.sendCampaignMessage(convo)
+            await this.sendCampaignMessage(convo, account)
             await this.incrementMessageCounter()
         } else if (this.currentDmCampaign.strategy === "all") {
-            await this.sendCampaignMessage(convo)
+            await this.sendCampaignMessage(convo, account)
             await this.incrementMessageCounter()
         } else if (this.currentDmCampaign.strategy === "not-received" && !messages.some(
             (msg) => typeof msg.text === "string" && msg.text.includes(this.currentDmCampaign.message)
         )) {
-            await this.sendCampaignMessage(convo)
+            await this.sendCampaignMessage(convo, account)
             await this.incrementMessageCounter()
         } else {
             console.warn("Won't send a message, because profile doesn't match campaign expetaction:")
         }
     }
 
-    private async sendCampaignMessage(convo: any) {
+    private async sendCampaignMessage(convo: any, account: Account) {
         await this.withRetry(
-            () => sendMessageToConvo(
+            () => this.accountService.sendMessageToConvo(
+                account,
                 { convoId: convo.id, message: { text: this.currentDmCampaign.message } },
-                this.authTokens.sendMessageAuth.data.token
+                this.authTokens.sendMessageAuth
             ),
             'sendMessageToConvo'
         )
@@ -193,29 +212,19 @@ export default class DmCampaignsController {
 
     private async refreshAuthTokens() {
         if (!this.userBotService) throw new Error("User bot service not found")
-        await this.userBotService.createOrResumeSession(this.currentAccount)
+        await this.accountService.createOrResumeSession(this.currentAccount)
         await this.currentAccount.refresh()
 
         if (!this.currentAccount.at_session) {
             throw new Error("Account session missing")
         }
 
-        const authHeaders = { headers: { Authorization: `Bearer ${this.currentAccount.at_session.accessJwt}` } }
-
         this.authTokens = {
-            convoAuth: await this.agent.com.atproto.server.getServiceAuth(
-                { aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.getConvoForMembers" },
-                authHeaders
-            ),
-            messagesAuth: await this.agent.com.atproto.server.getServiceAuth(
-                { aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.getMessages" },
-                authHeaders
-            ),
-            sendMessageAuth: await this.agent.com.atproto.server.getServiceAuth(
-                { aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.sendMessage" },
-                authHeaders
-            )
+            convoAuth: await this.accountService.getConvoToken(this.currentAccount),
+            messagesAuth: await this.accountService.getMessagesToken(this.currentAccount),
+            sendMessageAuth: await this.accountService.getChatToken(this.currentAccount),
         }
+        console.warn("Tokens refreshed", this.authTokens)
     }
 
     private async withRetry<T>(fn: () => Promise<T>, context: string): Promise<T> {
@@ -249,7 +258,7 @@ export default class DmCampaignsController {
     }
 
     private async updateCampaignCursor(cursor?: string): Promise<string | undefined> {
-        if (this.currentDmCampaign.followersCursor != cursor) {
+        if (cursor !== undefined && this.currentDmCampaign.followersCursor !== cursor) {
             this.currentDmCampaign.followersCursor = cursor
             await this.currentDmCampaign.save()
         }
@@ -277,7 +286,7 @@ export default class DmCampaignsController {
             const retryAfter = err.response?.headers?.['retry-after'] || 60
             await this.delay(retryAfter * 1000)
         } else {
-            console.error(`Erreur avec ${follow.handle}:`, err.message)
+            console.error(`Erreur avec ${follow.handle}:`, err.message, err)
         }
     }
 

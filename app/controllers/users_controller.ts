@@ -1,5 +1,8 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import Account from '#models/account'
+import { inject } from '@adonisjs/core';
+@inject()
+
 export default class UsersController {
     public async listAccount({ auth }: HttpContext) {
         const user = await auth.authenticate()
