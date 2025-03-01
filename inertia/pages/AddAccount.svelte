@@ -10,7 +10,9 @@
 </script>
 
 <div class="flex min-h-screen">
-  <Sidebar {user} {accounts} />
+  <div class="h-screen">
+    <Sidebar {user} {accounts} />
+  </div>
   <main class="flex p-8 w-full">
     <AddAccount />
   </main>

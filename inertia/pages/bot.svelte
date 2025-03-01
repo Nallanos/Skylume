@@ -26,7 +26,9 @@
 </script>
 
 <div class="flex min-h-screen bg-gray-900 text-gray-100">
-  <Sidebar {user} {accounts} />
+  <div class="h-screen">
+    <Sidebar {user} {accounts} />
+  </div>
 
   {#if bot.action === 'Send a Message'}
     <main class="flex-1 p-8 space-y-8 animate-fade-in">

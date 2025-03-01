@@ -10,7 +10,7 @@
   import type { DmCampaign } from '@/type'
   import type Account from '#models/account'
   import { router } from '@inertiajs/svelte'
-  
+
   export let campaigns: Array<DmCampaign>
 
   let user: User = $page.props.user
@@ -31,7 +31,9 @@
 </script>
 
 <div class="flex min-h-screen">
-  <Sidebar {user} {accounts} />
+  <div class="h-screen">
+    <Sidebar {user} {accounts} />
+  </div>
 
   <main class="flex-1 p-8 relative pt-20">
     <div class="mb-8 space-y-4">
