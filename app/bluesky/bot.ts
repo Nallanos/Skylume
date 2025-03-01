@@ -19,12 +19,23 @@ export class EventListener {
     }
 
     async on(did: string, account: Account): Promise<void> {
-        if (this.event === "follow" || this.event === "like" || this.event === "mention" || this.event === "reply") {
-            if (this.action === "Send a Message" && this.message) {
-                await this.sendMessage(did);
-            } else if (this.action === "Follow") {
-                await this.accountService.followUser(account, did);
+        try {
+            await this.accountService.updateAccountRateLimit(account)
+
+            if (account.isRateLimited) {
+                console.warn("Account is rate limited, skipping event")
+                return
             }
+            if (this.event === "follow" || this.event === "like" || this.event === "mention" || this.event === "reply") {
+                if (this.action === "Send a Message" && this.message) {
+                    await this.sendMessage(did);
+                } else if (this.action === "Follow") {
+                    await this.accountService.followUser(account, did);
+                }
+            }
+        } catch (err) {
+            await this.accountService.updateAccountRateLimit(account, err)
+            console.log("account.isRateLimited", account.isRateLimited)
         }
     }
 

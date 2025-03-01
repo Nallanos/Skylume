@@ -11,19 +11,19 @@ export default class AccountService {
         this.agent = agent
     }
 
-    private async updateAccountRateLimit(account: Account, err?: any) {
-        if (err && err.message === "RateLimitExcedeed") {
+    public async updateAccountRateLimit(account: Account, err?: any) {
+        if (err && err.message === "Rate Limit Exceeded") {
             account.isRateLimited = true
             console.error("Rate limit reached")
             await account.save()
-            return
+            return "skip"
         } else if (err) {
             throw new Error(err.message)
         } else {
             account.isRateLimited = false
             await account.save()
         }
-        console.log(account.isRateLimited)
+        console.log("account.isRateLimited", account.isRateLimited)
     }
 
     public async getAccountDid() {
@@ -125,8 +125,6 @@ export default class AccountService {
             if (!response.ok) {
                 throw new Error(`Erreur HTTP ! Statut : ${response.status}, error : ${JSON.stringify(data)}`);
             }
-
-            await this.updateAccountRateLimit(account);
         } catch (error) {
             await this.updateAccountRateLimit(account, error);
             console.error("Error:", error);
@@ -137,8 +135,8 @@ export default class AccountService {
     public async followUser(account: Account, did: string): Promise<void> {
         try {
             console.log(`following ${did}`);
+            if (await this.updateAccountRateLimit(account) == "skip") return;
             await this.agent.follow(did);
-            await this.updateAccountRateLimit(account);
         } catch (err) {
             await this.updateAccountRateLimit(account, err);
             throw err;
