@@ -9,7 +9,9 @@
 </script>
 
 <div class="flex h-screen w-screen">
-  <Sidebar {user} {accounts} />
+  <div class="h-screen">
+    <Sidebar {user} {accounts} />
+  </div>
 
   <div class="flex-1 flex items-center justify-center">
     <h1 class="text-center text-3xl font-bold">Coming soon</h1>

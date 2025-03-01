@@ -75,7 +75,9 @@
 
 <main class="flex flex-col md:flex-row min-h-screen">
   <!-- Sidebar: vous pouvez également intégrer un bouton hamburger dans le composant pour les petits écrans -->
-  <Sidebar {user} {accounts} />
+  <div class="h-screen">
+    <Sidebar {user} {accounts} />
+  </div>
 
   <div class="flex flex-col w-full flex-2 overflow-hidden px-4 pt-6">
     <!-- En-tête -->
