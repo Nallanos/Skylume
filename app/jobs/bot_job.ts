@@ -16,7 +16,7 @@ const handle = async (data: BotJobPayload): Promise<void> => {
       throw new Error(`Account not found for ID: ${data.account_id}`);
     }
 
-    console.log(`\n[INFO] Processing account: ID=${accountWithMethod.id}, handle=${accountWithMethod.handle}`);
+    console.log(`\n[INFO] Processing account ${accountWithMethod.handle}`);
 
     let user_service = users_bot_service_manager.userbotServiceMap.get(accountWithMethod.userId);
     if (!user_service) {

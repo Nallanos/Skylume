@@ -12,7 +12,7 @@ export default class FollowCommand extends BaseCommand {
     startApp: true,
   }
 
-  private readonly HOURLY_FOLLOW_LIMIT = 100000
+  private readonly HOURLY_FOLLOW_LIMIT = 20000
 
   private async checkRateLimit(): Promise<{ canProceed: boolean; availableSlots: number }> {
     const recentFollowsCount = await Follow.query()

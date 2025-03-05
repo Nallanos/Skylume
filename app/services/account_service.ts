@@ -12,18 +12,19 @@ export default class AccountService {
     }
 
     public async updateAccountRateLimit(account: Account, err?: any) {
-        if (err && err.message === "Rate Limit Exceeded") {
-            account.isRateLimited = true
-            console.error("Rate limit reached")
-            await account.save()
-            return "skip"
-        } else if (err) {
-            throw new Error(err.message)
-        } else {
+        if (err) {
+            if (err && err.message === "Rate Limit Exceeded") {
+                account.isRateLimited = true
+                await account.save()
+                return "skip"
+            } else if (err) {
+                throw new Error(err.message)
+            }
+        }
+        else {
             account.isRateLimited = false
             await account.save()
         }
-        console.log("account.isRateLimited", account.isRateLimited)
     }
 
     public async getAccountDid() {
@@ -134,9 +135,16 @@ export default class AccountService {
 
     public async followUser(account: Account, did: string): Promise<void> {
         try {
-            console.log(`following ${did}`);
+            console.log("in follow user")
             if (await this.updateAccountRateLimit(account) == "skip") return;
+            if (!account.at_session) throw new Error("session is not defined")
+            const relationships = await this.agent.app.bsky.graph.getRelationships({ actor: account.at_session.did, others: [did] });
+            if (relationships.data.relationships[0].following) {
+                console.log("Already following user");
+                return
+            }
             await this.agent.follow(did);
+            console.log("followed user", did);
         } catch (err) {
             await this.updateAccountRateLimit(account, err);
             throw err;
@@ -185,7 +193,6 @@ export default class AccountService {
         try {
             if (!this.agent) this.agent = new AtpAgent({ service: "https://bsky.social" });
             if (!this.agent.sessionManager.hasSession || !account.session) {
-                console.log("will login");
                 console.log("account", account.handle, account.appPassword);
                 const session = (await this.agent.login({
                     identifier: account.handle,
@@ -195,7 +202,6 @@ export default class AccountService {
                 account.session = JSON.stringify(session);
                 await account.save();
             } else if (account.at_session) {
-                console.log("will resume");
                 await this.agent.resumeSession({
                     accessJwt: account.at_session.accessJwt,
                     refreshJwt: account.at_session.refreshJwt,

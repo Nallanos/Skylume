@@ -73,8 +73,7 @@
   }
 </script>
 
-<main class="flex flex-col md:flex-row min-h-screen">
-  <!-- Sidebar: vous pouvez également intégrer un bouton hamburger dans le composant pour les petits écrans -->
+<main class="flex md:flex-row min-h-screen">
   <div class="h-screen">
     <Sidebar {user} {accounts} />
   </div>
@@ -91,7 +90,10 @@
             >
           </p>
         </div>
-        <Button href="/bot" class="group hover:scale-[1.02] transition-transform mt-4 ml-auto ">
+        <Button
+          href="/bot"
+          class="group hover:scale-[1.02] transition-transform mt-4 ml-auto w-full md:w-auto"
+        >
           <Plus class="mr-2 h-4 w-4 transition-transform group-hover:rotate-90" />
           Add New Bot
         </Button>
