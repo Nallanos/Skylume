@@ -12,7 +12,7 @@ type KeywordData = {
 export class TargetAudienceService {
   private static model: ai.UniversalSentenceEncoder
   private static modelPromise: Promise<void>
-  private apiQueue = new pQueue({ concurrency: 5, interval: 1000, intervalCap: 1 })
+  private apiQueue = new pQueue({ concurrency: 5, interval: 1200, intervalCap: 2 })
 
   constructor() {
     TargetAudienceService.modelPromise = this.initModel()
@@ -93,7 +93,6 @@ export class TargetAudienceService {
 
     await this.apiQueue.addAll(response.data.followers.map(follow => async () => {
       const [following, posts] = await this.getProfileData(follow.did, agent)
-      Date.now() % 2 === 0 && await new Promise(r => setTimeout(r, 2000))
 
       // Calcul des composants du score
       const descriptionMatches = follow.description

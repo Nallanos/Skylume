@@ -30,185 +30,168 @@
   }
 </script>
 
-<div class="flex min-h-screen">
-  <div class="h-screen">
+<div class="flex min-h-screen flex-col md:flex-row">
+  <div class="md:h-screen md:sticky md:top-0">
     <Sidebar {user} {accounts} />
   </div>
 
-  <main class="flex-1 p-8 relative pt-20">
-    <div class="mb-8 space-y-4">
-      <div class="flex justify-between items-center">
+  <main class="flex-1 p-4 md:p-8 pt-16 md:pt-20">
+    <div class="mb-6 space-y-4">
+      <div class="flex flex-col md:flex-row justify-between items-start gap-4 md:gap-0">
         <div>
-          <h1 class="text-3xl font-bold text-gray-100">Campaigns Dashboard</h1>
-          <p class="text-gray-400">
+          <h1 class="text-2xl md:text-3xl font-bold text-gray-100">Campaigns Dashboard</h1>
+          <p class="text-gray-400 mt-1">
             {campaigns.length} active campaign{campaigns.length !== 1 ? 's' : ''}
           </p>
         </div>
-        <Button href="/add/campaign" class="group hover:scale-[1.02] transition-transform">
+        <Button
+          href="/add/campaign"
+          class="w-full md:w-auto group hover:scale-[1.02] transition-transform whitespace-nowrap"
+        >
           <Plus class="mr-2 h-4 w-4 transition-transform group-hover:rotate-90" />
           New Campaign
         </Button>
       </div>
 
-      <!-- Stats Grid -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-6 animate-fade-in-up">
-        <Card
-          class="hover:border-blue-400 transition-all duration-300 w-full group relative overflow-hidden border-gray-800"
-        >
-          <div
-            class="absolute top-0 right-0 w-16 h-16 bg-blue-500/10 rounded-bl-2xl transition-colors"
-          />
-
-          <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fade-in-up">
+        <Card class="transition-colors duration-300 border-gray-800 hover:border-blue-400">
+          <CardHeader class="flex flex-row items-center justify-between pb-2">
             <CardTitle class="text-sm font-medium text-gray-300">
               Total Engagement
               <span class="text-blue-400 text-xs ml-1">(+24h)</span>
             </CardTitle>
-            <div class="relative p-2 bg-gradient-to-br from-blue-600 to-blue-400 rounded-lg">
-              <Activity class="h-5 w-5 text-white" />
+            <div class="p-2 bg-blue-500/10 rounded-lg">
+              <Activity class="h-5 w-5 text-blue-400" />
             </div>
           </CardHeader>
           <CardContent>
-            <div class="text-3xl font-bold text-blue-400">{totalEngagement}</div>
+            <div class="text-2xl md:text-3xl font-bold text-blue-400">{totalEngagement}</div>
             <p class="text-sm text-gray-400 mt-1">This month</p>
           </CardContent>
         </Card>
 
-        <Card
-          class="hover:border-green-400 transition-all duration-300 w-full group relative overflow-hidden border-gray-800"
-        >
-          <div
-            class="absolute top-0 right-0 w-16 h-16 bg-green-500/10 rounded-bl-2xl transition-colors"
-          />
-
-          <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+        <Card class="transition-colors duration-300 border-gray-800 hover:border-green-400">
+          <CardHeader class="flex flex-row items-center justify-between pb-2">
             <CardTitle class="text-sm font-medium text-gray-300">
               Active Now
               <span class="text-green-400 text-xs ml-1">Live</span>
             </CardTitle>
-            <div class="relative p-2 bg-gradient-to-br from-green-600 to-green-400 rounded-lg">
-              <div class="relative h-5 w-5">
-                <div class="absolute inset-0 bg-white/20 rounded-full animate-pulse" />
-                <Mail class="h-5 w-5 text-white relative" />
-              </div>
+            <div class="p-2 bg-green-500/10 rounded-lg">
+              <Mail class="h-5 w-5 text-green-400" />
             </div>
           </CardHeader>
           <CardContent>
-            <div class="text-3xl font-bold text-green-400">
-              {activeListeners}
-            </div>
+            <div class="text-2xl md:text-3xl font-bold text-green-400">{activeListeners}</div>
             <p class="text-sm text-gray-400 mt-1">Real-time monitoring</p>
           </CardContent>
         </Card>
 
-        <Card
-          class="hover:border-purple-400 transition-all duration-300 w-full group relative overflow-hidden border-gray-800"
-        >
-          <div
-            class="absolute top-0 right-0 w-16 h-16 bg-purple-500/10 rounded-bl-2xl transition-colors"
-          />
-
-          <CardHeader class="flex flex-row items-center justify-between space-y-0 pb-2">
+        <Card class="transition-colors duration-300 border-gray-800 hover:border-purple-400">
+          <CardHeader class="flex flex-row items-center justify-between pb-2">
             <CardTitle class="text-sm font-medium text-gray-300">
               Messages Received
               <span class="text-purple-400 text-xs ml-1">(+24h)</span>
             </CardTitle>
-            <div class="relative p-2 bg-gradient-to-br from-purple-600 to-purple-400 rounded-lg">
-              <Sliders class="h-5 w-5 text-white" />
+            <div class="p-2 bg-purple-500/10 rounded-lg">
+              <Sliders class="h-5 w-5 text-purple-400" />
             </div>
           </CardHeader>
           <CardContent>
-            <div class="text-3xl font-bold text-purple-400">{totalResponses}</div>
+            <div class="text-2xl md:text-3xl font-bold text-purple-400">{totalResponses}</div>
             <p class="text-sm text-gray-400 mt-1">All campaigns</p>
           </CardContent>
         </Card>
       </div>
     </div>
 
-    <!-- Liste des campagnes -->
     <Card class="border-gray-800">
       <CardHeader>
         <CardTitle class="text-gray-100">Active Campaigns</CardTitle>
         <CardDescription class="text-gray-400">Manage your running DM campaigns</CardDescription>
       </CardHeader>
-      <CardContent>
-        <Table class="border border-gray-700 rounded-lg overflow-hidden">
-          <TableHeader class="sticky top-0 z-20 bg-gray-900">
-            <TableRow class="hover:bg-transparent">
-              <TableHead class="text-gray-300">Status</TableHead>
-              <TableHead class="text-gray-300">Campaign</TableHead>
-              <TableHead class="text-gray-300">Strategy</TableHead>
-              <TableHead class="text-gray-300">Keywords</TableHead>
-              <TableHead class="text-gray-300">Account</TableHead>
-              <TableHead class="text-gray-300 text-right">
-                Actions
-                <div
-                  class="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-gray-800 border-b border-r border-gray-700 transform rotate-45"
-                />
-              </TableHead>
-            </TableRow>
-          </TableHeader>
+      <CardContent class="p-0">
+        <div class="overflow-x-auto">
+          <Table class="min-w-[600px] md:min-w-full">
+            <TableHeader class="bg-gray-900">
+              <TableRow class="hover:bg-transparent">
+                <TableHead class="text-gray-300 py-3">Status</TableHead>
+                <TableHead class="text-gray-300">Campaign</TableHead>
+                <TableHead class="text-gray-300">Strategy</TableHead>
+                <TableHead class="text-gray-300">Keywords</TableHead>
+                <TableHead class="text-gray-300">Account</TableHead>
+                <TableHead class="text-gray-300 text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
 
-          <TableBody class="divide-y divide-gray-700">
-            {#each campaigns as campaign}
-              <TableRow class="hover:bg-gray-800/50 transition-colors">
-                <TableCell>
-                  <div class="flex items-center space-x-2">
-                    <div
-                      class={`h-2 w-2 rounded-full ${campaign.status ? 'bg-green-400 animate-pulse' : 'bg-red-400'}`}
-                    />
-                    <Badge
-                      variant={campaign.status ? 'default' : 'secondary'}
-                      class="border border-gray-800"
-                    >
-                      {campaign.status ? 'Active' : 'Paused'}
-                    </Badge>
-                  </div>
-                </TableCell>
-                <TableCell class="font-medium text-gray-100">{campaign.name}</TableCell>
-                <TableCell class="text-gray-300 capitalize"
-                  >{campaign.strategy.replaceAll('-', ' ')}</TableCell
-                >
-                <TableCell>
-                  <div class="flex flex-wrap gap-2">
-                    {#each JSON.parse(campaign.keywords) as keyword}
-                      <Badge variant="outline" class="border-gray-800 text-gray-300"
-                        >{keyword}</Badge
+            <TableBody class="divide-y divide-gray-700">
+              {#each campaigns as campaign}
+                <TableRow class="hover:bg-gray-800/50">
+                  <TableCell class="py-3">
+                    <div class="flex items-center gap-2">
+                      <div
+                        class={`h-2 w-2 rounded-full ${campaign.status ? 'bg-green-400' : 'bg-red-400'}`}
+                      />
+                      <Badge
+                        variant={campaign.status ? 'default' : 'secondary'}
+                        class="border border-gray-800 text-xs"
                       >
-                    {/each}
-                  </div>
-                </TableCell>
-                <TableCell class="text-gray-300">{campaign.accountHandle}</TableCell>
-                <TableCell class="flex justify-end gap-2">
-                  <Button
-                    size="sm"
-                    variant={campaign.status ? 'destructive' : 'default'}
-                    class="group hover:scale-[1.02] transition-transform"
-                    on:click={() => toggleCampaignStatus(campaign.id)}
+                        {campaign.status ? 'Active' : 'Paused'}
+                      </Badge>
+                    </div>
+                  </TableCell>
+                  <TableCell class="font-medium text-gray-100 truncate max-w-[150px]"
+                    >{campaign.name}</TableCell
                   >
-                    {#if campaign.status}
-                      <Loader class="h-4 w-4 mr-2 animate-spin" />
-                    {/if}
-                    {campaign.status ? 'Pause' : 'Start'}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    class="text-red-400 hover:bg-red-400/10"
-                    on:click={() => deleteCampaign(campaign.id)}
-                    disabled={campaign.status}
+                  <TableCell class="text-gray-300 capitalize text-sm">
+                    {campaign.strategy.replaceAll('-', ' ')}
+                  </TableCell>
+                  <TableCell>
+                    <div class="flex flex-wrap gap-1">
+                      {#each JSON.parse(campaign.keywords) as keyword}
+                        <Badge
+                          variant="outline"
+                          class="border-gray-800 text-gray-300 text-xs px-2 py-1"
+                        >
+                          {keyword}
+                        </Badge>
+                      {/each}
+                    </div>
+                  </TableCell>
+                  <TableCell class="text-gray-300 truncate max-w-[100px] text-sm"
+                    >{campaign.accountHandle}</TableCell
                   >
-                    <Trash class="h-4 w-4" />
-                  </Button>
-                </TableCell>
-              </TableRow>
-            {:else}
-              <TableRow>
-                <TableCell class="text-center h-24 text-gray-400">No campaigns found</TableCell>
-              </TableRow>
-            {/each}
-          </TableBody>
-        </Table>
+                  <TableCell>
+                    <div class="flex justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant={campaign.status ? 'destructive' : 'default'}
+                        class="text-sm px-3 py-1"
+                        on:click={() => toggleCampaignStatus(campaign.id)}
+                      >
+                        {#if campaign.status}
+                          <Loader class="h-4 w-4 mr-1 animate-spin" />
+                        {/if}
+                        {campaign.status ? 'Pause' : 'Start'}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        class="text-red-400 hover:bg-red-400/10 p-2"
+                        on:click={() => deleteCampaign(campaign.id)}
+                      >
+                        <Trash class="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </TableCell>
+                </TableRow>
+              {:else}
+                <TableRow>
+                  <TableCell class="text-center h-24 text-gray-400">No campaigns found</TableCell>
+                </TableRow>
+              {/each}
+            </TableBody>
+          </Table>
+        </div>
       </CardContent>
     </Card>
   </main>

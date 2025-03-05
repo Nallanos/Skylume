@@ -21,6 +21,7 @@ export class EventListener {
     async on(did: string, account: Account): Promise<void> {
         try {
             await this.accountService.updateAccountRateLimit(account)
+            console.log(`\n[INFO] Processing listener ${this.listener_id} for event ${this.event} and will ${this.action}`);
 
             if (account.isRateLimited) {
                 console.warn("Account is rate limited, skipping event")
@@ -35,7 +36,6 @@ export class EventListener {
             }
         } catch (err) {
             await this.accountService.updateAccountRateLimit(account, err)
-            console.log("account.isRateLimited", account.isRateLimited)
         }
     }
 
@@ -54,9 +54,7 @@ export class EventListener {
 
             const res = await this.accountService.getMessages(account, convo.id, messageToken, 100)
             if (!res) throw new Error("error while getting messages")
-            console.log(res)
             const isAlreadySent = res.length > 0 && res.some(msg => msg.text === this.message);
-            console.log(isAlreadySent)
 
             const sendMessagePayload: MessagePayload = {
                 convoId: convo.id,
@@ -67,6 +65,7 @@ export class EventListener {
                     listener.number_of_message_sent++;
                     await listener.save();
                 });
+                console.log(`message sent`);
             }
         } catch (err) {
             console.log("error while sending message on follow:", err);
@@ -106,7 +105,6 @@ export class EventListener {
         if (!DbBotConvo) {
             const newConvo = await Convo.findBy("id", convo.id);
             if (!newConvo) {
-                console.log(`creating convo with id: ${convo.id}`);
                 await Convo.create({ id: convo.id, did: authorDid });
                 await BotConvo.create({ listeners_id: listener.id, convoId: convo.id, last_message_sent_at: new Date(now.getTime() + 20 * 1000).toISOString(), convoDid: authorDid });
             } else {

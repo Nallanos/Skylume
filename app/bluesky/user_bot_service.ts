@@ -77,6 +77,7 @@ export default class UserBotService {
   public async startAllListeners(notificationData: NotificationData[], listeners: Listener[], account: Account): Promise<void> {
     try {
       notificationData.forEach(async (notification) => {
+        console.log(`Processing notification for event: ${notification.event}`)
         const userListeners = await this.getListenersOn(notification.event, listeners)
 
         // Sort the listeners array to ensure that "Follow" actions are processed first
