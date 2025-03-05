@@ -112,6 +112,7 @@ router.get('/account/:id/dashboard', async ({ params, inertia }) => {
         }
         await account.refresh()
         await account.load('listeners')
+        account.listeners.sort((a, b) => a.id.localeCompare(b.id))
 
         if (!account.listeners) {
             throw new Error("Listeners not found")

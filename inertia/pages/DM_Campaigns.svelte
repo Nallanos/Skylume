@@ -186,7 +186,9 @@
                 </TableRow>
               {:else}
                 <TableRow>
-                  <TableCell class="text-center h-24 text-gray-400">No campaigns found</TableCell>
+                  <TableCell class="text-center h-24 text-gray-400">
+                    No campaigns found
+                  </TableCell>
                 </TableRow>
               {/each}
             </TableBody>
