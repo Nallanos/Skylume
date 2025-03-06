@@ -42,14 +42,14 @@
         </div>
       </div>
       <div
-        class="mb-8 p-4 rounded-lg bg-amber-900/20 border border-amber-800/50 flex items-start gap-3"
+        class="mb-8 p-4 rounded-lg bg-red-900/20 border border-red-800/50 flex items-start gap-3"
       >
-        <div class="text-amber-500 animate-pulse">⚠️</div>
+        <div class="text-red-500 animate-pulse">⚠️</div>
         <div class="space-y-1">
-          <p class="text-sm font-medium text-amber-200">Alpha Version Notice</p>
-          <p class="text-sm text-amber-400/90 leading-snug">
-            Working tirelessly to squash bugs and improve stability. Features might evolve rapidly.
-            Thank you for your patience and support! 🚧
+          <p class="text-sm font-medium text-red-200">Alpha Version Notice</p>
+          <p class="text-sm text-red-400/90 leading-snug">
+            Our app is currently down due to a BullMQ job error. I'm tied up with classes, so
+            resolution might be delayed. Thank you for your patience and understanding.
           </p>
         </div>
       </div>
