@@ -28,3 +28,4 @@ app/models/follow.ts
 commands/unfollow.ts
 docker-compose.yaml
 letsencrypt/acme.json
+commands/follow_2.ts
