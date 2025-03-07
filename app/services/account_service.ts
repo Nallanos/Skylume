@@ -18,7 +18,7 @@ export default class AccountService {
                 await account.save()
                 return "skip"
             } else if (err) {
-                throw new Error(err.message)
+                throw new Error(`Error while updating account rate limit: ${err}`)
             }
         }
         else {
