@@ -9,13 +9,23 @@ import env from '#start/env';
 class QueueManager {
     public queueName = "listeners";
     public queue = new Queue(this.queueName, {
+        defaultJobOptions: {
+            attempts: 3,
+            backoff: {
+                type: 'fixed',
+                delay: 1000
+            },
+            removeOnComplete: true,
+            removeOnFail: true
+        },
         connection: {
             family: 0,
             host: env.get("REDIS_HOST"),
             port: env.get("REDIS_PORT"),
             password: env.get("REDIS_PASSWORD")
         }
-    })
+    }
+    )
 
     /**
      * Initializes jobs for all users and their accounts.

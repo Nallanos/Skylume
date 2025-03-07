@@ -46,6 +46,7 @@ services:
     ports:
       - 5432:5432
     volumes:
+      - ./psqlrc:/root/.psqlrc
       - postgresql_data:/var/lib/postgresql/data
     networks:
       - bluesky-copilot_default
