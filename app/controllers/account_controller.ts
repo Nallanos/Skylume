@@ -7,9 +7,12 @@ import queue_manager from '../bluesky/queue_manager.js'
 import { DateTime } from 'luxon';
 import User from '#models/user'
 import users_bot_service_manager from '../bluesky/users_bot_service_manager.js'
+import { AtpAgent } from '@atproto/api'
 @inject()
 export default class AccountController {
   private accountService: AccountService | undefined
+
+  public agent = new AtpAgent({ service: "https://bsky.social" })
 
   public async createAccount({ request, auth, response, session }: HttpContext) {
     try {
@@ -17,6 +20,25 @@ export default class AccountController {
 
       if (!token_app_password || !bksy_social) {
         session.flash("errors.credentials", "Missing app password or social handle.")
+        return response.redirect().back()
+      }
+
+      try {
+        const bskySession = await this.agent.login({ identifier: bksy_social, password: token_app_password })
+
+        if (!bskySession) {
+          session.flash("errors.credentials", "Failed to retrieve session. Please verify your credentials.")
+          return response.redirect().back()
+        }
+
+        const token = await this.agent.com.atproto.server.getServiceAuth({ aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.sendMessage" }, { headers: { Authorization: `Bearer ${bskySession.data.accessJwt}` } })
+        if (!token.data.token) {
+          session.flash("errors.credentials", "Please, grants us access to your DMS.")
+          return response.redirect().back()
+        }
+
+      } catch (err) {
+        session.flash("errors.credentials", `Failed to retrieve session. Please check if you have granted us access to your DMS and that you're credentials are valid. \n ${err.message}`)
         return response.redirect().back()
       }
 

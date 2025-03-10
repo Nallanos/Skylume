@@ -77,7 +77,7 @@
       </CardHeader>
       <CardContent class="space-y-6">
         {#if $page.props.errors}
-          <Alert variant="destructive" class="text-red-500">
+          <Alert variant="destructive" class="text-red-600">
             <AlertTitle>Connection Error</AlertTitle>
             <AlertDescription>{$page.props.errors.credentials}</AlertDescription>
           </Alert>
@@ -86,12 +86,17 @@
         <form on:submit|preventDefault={handleSubmit} class="space-y-4">
           <div class="space-y-2">
             <h3 class="text-sm font-medium text-gray-300">Bluesky Handle</h3>
-            <Input
-              bind:value={bksy_social}
-              placeholder="yourhandle.bsky.social"
-              required
-              class="bg-gray-800 border-gray-700 text-gray-100 focus:ring-2 focus:ring-blue-400"
-            />
+            <div
+              class="flex items-center rounded-md bg-gray-800 border border-gray-700 text-gray-100 focus:ring-2 focus:ring-blue-400"
+            >
+              <span class="pl-2"> @ </span>
+              <Input
+                bind:value={bksy_social}
+                placeholder="yourhandle.bsky.social"
+                required
+                class="flex items-center bg-gray-800  text-gray-100 focus:ring-2 focus:ring-blue-400"
+              ></Input>
+            </div>
           </div>
 
           <div class="space-y-2">
