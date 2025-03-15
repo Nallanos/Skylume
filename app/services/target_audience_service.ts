@@ -121,6 +121,6 @@ export class TargetAudienceService {
 
 
     console.log('Deleting low scored followers...')
-    return { followers: followers.filter(follower => follower.score >= 0.6), responseCursor: cursor };
+    return { followers: followers.filter(follower => follower.score >= 0.8), responseCursor: cursor };
   }
 }

@@ -5,6 +5,7 @@ import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
 import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
 import Account from './account.js'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
+import Scheduling from './scheduling.js'
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
   uids: ['email'],
   passwordColumnName: 'password',
@@ -28,6 +29,9 @@ export default class User extends compose(BaseModel, AuthFinder) {
 
   @hasMany(() => Account)
   declare account: HasMany<typeof Account>
+
+  @hasMany(() => Scheduling)
+  declare scheduling: HasMany<typeof Scheduling>
 
   @column()
   declare token_app_password: string | null

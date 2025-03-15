@@ -71,6 +71,7 @@
   function deleteListener(listener_id: string) {
     router.post('/bot/remove', { listener_id: listener_id })
   }
+  console.log(accounts)
 </script>
 
 <main class="flex md:flex-row min-h-screen">
