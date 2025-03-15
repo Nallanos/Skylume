@@ -248,4 +248,14 @@ export default class AccountService {
             throw err;
         }
     }
+
+    public async post(account: Account, message: string) {
+        try {
+            await this.agent.post({ text: message });
+            await this.updateAccountRateLimit(account);
+        } catch (err) {
+            await this.updateAccountRateLimit(account, err);
+            throw err;
+        }
+    }
 }

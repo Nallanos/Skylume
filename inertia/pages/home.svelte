@@ -334,9 +334,6 @@
       transform: translateY(0);
     }
   }
-  .page-load-animation {
-    animation: fadeIn 1s ease-out forwards;
-  }
 
   /* Particules spectaculaires animées */
   .animated-particles {
@@ -375,67 +372,5 @@
       transform: translate(var(--end-x), var(--end-y)) scale(0.5);
       opacity: 0;
     }
-  }
-
-  /* Définition des trajectoires et caractéristiques pour chaque particule */
-  .particle-1 {
-    --start-x: 0vw;
-    --start-y: 80vh;
-    --mid-x: 30vw;
-    --mid-y: 40vh;
-    --end-x: 60vw;
-    --end-y: 0vh;
-    width: 4px;
-    height: 4px;
-    animation-duration: 15s;
-    animation-delay: 0s;
-  }
-  .particle-2 {
-    --start-x: 10vw;
-    --start-y: 90vh;
-    --mid-x: 50vw;
-    --mid-y: 50vh;
-    --end-x: 90vw;
-    --end-y: 10vh;
-    width: 6px;
-    height: 6px;
-    animation-duration: 18s;
-    animation-delay: 3s;
-  }
-  .particle-3 {
-    --start-x: 90vw;
-    --start-y: 20vh;
-    --mid-x: 70vw;
-    --mid-y: 40vh;
-    --end-x: 50vw;
-    --end-y: 60vh;
-    width: 3px;
-    height: 3px;
-    animation-duration: 12s;
-    animation-delay: 5s;
-  }
-  .particle-4 {
-    --start-x: 20vw;
-    --start-y: 100vh;
-    --mid-x: 40vw;
-    --mid-y: 70vh;
-    --end-x: 60vw;
-    --end-y: 40vh;
-    width: 5px;
-    height: 5px;
-    animation-duration: 20s;
-    animation-delay: 2s;
-  }
-  .particle-5 {
-    --start-x: 80vw;
-    --start-y: 100vh;
-    --mid-x: 60vw;
-    --mid-y: 70vh;
-    --end-x: 40vw;
-    --end-y: 40vh;
-    width: 7px;
-    height: 7px;
-    animation-duration: 22s;
-    animation-delay: 4s;
   }
 </style>
