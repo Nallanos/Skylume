@@ -5,7 +5,7 @@
   import { Card, CardContent, CardHeader, CardTitle } from '@/ui/card'
   import { Table, TableBody, TableCell, TableRow } from '@/ui/table'
   import { Popover, PopoverContent, PopoverTrigger } from '@/ui/popover'
-  import { ChevronLeft, ChevronRight, Plus, Trash, Pencil } from 'lucide-svelte'
+  import { ChevronLeft, ChevronRight, Plus, Trash } from 'lucide-svelte'
   import { Input } from '@/ui/input'
   import { Label } from '@/ui/label'
   import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/ui/dialog'
@@ -69,13 +69,13 @@
     selectedScheduling = null
   }
 
-  function openEditModal(schedule: Scheduling) {
-    editingSchedule = { ...schedule }
-    const date = new Date(schedule.scheduleTime)
-    localDateTime = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
-      .toISOString()
-      .slice(0, 16)
-  }
+  // function openEditModal(schedule: Scheduling) {
+  //   editingSchedule = { ...schedule }
+  //   const date = new Date(schedule.scheduleTime)
+  //   localDateTime = new Date(date.getTime() - date.getTimezoneOffset() * 60000)
+  //     .toISOString()
+  //     .slice(0, 16)
+  // }
 
   async function saveEdit() {
     if (!editingSchedule) return
