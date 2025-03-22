@@ -17,8 +17,6 @@ export default class AccountService {
                 account.isRateLimited = true
                 await account.save()
                 return "skip"
-            } else if (err) {
-                throw new Error(`Error while updating account rate limit: ${err}`)
             }
         }
         else {
@@ -211,10 +209,20 @@ export default class AccountService {
             }
             await this.updateAccountRateLimit(account);
             return;
-        } catch (err) {
-            await this.updateAccountRateLimit(account, err);
-            console.error("Error while creating or resuming the session in the userBotService:", err);
-            throw err;
+        } catch {
+            try {
+                const session = (await this.agent.login({
+                    identifier: account.handle,
+                    password: account.appPassword,
+                })).data;
+
+                account.session = JSON.stringify(session);
+                await account.save();
+                await this.updateAccountRateLimit(account);
+            } catch (err) {
+                await this.updateAccountRateLimit(account, err);
+                console.error("Error while creating or resuming the session in the userBotService:", err);
+            }
         }
     }
 
