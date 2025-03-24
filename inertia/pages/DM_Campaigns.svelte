@@ -3,7 +3,7 @@
   import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/ui/table'
   import { Button } from '@/ui/button'
   import { Badge } from '@/ui/badge'
-  import { Plus, Activity, Mail, Sliders, Trash, Loader } from 'lucide-svelte'
+  import { Plus, Activity, Mail, Sliders, Trash, Loader, Lock } from 'lucide-svelte'
   import Sidebar from '@/components/Sidebar.svelte'
   import { page } from '@inertiajs/svelte'
   import type User from '#models/user'
@@ -14,6 +14,7 @@
   export let campaigns: Array<DmCampaign>
 
   let user: User = $page.props.user
+
   let accounts = user.account as unknown as Account[]
   $: totalEngagement = campaigns.reduce((sum, l) => sum + l.numberOfMessageSent, 0)
   $: totalResponses = campaigns.reduce((sum, l) => sum + l.numberOfMessageReceived, 0)
@@ -35,22 +36,63 @@
     <Sidebar {user} {accounts} />
   </div>
 
-  <main class="flex-1 p-4 md:p-8 pt-16 md:pt-20">
-    <div class="mb-6 space-y-4">
-      <div class="flex flex-col md:flex-row justify-between items-start gap-4 md:gap-0">
-        <div>
-          <h1 class="text-2xl md:text-3xl font-bold text-gray-100">Campaigns Dashboard</h1>
-          <p class="text-gray-400 mt-1">
-            {campaigns.length} active campaign{campaigns.length !== 1 ? 's' : ''}
-          </p>
+  <main class="flex-1 p-4 md:p-8 pt-16 md:pt-20 relative">
+    {#if user.plan === 'free'}
+      <div
+        class="absolute inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center"
+      >
+        <div class="bg-background rounded-lg p-6 max-w-md text-center space-y-4">
+          <Lock class="h-8 w-8 mx-auto text-primary" />
+          <h3 class="text-lg font-semibold">Upgrade to DM Campaign</h3>
+          <p class="text-sm text-muted-foreground">This feature is not available to free users.</p>
+          <Button
+            on:click={async () => {
+              const { sessionStripe } = await router.post('/create-stripe-session')
+              if (sessionStripe) {
+                window.location.href = sessionStripe // ✅ Redirection vers Stripe
+              } else {
+                console.error('Erreur lors de la création de la session')
+              }
+            }}
+          >
+            Upgrade Plan</Button
+          >
         </div>
-        <Button
-          href="/add/campaign"
-          class="w-full md:w-auto group hover:scale-[1.02] transition-transform whitespace-nowrap"
-        >
-          <Plus class="mr-2 h-4 w-4 transition-transform group-hover:rotate-90" />
-          New Campaign
-        </Button>
+      </div>
+    {/if}
+
+    <div class="mb-6 space-y-4">
+      <div class="flex flex-col justify-between items-start gap-4 md:gap-0">
+        <div class="flex justify-between w-full">
+          <div class="flex-col">
+            <h1 class="text-2xl md:text-3xl font-bold text-gray-100">Campaigns Dashboard</h1>
+            <p class="text-gray-400 mt-1">
+              {campaigns.length} active campaign{campaigns.length !== 1 ? 's' : ''}
+            </p>
+          </div>
+          {#if user.plan !== 'free'}
+            <Button
+              href="/add/campaign"
+              class="w-full md:w-auto group hover:scale-[1.02] ml-auto transition-transform whitespace-nowrap"
+            >
+              <Plus class="mr-2 h-4 w-4 transition-transform group-hover:rotate-90" />
+              New Campaign
+            </Button>
+          {:else}
+            <Button
+              href="/pricing"
+              class="w-full md:w-auto group hover:scale-[1.02] ml-auto transition-transform whitespace-nowrap"
+              variant="default"
+            >
+              <Plus class="mr-2 h-4 w-4 transition-transform group-hover:rotate-90" />
+              Upgrade to Create Campaign
+            </Button>
+          {/if}
+        </div>
+        <p class="text-gray-100">
+          Reach your Bluesky followers with precision, with massive dm campaign specifically
+          targeted
+        </p>
       </div>
 
       <div class="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fade-in-up">
@@ -105,7 +147,7 @@
     </div>
 
     <Card class="border-gray-800">
-      <CardHeader>
+      <CardHeader class="p-4">
         <CardTitle class="text-gray-100">Active Campaigns</CardTitle>
         <CardDescription class="text-gray-400">Manage your running DM campaigns</CardDescription>
       </CardHeader>
@@ -186,9 +228,7 @@
                 </TableRow>
               {:else}
                 <TableRow>
-                  <TableCell class="text-center h-24 text-gray-400">
-                    No campaigns found
-                  </TableCell>
+                  <TableCell class="text-center h-24 text-gray-400">No campaigns found</TableCell>
                 </TableRow>
               {/each}
             </TableBody>

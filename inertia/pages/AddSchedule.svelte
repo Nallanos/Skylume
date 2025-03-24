@@ -4,7 +4,7 @@
   import { Label } from '@/ui/label'
   import { Button } from '@/ui/button'
   import { Textarea } from '@/ui/textarea'
-  import { Send } from 'lucide-svelte'
+  import { Send, Lock } from 'lucide-svelte'
   import Sidebar from '@/components/Sidebar.svelte'
   import * as Select from '@/ui/select'
   import { Calendar } from '@/ui/calendar'
@@ -17,6 +17,7 @@
 
   const user = $page.props.user as User
   let accounts = user.account as unknown as Account[]
+  $: isFreeLimitReached = user.plan === 'free' && user.isScheduledLimitReached
 
   let message = ''
   let selectedDate: DateValue | undefined
@@ -103,6 +104,27 @@
   </div>
 
   <main class="flex-1 p-8 relative pt-20">
+    {#if isFreeLimitReached}
+      <div
+        class="absolute inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center"
+      >
+        <div class="bg-background rounded-lg p-6 max-w-md text-center space-y-4">
+          <Lock class="h-8 w-8 mx-auto text-primary" />
+          <h3 class="text-lg font-semibold">Upgrade to Schedule More Posts</h3>
+          <p class="text-sm text-muted-foreground">
+            You've reached the maximum of 5 scheduled posts on the free plan. Upgrade to continue
+            using scheduling features.
+          </p>
+
+          <Button
+            on:click={async () => {
+              await router.post('/create-stripe-session')
+            }}>Upgrade Plan</Button
+          >
+        </div>
+      </div>
+    {/if}
+
     <div class="mb-8 space-y-2">
       <h1 class="text-3xl font-bold">Schedule Message</h1>
       <p class="text-gray-400">Planify your Bluesky messages to be sent at specific times</p>

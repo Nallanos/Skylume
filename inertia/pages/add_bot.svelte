@@ -7,9 +7,12 @@
   import type Account from '#models/account'
   import type User from '#models/user'
   import { page } from '@inertiajs/svelte'
+  import Button from '@/ui/button/button.svelte'
+  import { Lock } from 'lucide-svelte'
 
   export let accounts: Account[]
   const user = $page.props.user as User
+  $: isFreeLimitReached = user.plan === 'free' && user.isDmsLimitReached
 
   const events: EventType[] = ['follow', 'reply', 'like']
   const actions = ['Follow', 'Send a Message']
@@ -45,8 +48,26 @@
   <div class="h-screen">
     <Sidebar {user} {accounts} />
   </div>
-
-  <div class="flex-1 flex flex-col items-center overflow-auto p-8 pt-16">
+  <div class="flex-1 flex relative flex-col items-center overflow-auto p-8 pt-16">
+    {#if isFreeLimitReached}
+      <div
+        class="absolute inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center"
+      >
+        <div class="bg-background rounded-lg p-6 max-w-md text-center space-y-4">
+          <Lock class="h-8 w-8 mx-auto text-primary" />
+          <h3 class="text-lg font-semibold">Upgrade for more auto DMS</h3>
+          <p class="text-sm text-muted-foreground">
+            You've reached the maximum of 30 scheduled posts on the free plan. Upgrade to continue
+            using auto DMS features.
+          </p>
+          <Button
+            on:click={async () => {
+              await router.post('/create-stripe-session')
+            }}>Upgrade Plan</Button
+          >
+        </div>
+      </div>
+    {/if}
     <header class="w-full max-w-2xl mb-12">
       <h3 class="text-3xl font-bold mb-4">Bot Management</h3>
       <p class="leading-relaxed text-gray-300">

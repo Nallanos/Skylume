@@ -1,16 +1,10 @@
 <script lang="ts">
   import LayoutLandingPage from '@/components/layoutLandingPage.svelte'
   import Button from '@/ui/button/button.svelte'
-  import {
-    Lock,
-    Sparkles,
-    Settings,
-    CheckCircle,
-    BarChart,
-    Zap,
-    MessageSquare,
-  } from 'lucide-svelte'
+  import { CheckCircle, BarChart, Zap, MessageSquare } from 'lucide-svelte'
   import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/ui/accordion'
+
+  let showMore = false
 </script>
 
 <LayoutLandingPage />
@@ -58,8 +52,7 @@
         > your bluesky audience
       </h1>
       <p class="text-lg md:text-2xl text-gray-300 mb-8">
-        Automate audience growth and monetization -
-        <span class="font-semibold text-teal-400">Free during Alpha</span>
+        Automate audience growth and monetization
       </p>
 
       <div class="flex flex-col md:flex-row justify-center gap-4 mb-12">
@@ -69,7 +62,7 @@
           class="h-14 px-8 text-lg rounded-xl bg-gradient-to-r from-teal-500 to-blue-600 hover:from-teal-600 hover:to-blue-700 transition-all"
           aria-label="Start Free Trial"
         >
-          Start Building for Free ➔
+          Try it for free
         </Button>
       </div>
       <p class="text-gray-300 text-sm">No credit card required - Get instant access</p>
@@ -206,91 +199,213 @@
       class="h-14 px-8 text-lg rounded-xl bg-gradient-to-r from-teal-500 to-blue-600 hover:from-teal-600 hover:to-blue-700 transition-all mx-auto"
       aria-label="Start Free Trial"
     >
-      Start Building for Free ➔
+      Try it for free
     </Button>
   </div>
-  <!-- How It Works -->
+
+  <!-- Video Demo Section -->
   <section class="py-20 px-4">
-    <div class="max-w-6xl mx-auto text-center">
-      <h2 class="text-3xl font-bold mb-16">Simple 3-Step Success</h2>
-      <div class="grid md:grid-cols-3 gap-8 text-left">
-        <div class="p-6 bg-gray-900/30 rounded-xl">
-          <div class="mb-4 text-teal-400 text-2xl">1</div>
-          <Settings class="w-12 h-12 text-blue-400 mb-4" />
-          <h3 class="text-xl font-bold mb-2">Connect Your Account</h3>
-          <p class="text-gray-300">Secure API integration with Bluesky</p>
+    <div class="max-w-6xl mx-auto">
+      <div class="grid md:grid-cols-2 gap-12 items-center">
+        <!-- Video Container -->
+        <div
+          class="relative rounded-2xl overflow-hidden shadow-2xl bg-gradient-to-br from-gray-900 to-gray-800"
+        >
+          <video
+            class="w-full aspect-video object-cover opacity-90"
+            src="public/videos/FINAL.mp4"
+            autoplay
+            muted
+            loop
+            playsinline
+          >
+            Your browser does not support the video tag.
+          </video>
         </div>
-        <div class="p-6 bg-gray-900/30 rounded-xl">
-          <div class="mb-4 text-teal-400 text-2xl">2</div>
-          <Sparkles class="w-12 h-12 text-purple-400 mb-4" />
-          <h3 class="text-xl font-bold mb-2">Activate Tools</h3>
-          <p class="text-gray-300">Set up automation in 5 minutes</p>
+
+        <!-- Text Content -->
+        <div class="space-y-6">
+          <h2 class="text-3xl md:text-4xl font-bold leading-tight">
+            Transform Your Bluesky Strategy
+            <span class="bg-gradient-to-r from-teal-400 to-blue-500 bg-clip-text text-transparent"
+              >in 90 Seconds</span
+            >
+          </h2>
+          <p class="text-lg text-gray-300">
+            See how our AI-powered platform helps you automate engagement and grow your audience
+            effortlessly. This quick demo shows:
+          </p>
+          <ul class="space-y-4">
+            <li class="flex items-start gap-3">
+              <CheckCircle class="w-6 h-6 text-teal-400 flex-shrink-0" />
+              <span class="text-gray-300">How to set up bots in 3 clicks</span>
+            </li>
+            <li class="flex items-start gap-3">
+              <CheckCircle class="w-6 h-6 text-teal-400 flex-shrink-0" />
+              <span class="text-gray-300">Effortless message scheduling</span>
+            </li>
+          </ul>
+          <Button
+            href="/dashboard"
+            variant="default"
+            class="h-12 px-8 text-lg rounded-xl bg-gradient-to-r from-teal-500 to-blue-600 hover:from-teal-600 hover:to-blue-700 transition-all"
+          >
+            Try it for free
+          </Button>
         </div>
-        <div class="p-6 bg-gray-900/30 rounded-xl">
-          <div class="mb-4 text-teal-400 text-2xl">3</div>
-          <Lock class="w-12 h-12 text-teal-400 mb-4" />
-          <h3 class="text-xl font-bold mb-2">Grow Safely</h3>
-          <p class="text-gray-300">Compliance-focused automation</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Testimonials -->
+  <section class="py-16">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <!-- Titre section -->
+      <h2
+        class="text-3xl font-bold text-center mb-12 bg-gradient-to-r from-teal-400 to-blue-500 bg-clip-text text-transparent"
+      >
+        They also loved it...
+      </h2>
+
+      <!-- Grille de témoignages -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+        <!-- Témoignage 1 -->
+        <div class="p-6 bg-gray-800/30 rounded-xl border border-gray-700">
+          <div class="space-y-4">
+            <!-- Auteur -->
+            <div class="flex items-center space-x-3">
+              <div class="flex-shrink-0">
+                <div
+                  class="w-10 h-10 bg-gradient-to-r from-teal-400 to-blue-500 rounded-full flex items-center justify-center"
+                >
+                  <img
+                    class="rounded-full"
+                    src="public/images/bafkreihdgxviv4vxx7dv4zfwhjylkmbharti2s7jhlndmu4nswpwhk677e.jpg"
+                    alt="Alexis Bouchez"
+                  />
+                </div>
+              </div>
+              <div>
+                <a
+                  href="https://bsky.app/profile/alexisbouchez.com"
+                  class="text-blue-400 hover:text-blue-300 underline transition-colors"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  @alexisbouchez.com
+                </a>
+                <p class="text-sm text-gray-400">Founder</p>
+              </div>
+            </div>
+
+            <!-- Citation -->
+            <blockquote class="text-lg italic text-gray-300">
+              "Making use of BlueskyBot is a great way to grow and engage with your audience on
+              Bluesky."
+            </blockquote>
+          </div>
+        </div>
+
+        <!-- Témoignage 2 (exemple vide à dupliquer) -->
+        <div class="p-6 bg-gray-800/30 rounded-xl border border-gray-700">
+          <div class="space-y-4">
+            <div class="flex items-center space-x-3">
+              <div class="flex-shrink-0">
+                <div
+                  class="w-10 h-10 bg-gradient-to-r from-teal-400 to-blue-500 rounded-full flex items-center justify-center"
+                >
+                  <img src="public/images/pdpDemon.jpg" alt="" class="rounded-full" />
+                </div>
+              </div>
+              <div>
+                <p class="text-blue-400 hover:text-blue-300 transition-colors">
+                  @dem...ny.bsky.social
+                </p>
+                <p class="text-sm text-gray-400">Content creator</p>
+              </div>
+            </div>
+
+            <div class="space-y-2">
+              <blockquote class="text-lg italic text-gray-300">
+                "I started using the Bluesky bot to help grow my platform, and honestly, it’s been a
+                game changer."
+              </blockquote>
+              {#if showMore}
+                <blockquote class="text-lg italic text-gray-300">
+                  "I can never go back to not using it. It's very user-friendly. Just go through the
+                  options, find the one you want, and you're done. There’s no complicated code you
+                  need to understand or anything."
+                </blockquote>
+
+                <blockquote class="text-lg italic text-gray-300">
+                  "If you want to connect with your community but don’t have a lot of time (or even
+                  if you do), I’d really recommend testing it out."
+                </blockquote>
+              {/if}
+            </div>
+
+            <button
+              class="mt-4 text-blue-400 hover:text-blue-300 transition-colors text-sm"
+              on:click={() => (showMore = !showMore)}
+            >
+              {showMore ? 'See less...' : 'See more...'}
+            </button>
+          </div>
+        </div>
+
+        <!-- Témoignage 3 (exemple vide à dupliquer) -->
+        <div class="p-6 bg-gray-800/30 rounded-xl border border-gray-700">
+          <div class="space-y-4">
+            <!-- Auteur -->
+            <div class="flex items-center space-x-3">
+              <div class="flex-shrink-0">
+                <div
+                  class="w-10 h-10 bg-gradient-to-r from-teal-400 to-blue-500 rounded-full flex items-center justify-center"
+                >
+                  <img class="rounded-full" src="public/images/nallanos.jpg" alt="Alexis Bouchez" />
+                </div>
+              </div>
+              <div>
+                <a
+                  href="https://bsky.app/profile/nallanos.bsky.social"
+                  class="text-blue-400 hover:text-blue-300 underline transition-colors"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  @nallanos.bsky.social
+                </a>
+                <p class="text-sm text-gray-400">Founder</p>
+              </div>
+            </div>
+
+            <!-- Citation -->
+            <blockquote class="text-lg italic text-gray-300">
+              "I use the tool myself on a daily basis, and each update is designed to make the
+              experience even smoother."
+            </blockquote>
+          </div>
         </div>
       </div>
     </div>
   </section>
 
   <!-- Alpha Benefits Révisé -->
-  <section class="py-16">
-    <div class="max-w-6xl mx-auto px-4">
+  <section class="py-16 flex flex-col just w-full">
+    <div class="mx-auto px-4 w-full flex flex-col">
       <div class="text-center mb-12">
         <h3 class="text-sm uppercase tracking-widest text-blue-400 mb-4">Alpha Perks</h3>
         <h2 class="text-3xl font-bold mb-6">Help Build the Ultimate Bluesky Tool</h2>
       </div>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
-        <div class="bg-gray-800/20 p-6 rounded-xl border border-blue-800">
+      <div class=" gap-8 flex justify-center">
+        <div class="bg-gray-800/20 w-1/3 p-6 rounded-xl border border-blue-800">
           <div class="text-lg font-bold text-blue-400 mb-2">🚀 Early Access</div>
           <p class="text-gray-300">Test new features before anyone else</p>
         </div>
-        <div class="bg-gray-800/20 p-6 rounded-xl border border-purple-800">
+        <div class="bg-gray-800/20 p-6 w-1/3 rounded-xl border border-purple-800">
           <div class="text-lg font-bold text-purple-400 mb-2">💡 Direct Influence</div>
           <p class="text-gray-300">Shape the product roadmap</p>
         </div>
-        <div class="bg-gray-800/20 p-6 rounded-xl border border-teal-800">
-          <div class="text-lg font-bold text-teal-400 mb-2">🔓 Free Forever</div>
-          <p class="text-gray-300">Alpha features remain free for you</p>
-        </div>
       </div>
-    </div>
-  </section>
-
-  <!-- FAQ -->
-
-  <section class="py-20 px-4">
-    <div class="max-w-2xl mx-auto">
-      <h2 class="text-3xl font-bold text-center mb-12">Common Questions</h2>
-      <Accordion>
-        <AccordionItem value="items-1">
-          <AccordionTrigger class="text-lg font-bold text-teal-400 mb-2"
-            >Is it really free?</AccordionTrigger
-          >
-          <AccordionContent class="text-gray-300">
-            Yes! All alpha features are completely free during our testing period.
-          </AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="items-2">
-          <AccordionTrigger class="text-lg font-bold text-blue-400 mb-2"
-            >How long does setup take?</AccordionTrigger
-          >
-          <AccordionContent class="text-gray-300">
-            Most users connect their Bluesky account in under 5 minutes.
-          </AccordionContent>
-        </AccordionItem>
-        <AccordionItem value="items-3">
-          <AccordionTrigger class="text-lg font-bold text-purple-400 mb-2"
-            >Can I provide feedback?</AccordionTrigger
-          >
-          <AccordionContent class="text-gray-300">
-            We actively encourage and prioritize alpha user feedback.
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
     </div>
   </section>
 
@@ -310,13 +425,119 @@
           variant="default"
           class="h-14 px-8 text-lg rounded-xl bg-gradient-to-r from-teal-500 to-blue-600 hover:from-teal-600 hover:to-blue-700 transition-all"
         >
-          Start Building for Free ➔
+          Try it for free
         </Button>
       </div>
       <p class="text-gray-300 text-sm">No obligations • Cancel anytime • Privacy-first</p>
     </div>
   </section>
 </main>
+<footer class="border-t border-gray-800 pt-12 mt-16">
+  <div class="container mx-auto px-4">
+    <div class="py-8 flex flex-col md:flex-row justify-between items-start gap-8">
+      <!-- Colonne de gauche -->
+      <div class="text-center md:text-left mb-8 md:mb-0">
+        <div class="mb-3">
+          <span
+            class="text-xl font-bold bg-gradient-to-r from-teal-400 to-blue-500 bg-clip-text text-transparent"
+          >
+            Bluesky Tools
+          </span>
+        </div>
+        <p class="text-gray-400 text-sm">
+          © 2024 Made with ❤️ par
+          <a href="https://x.com/Nallan0s" class="hover:text-teal-400 transition-colors"
+            >@Nallan0s</a
+          >
+        </p>
+      </div>
+
+      <!-- Quick Links + FAQ -->
+      <div class="flex-1 grid grid-cols-1 md:grid-cols-2 gap-8 max-w-3xl">
+        <!-- Quick Links -->
+        <div>
+          <h3 class="text-lg font-bold text-teal-400 mb-4">Quick Links</h3>
+          <ul class="space-y-3">
+            <li>
+              <a href="/terms" class="text-gray-400 hover:text-teal-400 transition-colors">Terms</a>
+            </li>
+            <li>
+              <a href="/privacy" class="text-gray-400 hover:text-teal-400 transition-colors"
+                >Privacy</a
+              >
+            </li>
+            <li>
+              <a href="/pricing" class="text-gray-400 hover:text-teal-400 transition-colors"
+                >Pricing</a
+              >
+            </li>
+          </ul>
+        </div>
+
+        <!-- FAQ -->
+        <div>
+          <h3 class="text-lg font-bold text-teal-400 mb-4">FAQ</h3>
+          <Accordion>
+            <AccordionItem value="items-1">
+              <AccordionTrigger class="text-base font-semibold text-blue-400">
+                Is it really free?
+              </AccordionTrigger>
+              <AccordionContent class="text-gray-300 text-sm">
+                Yes! During the alpha phase, all features are available at no cost. Our goal is to
+                gather valuable feedback and improve the platform while allowing users to experience
+                its full potential without any financial commitment.
+              </AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="items-2">
+              <AccordionTrigger class="text-base font-semibold text-purple-400">
+                How long does it take to set up?
+              </AccordionTrigger>
+              <AccordionContent class="text-gray-300 text-sm">
+                Setting up typically takes less than five minutes for most users. We have designed
+                the process to be as intuitive and seamless as possible, requiring minimal
+                configuration. Should you need assistance, our support team is available to guide
+                you through the setup.
+              </AccordionContent>
+            </AccordionItem>
+            <AccordionItem value="items-3">
+              <AccordionTrigger class="text-base font-semibold text-teal-400">
+                Is it secure?
+              </AccordionTrigger>
+              <AccordionContent class="text-gray-300 text-sm">
+                Absolutely. Security is our top priority. We implement industry-standard encryption
+                and best practices to protect your data. Our infrastructure is regularly updated and
+                monitored to prevent vulnerabilities, and we do not share your information with
+                third parties. If you have specific security concerns, feel free to contact our team
+                for more details.
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
+        </div>
+      </div>
+
+      <!-- Liens sociaux -->
+      <div class="flex space-x-6 mt-8 md:mt-0">
+        <!-- Lien Bluesky -->
+        <a
+          href="https://bsky.app/profile/nallan0s.bsky.social"
+          class="p-2 rounded-lg hover:bg-gray-800/30 transition-all group relative"
+          aria-label="Bluesky"
+        >
+          <!-- Icône Bluesky (conservée) -->
+        </a>
+
+        <!-- Lien X -->
+        <a
+          href="https://x.com/Nallan0s"
+          class="p-2 rounded-lg hover:bg-gray-800/30 transition-all group relative"
+          aria-label="X"
+        >
+          <!-- Icône X (conservée) -->
+        </a>
+      </div>
+    </div>
+  </div>
+</footer>
 
 <style>
   :root {

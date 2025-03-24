@@ -18,8 +18,26 @@ export default class User extends compose(BaseModel, AuthFinder) {
   @column()
   declare email: string
 
+  @column()
+  declare plan: string
+
+  @column()
+  declare dmsSent: number
+
+  @column()
+  declare isScheduledLimitReached: boolean
+
+  @column()
+  declare isDmsLimitReached: boolean
+
+  @column()
+  declare postScheduled: number
+
   @column({ serializeAs: null })
   declare password: string
+
+  @column()
+  declare subscriptionsId: string | undefined
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

@@ -25,6 +25,9 @@ const inertiaConfig = defineConfig({
         return {
           id: user.id,
           email: user.email,
+          plan: user.plan,
+          isScheduledLimitReached: user.isScheduledLimitReached,
+          isDmsLimitReached: user.isDmsLimitReached,
           marketing_consent: user.marketing_consent,
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
@@ -59,7 +62,8 @@ const inertiaConfig = defineConfig({
       }
 
       return null
-    }
+    },
+    sessionStripe: (ctx) => ctx.session?.flashMessages.get('sessionStripe')
   },
 
   /**

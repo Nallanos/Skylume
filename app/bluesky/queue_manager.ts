@@ -106,6 +106,10 @@ class QueueManager {
             await redis.del(jobs)
         }
     }
+
+    public async destroyQueue() {
+        await this.queue.obliterate({ force: true })
+    }
 }
 
 export default new QueueManager();

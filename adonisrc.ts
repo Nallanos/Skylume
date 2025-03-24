@@ -100,4 +100,7 @@ export default defineConfig({
   hooks: {
     onBuildStarting: [() => import('@adonisjs/vite/build_hook')],
   },
+  directories: {
+    public: "build/public"
+  }
 })

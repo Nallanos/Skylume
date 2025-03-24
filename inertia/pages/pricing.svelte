@@ -1,44 +1,50 @@
 <script lang="ts">
   import LayoutLandingPage from '@/components/layoutLandingPage.svelte'
   import Button from '@/ui/button/button.svelte'
-  import { Zap, Rocket, Sparkles, CheckCircle } from 'lucide-svelte'
+  import { Rocket, Sparkles, CheckCircle, X } from 'lucide-svelte'
+
+  type PlanFeature = {
+    text: string
+    included: boolean
+  }
 
   type Plan = {
     title: string
     price: string
     buttonText: string
-    features: string[]
+    features: PlanFeature[]
     isHighlighted?: boolean
     limit?: string
   }
 
   const plans: Plan[] = [
     {
-      title: 'Alpha Tester',
+      title: 'Starter',
       price: 'Free',
-      buttonText: 'Join Alpha Program',
-      limit: 'First 100 users only',
-      isHighlighted: true,
+      buttonText: 'Get Started',
       features: [
-        '50 automated DMs/month',
-        '20 AI-generated posts/month',
-        'Basic analytics dashboard',
-        'Priority feature requests',
-        'Early access to new tools',
-        'Community support',
+        { text: '30 automated DMs/month', included: true },
+        { text: '5 scheduled posts at a time.', included: true },
+        { text: 'Basic analytics dashboard', included: true },
+        { text: 'Limited bot actions (auto-reply, follow-back)', included: true },
+        { text: 'Community support', included: true },
+        { text: 'Unlimited automated DMs', included: false },
+        { text: 'Unlimited scheduled posts', included: false },
+        { text: 'Massive DM campaigns', included: false },
       ],
     },
     {
-      title: 'Premium',
-      price: '$9/mo',
-      buttonText: 'Coming Soon',
+      title: 'Pro',
+      price: '$4.99/mo',
+      buttonText: 'Upgrade to Pro',
+      isHighlighted: true,
       features: [
-        'Unlimited automated DMs',
-        'Unlimited AI posts',
-        'Advanced analytics',
-        'Multi-account support',
-        'Custom templates',
-        '24/7 priority support',
+        { text: 'Unlimited automated DMs', included: true },
+        { text: 'Unlimited scheduled posts', included: true },
+        { text: 'Massive DM campaigns', included: true },
+        { text: 'Advanced analytics', included: true },
+        { text: 'Full bot automation (auto-reply, follow-back, etc.)', included: true },
+        { text: 'Priority support', included: true },
       ],
     },
   ]
@@ -97,33 +103,31 @@
             <ul class="space-y-3 mb-8">
               {#each plan.features as feature}
                 <li class="flex items-start gap-3 text-gray-300">
-                  <CheckCircle class="w-5 h-5 text-teal-400 flex-shrink-0 mt-1" />
-                  <span>{feature}</span>
+                  {#if feature.included}
+                    <CheckCircle class="w-5 h-5 text-teal-400 flex-shrink-0 mt-1" />
+                  {:else}
+                    <X class="w-5 h-5 text-red-400/80 flex-shrink-0 mt-1" />
+                  {/if}
+                  <span class={feature.included ? '' : 'text-gray-500'}>{feature.text}</span>
                 </li>
               {/each}
             </ul>
 
-            <Button
-              variant="outline"
-              class={`w-full py-4 text-lg ${
-                plan.isHighlighted
-                  ? 'bg-gradient-to-r from-teal-500 to-blue-600 hover:from-teal-600 hover:to-blue-700'
-                  : 'border-gray-700 text-gray-300 hover:border-blue-500'
-              }`}
-              href="/sign-up"
-            >
-              {plan.buttonText}
-            </Button>
+            <div class="flex h-full">
+              <Button
+                variant="outline"
+                class={`w-full py-4 mt-full text-lg ${
+                  plan.isHighlighted
+                    ? 'bg-gradient-to-r from-teal-500 to-blue-600 hover:from-teal-600 hover:to-blue-700'
+                    : 'border-gray-700 text-gray-300 hover:border-blue-500'
+                }`}
+                href="/dashboard"
+              >
+                {plan.buttonText}
+              </Button>
+            </div>
           </div>
         {/each}
-      </div>
-
-      <div class="mt-12 text-center text-gray-400 text-sm">
-        <p class="flex items-center justify-center gap-2">
-          <Zap class="w-4 h-4 text-yellow-500" />
-          Alpha Special: Early users will lock in their pricing plan for life.
-        </p>
-        <p class="mt-2">No credit card required • Cancel anytime</p>
       </div>
     </div>
   </section>

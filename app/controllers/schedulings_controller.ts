@@ -3,7 +3,21 @@ import { HttpContext } from "@adonisjs/core/http";
 import Account from "#models/account";
 import scheduling_manager from "../bluesky/scheduling_manager.js";
 export default class SchedulingsController {
-    public async schedulePost({ request, response }: HttpContext) {
+    public async schedulePost({ request, response, auth }: HttpContext) {
+        const user = auth.user
+        if (!user) throw new Error("user is not auth")
+        const schedules = await Scheduling.query()
+            .where('userId', user.id)
+            .andWhere('status', 'pending')
+
+        console.warn("length", schedules.length)
+
+        if (schedules.length >= 5 && user.plan == "free") {
+            user.isScheduledLimitReached = true
+            await user.save()
+            return response.redirect("/schedule")
+        }
+
         const { account_handle, message, schedule_time } = request.all()
 
         const account = await Account.findBy('handle', account_handle);
@@ -16,15 +30,7 @@ export default class SchedulingsController {
 
         await scheduling_manager.createOneJob(scheduling)
 
-        response.redirect("/schedule");
-    }
-
-    public async getAllPosts({ response, request }: HttpContext) {
-        const user_id = request.input('user_id');
-
-        const schedulings = await Scheduling.query().select('*').where('user_id', user_id)
-
-        return response.json(schedulings);
+        return response.redirect("/schedule");
     }
 
     public async editPost({ request, response }: HttpContext) {
@@ -42,14 +48,25 @@ export default class SchedulingsController {
         return response.redirect().back();
     }
 
-    public async deletePost({ request, response }: HttpContext) {
+    public async deletePost({ request, response, auth }: HttpContext) {
         const { schedule_id } = request.all()
-
         const scheduling = await Scheduling.findOrFail(schedule_id);
 
         await scheduling_manager.removeJob(scheduling.jobId);
 
         await scheduling.delete();
+
+        const user = auth.user
+        if (!user) throw new Error("User is not auth")
+
+        const schedules = await Scheduling.query()
+            .where('userId', user.id)
+            .andWhere('status', 'pending')
+
+        if (schedules.length < 5) {
+            user.isScheduledLimitReached = false
+            await user.save()
+        }
 
         return response.redirect().back();
     }

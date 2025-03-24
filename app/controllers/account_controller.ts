@@ -131,7 +131,8 @@ export default class AccountController {
       await User.create({ id: handle, email: handle, password: appPassword, createdAt: DateTime.now() })
       const user = await User.verifyCredentials(handle, appPassword)
 
-      await users_bot_service_manager.startUserBotService(user)
+      if (!users_bot_service_manager.userbotServiceMap.get(user.id))
+        await users_bot_service_manager.startUserBotService(user)
 
       return user
     } catch (err) {
