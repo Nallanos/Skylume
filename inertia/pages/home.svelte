@@ -213,7 +213,7 @@
         >
           <video
             class="w-full aspect-video object-cover opacity-90"
-            src="public/videos/FINAL.mp4"
+            src="/videos/FINAL.mp4"
             autoplay
             muted
             loop
@@ -280,7 +280,7 @@
                 >
                   <img
                     class="rounded-full"
-                    src="public/images/bafkreihdgxviv4vxx7dv4zfwhjylkmbharti2s7jhlndmu4nswpwhk677e.jpg"
+                    src="/images/bafkreihdgxviv4vxx7dv4zfwhjylkmbharti2s7jhlndmu4nswpwhk677e.jpg"
                     alt="Alexis Bouchez"
                   />
                 </div>
@@ -314,7 +314,7 @@
                 <div
                   class="w-10 h-10 bg-gradient-to-r from-teal-400 to-blue-500 rounded-full flex items-center justify-center"
                 >
-                  <img src="public/images/pdpDemon.jpg" alt="" class="rounded-full" />
+                  <img src="/images/pdpDemon.jpg" alt="" class="rounded-full" />
                 </div>
               </div>
               <div>
@@ -362,7 +362,7 @@
                 <div
                   class="w-10 h-10 bg-gradient-to-r from-teal-400 to-blue-500 rounded-full flex items-center justify-center"
                 >
-                  <img class="rounded-full" src="public/images/nallanos.jpg" alt="Alexis Bouchez" />
+                  <img class="rounded-full" src="/images/nallanos.jpg" alt="Alexis Bouchez" />
                 </div>
               </div>
               <div>
