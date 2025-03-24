@@ -152,7 +152,7 @@ export default class DmCampaignsController {
             }
             const did = this.currentAccount.at_session.did
             const convo = await this.withRetry(
-                () => this.accountService.getConvoFromMembers(account, [did as string, follow.did], this.authTokens.convoAuth),
+                () => this.accountService.getConvoFromMembers(account, [did as string, follow.did]),
                 'getConvoFromMembers'
             )
 
@@ -197,7 +197,6 @@ export default class DmCampaignsController {
             () => this.accountService.sendMessageToConvo(
                 account,
                 { convoId: convo.id, message: { text: this.currentDmCampaign.message } },
-                this.authTokens.sendMessageAuth
             ),
             'sendMessageToConvo'
         )

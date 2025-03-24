@@ -113,9 +113,8 @@ export default class BotsController {
             await this.accountService.createOrResumeSession(account)
 
             if (account.at_session != undefined) {
-                const chatToken = await this.accountService.getConvoToken(account)
                 for (const botConvo of listenerBotConvos) {
-                    let blueskyConvo = await this.accountService.getConvoFromMembers(account, [botConvo.convoDid], chatToken)
+                    let blueskyConvo = await this.accountService.getConvoFromMembers(account, [botConvo.convoDid])
                     if (!blueskyConvo) {
                         throw new Error(`errro while getting convo from members ${JSON.stringify(blueskyConvo)}`)
                     }

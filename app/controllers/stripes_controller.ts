@@ -16,6 +16,16 @@ export default class StripesController {
     }
 
     public async redirectToStripe({ response, inertia, auth }: HttpContext) {
+        const coupon = await this.stripe.coupons.create({
+            percent_off: 100,
+            duration: 'once',
+            name: 'Free Trial',
+        });
+
+        await this.stripe.promotionCodes.create({
+            coupon: coupon.id,
+            code: 'FREETRIAL',
+        });
 
         const user = auth.user
         if (!user) return response.redirect("/dashboard")
@@ -30,6 +40,7 @@ export default class StripesController {
             metadata: {
                 user_id: user.id
             },
+            allow_promotion_codes: true,
             subscription_data: {
                 metadata: {
                     user_id: user.id
