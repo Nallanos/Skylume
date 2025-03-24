@@ -200,7 +200,6 @@ export default class DmCampaignsController {
             ),
             'sendMessageToConvo'
         )
-        await this.delay(1500)
     }
 
     private async checkAndRefreshAuth() {
