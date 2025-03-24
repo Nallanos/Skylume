@@ -33,7 +33,6 @@ export default class AccountService {
     public async getMessages(
         account: Account,
         convoId: string,
-        limit: number = 50,
         cursor?: string
     ): Promise<MessageView[] | undefined> {
         let retries = 0
@@ -44,9 +43,6 @@ export default class AccountService {
                 const authToken = await this.getMessagesToken(account)
                 const params = new URLSearchParams()
                 params.append('convoId', convoId)
-
-                const processedLimit = Math.min(Math.max(limit, 1), 100)
-                params.append('limit', processedLimit.toString())
 
                 if (cursor) {
                     params.append('cursor', cursor)
