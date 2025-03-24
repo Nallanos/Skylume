@@ -5,6 +5,7 @@ import Listener from "#models/listener";
 import Convo from "#models/convo";
 import BotConvo from "#models/listeners_convos";
 import AccountService from "#services/account_service";
+import User from "#models/user";
 export class EventListener {
     protected accountService: AccountService;
     constructor(
@@ -29,9 +30,15 @@ export class EventListener {
             }
             if (this.event === "follow" || this.event === "like" || this.event === "mention" || this.event === "reply") {
                 if (this.action === "Send a Message" && this.message) {
-                    await this.sendMessage(did);
+                    await this.sendMessage(did).then(async () => {
+                        account.seenNotificationAt = new Date().toISOString();
+                        await account.save();
+                    })
                 } else if (this.action === "Follow") {
-                    await this.accountService.followUser(account, did);
+                    await this.accountService.followUser(account, did).then(async () => {
+                        account.seenNotificationAt = new Date().toISOString();
+                        await account.save();
+                    })
                 }
             }
         } catch (err) {
@@ -44,15 +51,11 @@ export class EventListener {
             const account = await this.getAccount();
             const listener = await this.getListener();
 
-            const chatToken = await this.accountService.getChatToken(account);
-            const convoToken = await this.accountService.getConvoToken(account)
-            const messageToken = await this.accountService.getMessagesToken(account)
-
-            const convo = await this.getConvo(authorDid, convoToken, account);
+            const convo = await this.getConvo(authorDid, account);
 
             await this.updateConvo(listener, convo, authorDid);
 
-            const res = await this.accountService.getMessages(account, convo.id, messageToken, 100)
+            const res = await this.accountService.getMessages(account, convo.id, 100)
             if (!res) throw new Error("error while getting messages")
             const isAlreadySent = res.length > 0 && res.some(msg => msg.text === this.message);
 
@@ -60,10 +63,15 @@ export class EventListener {
                 convoId: convo.id,
                 message: { text: this.message || '' }
             };
-            if (!isAlreadySent) {
-                this.accountService.sendMessageToConvo(account, sendMessagePayload, chatToken).then(async () => {
+            const user = await User.find(listener.user_id)
+            if (!user) throw new Error("cannot find user in sendMessage")
+            if (!isAlreadySent && !user.isDmsLimitReached) {
+                this.accountService.sendMessageToConvo(account, sendMessagePayload).then(async () => {
                     listener.number_of_message_sent++;
                     await listener.save();
+                    user.dmsSent++
+                    if (user.dmsSent >= 30 && user.plan == "free") user.isDmsLimitReached = true
+                    await user.save()
                 });
                 console.log(`message sent`);
             }
@@ -91,8 +99,8 @@ export class EventListener {
         return listener;
     }
 
-    private async getConvo(authorDid: string, chatToken: string, account: Account) {
-        const convo = await this.accountService.getConvoFromMembers(account, [authorDid], chatToken);
+    private async getConvo(authorDid: string, account: Account) {
+        const convo = await this.accountService.getConvoFromMembers(account, [authorDid]);
         if (!convo) {
             throw new Error("convos is undefined");
         }

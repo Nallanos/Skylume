@@ -5,7 +5,7 @@
   import { Card, CardContent, CardHeader, CardTitle } from '@/ui/card'
   import { Table, TableBody, TableCell, TableRow } from '@/ui/table'
   import { Popover, PopoverContent, PopoverTrigger } from '@/ui/popover'
-  import { ChevronLeft, ChevronRight, Plus, Trash } from 'lucide-svelte'
+  import { ChevronLeft, ChevronRight, Plus, Trash, Lock } from 'lucide-svelte'
   import { Input } from '@/ui/input'
   import { Label } from '@/ui/label'
   import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/ui/dialog'
@@ -17,6 +17,7 @@
 
   const user = $page.props.user as User
   const accounts = user.account as unknown as Account[]
+  $: isFreeLimitReached = user.plan === 'free' && user.isScheduledLimitReached
 
   let currentWeekStart = new Date()
   currentWeekStart.setDate(currentWeekStart.getDate() - currentWeekStart.getDay() + 1)
@@ -171,6 +172,29 @@
         {/if}
       </DialogContent>
     </Dialog>
+
+    {#if isFreeLimitReached}
+      <div
+        class="mb-6 border border-yellow-500/30 bg-yellow-500/10 rounded-lg p-4 flex items-start gap-4"
+      >
+        <Lock class="h-5 w-5 mt-0.5 text-yellow-300" />
+        <div class="flex-1">
+          <h3 class="text-sm font-semibold text-yellow-200 mb-1">Schedule Limit Reached</h3>
+          <p class="text-sm text-yellow-300/90 leading-relaxed">
+            Free plan limited to 5 scheduled posts. <br class="hidden sm:block" />
+            <button
+              on:click={async () => {
+                await router.post('/create-stripe-session')
+              }}
+              class="inline-flex items-center underline hover:text-yellow-200 transition-colors"
+            >
+              Upgrade to Pro
+              <ChevronRight class="h-4 w-4 ml-1" />
+            </button>
+          </p>
+        </div>
+      </div>
+    {/if}
 
     <div class="flex flex-col md:flex-row gap-4 justify-between items-start">
       <Card class="border border-gray-800 w-full">

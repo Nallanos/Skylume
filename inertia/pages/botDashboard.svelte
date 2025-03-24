@@ -5,7 +5,18 @@
   import { Card, CardContent, CardHeader, CardTitle } from '@/ui/card'
   import { Input } from '@/ui/input'
   import { Switch } from '@/ui/switch'
-  import { Trash, Pencil, Plus, Check, X, MessageSquareText, Server, Activity } from 'lucide-svelte'
+  import {
+    Trash,
+    Pencil,
+    Plus,
+    Check,
+    X,
+    MessageSquareText,
+    Server,
+    Activity,
+    Lock,
+    ChevronRight,
+  } from 'lucide-svelte'
   import Sidebar from '@/components/Sidebar.svelte'
   import type User from '#models/user'
   import type Account from '#models/account'
@@ -21,6 +32,8 @@
   })
 
   let user: User = $page.props.user
+  $: isFreeLimitReached = user.plan === 'free' && user.isDmsLimitReached
+
   let accounts = user.account as unknown as Account[]
   let editingListenerId: string | null = null
   let newMessage = ''
@@ -80,6 +93,28 @@
   </div>
 
   <div class="flex flex-col w-full flex-2 overflow-hidden px-4 pt-6">
+    {#if isFreeLimitReached}
+      <div
+        class="mb-6 border border-yellow-500/30 bg-yellow-500/10 rounded-lg p-4 flex items-start gap-4"
+      >
+        <Lock class="h-5 w-5 mt-0.5 text-yellow-300" />
+        <div class="flex-1">
+          <h3 class="text-sm font-semibold text-yellow-200 mb-1">DMS Limit Reached</h3>
+          <p class="text-sm text-yellow-300/90 leading-relaxed">
+            Free plan is limited to 30 auto sent DMS. <br class="hidden sm:block" />
+            <button
+              on:click={async () => {
+                await router.post('/create-stripe-session')
+              }}
+              class="inline-flex items-center underline hover:text-yellow-200 transition-colors"
+            >
+              Upgrade to Pro
+              <ChevronRight class="h-4 w-4 ml-1" />
+            </button>
+          </p>
+        </div>
+      </div>
+    {/if}
     <!-- En-tête -->
     <header class="flex gap-4 p-4 md:py-6">
       <div class="flex flex-col md:flex-row py-6 w-full">

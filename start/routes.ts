@@ -19,19 +19,22 @@ router.on("/terms").renderInertia("terms")
 router.on("/privacy").renderInertia("privacy")
 router.on("/pricing").renderInertia("pricing")
 router.on("/password/reset").renderInertia("contact-us")
+
 router.on("/account/:id/ai-posts").renderInertia("AiPost").use(middleware.auth())
 router.on("/add/account").renderInertia("AddAccount").use(middleware.auth())
 router.on("/add/campaign").renderInertia("AddCampaign").use(middleware.auth())
 router.on("/add/schedule").renderInertia("AddSchedule").use(middleware.auth())
+router.on("/plan/change").renderInertia("planChange").use(middleware.auth())
 
 const dm_campaign_controller = () => import('#controllers/dm_campaigns_controller')
 const session_controller = () => import('#controllers/session_controller')
 const scheduling_controller = () => import('#controllers/schedulings_controller')
 const account_controller = () => import('#controllers/account_controller')
+const stripe_controller = () => import("#controllers/stripes_controller")
 const bots_controller = () => import('#controllers/bots_controller')
 router.post("/login", [session_controller, 'login'])
-router.delete("/delete", [session_controller, "deleteUser"])
 
+router.delete("/delete", [session_controller, "deleteUser"]).use(middleware.auth())
 router.post("/dm_campaign/toggle", [dm_campaign_controller, "toggleDmCampaignStatus"]).use(middleware.auth())
 router.post("/dm_campaign/start", [dm_campaign_controller, "startCampaign"]).use(middleware.auth())
 router.put("/dm_campaign/delete", [dm_campaign_controller, "removeDmCampaign"]).use(middleware.auth())
@@ -46,7 +49,11 @@ router.put("/bot/update", [bots_controller, 'updateBot']).use(middleware.auth())
 router.post("/schedule/create", [scheduling_controller, "schedulePost"]).use(middleware.auth())
 router.put("/schedule/delete", [scheduling_controller, "deletePost"]).use(middleware.auth())
 router.put("/schedule/edit", [scheduling_controller, "editPost"]).use(middleware.auth())
-router.get("/schedule/get", [scheduling_controller, "getAllPosts"]).use(middleware.auth())
+
+router.post('/create-stripe-session', [stripe_controller, "redirectToStripe"]).use(middleware.auth())
+router.post("/webhook", [stripe_controller, "getPaymentSucceeded"])
+router.post("/downgrade-plan", [stripe_controller, "downgradePlan"])
+
 
 router.post("/bot/toggle", async ({ response, request }) => {
 
@@ -73,7 +80,6 @@ router.get('/dashboard', async ({ auth, inertia, response }) => {
             .where('user_id', user.id)
         accounts.map(async (a) => {
             await a.load("listeners")
-            console.log(a.listeners)
             a.serialize()
         })
 
@@ -152,10 +158,10 @@ router.get('/schedule', async ({ auth, inertia }) => {
     const user = auth.user
     if (user) {
         let schedulings = await user.related('scheduling').query()
-        console.log(schedulings)
         return inertia.render('schedule', { schedulings })
     }
     return inertia.render('schedule')
 
 
 }).use(middleware.auth())
+

@@ -43,4 +43,11 @@ export default await Env.create(new URL('../', import.meta.url), {
 */
   REDIS_HOST: Env.schema.string({ format: "host" }),
   REDIS_PORT: Env.schema.number(),
+
+  STRIPE_PUBLIC_KEY: Env.schema.string(),
+  STRIPE_PRICE_ID: Env.schema.string(),
+  STRIPE_SECRET_KEY: Env.schema.string()
+
 })
+
+

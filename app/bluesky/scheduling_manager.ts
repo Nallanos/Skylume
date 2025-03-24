@@ -31,7 +31,6 @@ class SchedulingQueueManager {
     public async createAndStartSchedulersQueue(): Promise<void> {
         try {
             const schedulings = await Scheduling.all()
-            console.log(schedulings)
             await Promise.all(schedulings.map((scheduling) => this.createOneJob(scheduling)))
 
             new Worker(
@@ -62,7 +61,6 @@ class SchedulingQueueManager {
         try {
             const scheduleTime = new Date(scheduling.scheduleTime)
             const delay = scheduleTime.getTime() - Date.now()
-            console.log(`Creating job for schedule with delay ${delay / 1000} `)
             const job = await this.queue.add(
                 'schedule',
                 { schedule_id: scheduling.id },
@@ -77,7 +75,6 @@ class SchedulingQueueManager {
             } else {
                 throw new Error(`No job ID found for schedule ${scheduling.id}`)
             }
-            console.log(`Job created for schedule ${await JSON.stringify(this.queue.getActive())}`)
         } catch (err) {
             console.error(`[ERROR] Failed to create job for schedule ${scheduling.id}:`, err)
         }

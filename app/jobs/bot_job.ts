@@ -3,18 +3,22 @@ import Listener from '#models/listener';
 import users_bot_service_manager from '../bluesky/users_bot_service_manager.js';
 import type { NotificationData } from '../bluesky/types.js';
 import AccountService from '#services/account_service';
-
+import User from '#models/user';
 interface BotJobPayload {
   account_id: string;
 }
 
 const handle = async (data: BotJobPayload): Promise<void> => {
   try {
-
     const accountWithMethod = await Account.find(data.account_id);
     if (!accountWithMethod) {
       throw new Error(`Account not found for ID: ${data.account_id}`);
     }
+
+    const user = await User.find(accountWithMethod.userId)
+    if (!user) throw new Error("cannot find user in botjob")
+    if (user.dmsSent >= 30 && user.plan == "free") user.isDmsLimitReached = true
+    await user.save()
 
     console.log(`\n[INFO] Processing account ${accountWithMethod.handle}`);
 
@@ -41,8 +45,7 @@ const handle = async (data: BotJobPayload): Promise<void> => {
     }
     console.log(`\n[INFO] Notifications of the account: ${notificationData.length}`);
 
-    accountWithMethod.seenNotificationAt = new Date().toISOString();
-    await accountWithMethod.save();
+
 
     await user_service.startAllListeners(notificationData, listeners, accountWithMethod);
 

@@ -1,13 +1,14 @@
 import { BaseCommand } from '@adonisjs/core/ace'
 import type { CommandOptions } from '@adonisjs/core/types/ace'
 import queue_manager from '../app/bluesky/queue_manager.js'
-export default class BootQueue extends BaseCommand {
-  static commandName = 'boot:queue'
+
+export default class CleanQueue extends BaseCommand {
+  static commandName = 'clean:queue'
   static description = ''
 
-  static options: CommandOptions = { startApp: true }
+  static options: CommandOptions = {}
 
   async run() {
-    await queue_manager.createAndStartListenersQueue()
+    await queue_manager.destroyQueue()
   }
 }

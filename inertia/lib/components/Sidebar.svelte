@@ -151,6 +151,7 @@
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end" class="border border-gray-800">
+          <DropdownMenuItem href="/plan/change">Change your plan</DropdownMenuItem>
           <DropdownMenuItem on:click={handleLogout}>Logout</DropdownMenuItem>
           <DropdownMenuItem class="text-red-500" on:click={handleDeleteAccount}>
             Delete Account

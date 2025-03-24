@@ -10,7 +10,7 @@ interface ScheduleJobPayload {
 const handle = async (data: ScheduleJobPayload): Promise<void> => {
     try {
         const schedule = await Scheduling.find(data.schedule_id);
-
+        
         if (!schedule) {
             throw new Error(`Schedule not found for ID: ${data.schedule_id}`);
         }
