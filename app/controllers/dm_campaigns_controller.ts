@@ -171,7 +171,7 @@ export default class DmCampaignsController {
 
     private async processConversation(convo: any, account: Account) {
         const messages = await this.withRetry(
-            () => this.accountService.getMessages(account, convo.id, this.authTokens.messagesAuth),
+            () => this.accountService.getMessages(account, convo.id),
             'getMessages'
         ) as unknown as MessageViewSender[]
 
