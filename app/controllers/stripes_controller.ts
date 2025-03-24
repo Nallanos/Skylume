@@ -35,8 +35,8 @@ export default class StripesController {
                 quantity: 1,
             }],
             mode: 'subscription',
-            success_url: `https://bluesky-bot.com//dashboard`,
-            cancel_url: `https://bluesky-bot.com//dashboard`,
+            success_url: `https://bluesky-bot.com/dashboard`,
+            cancel_url: `https://bluesky-bot.com/dashboard`,
             metadata: {
                 user_id: user.id
             },
