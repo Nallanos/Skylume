@@ -13,7 +13,7 @@ export default class AccountService {
 
     public async updateAccountRateLimit(account: Account, err?: any) {
         if (err) {
-            if (err && err.message === "Rate Limit Exceeded") {
+            if (err.message === "Rate Limit Exceeded") {
                 account.isRateLimited = true
                 await account.save()
                 return "skip"
@@ -25,6 +25,7 @@ export default class AccountService {
         }
     }
 
+
     public async getAccountDid() {
         return this.agent.did
     }
@@ -32,103 +33,146 @@ export default class AccountService {
     public async getMessages(
         account: Account,
         convoId: string,
-        authToken: string,
         limit: number = 50,
         cursor?: string
     ): Promise<MessageView[] | undefined> {
-        try {
-            const params = new URLSearchParams();
-            params.append('convoId', convoId);
+        let retries = 0
+        const maxRetries = 3
 
-            const processedLimit = Math.min(Math.max(limit, 1), 100);
-            params.append('limit', processedLimit.toString());
+        while (retries < maxRetries) {
+            try {
+                const authToken = await this.getMessagesToken(account)
+                const params = new URLSearchParams()
+                params.append('convoId', convoId)
 
-            if (cursor) {
-                params.append('cursor', cursor);
-            }
+                const processedLimit = Math.min(Math.max(limit, 1), 100)
+                params.append('limit', processedLimit.toString())
 
-            const url = `https://api.bsky.chat/xrpc/chat.bsky.convo.getMessages?${params.toString()}`;
-            const response = await fetch(url, {
-                method: "GET",
-                headers: {
-                    "Authorization": `Bearer ${authToken}`,
-                    "Content-Type": "application/json",
-                    "atproto-Proxy": "did:web:api.bsky.chat"
+                if (cursor) {
+                    params.append('cursor', cursor)
                 }
-            });
 
-            const data = await response.json();
+                const url = `https://api.bsky.chat/xrpc/chat.bsky.convo.getMessages?${params.toString()}`
+                const response = await fetch(url, {
+                    method: "GET",
+                    headers: {
+                        "Authorization": `Bearer ${authToken}`,
+                        "Content-Type": "application/json",
+                        "atproto-Proxy": "did:web:api.bsky.chat"
+                    }
+                })
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}, error: ${JSON.stringify(data)}`);
+                const data = await response.json()
+
+                if (!response.ok) {
+                    if (response.status === 401) throw new Error("Unauthorized")
+                    throw new Error(`HTTP error! Status: ${response.status}, error: ${JSON.stringify(data)}`)
+                }
+
+                await this.updateAccountRateLimit(account)
+                return data.messages
+            } catch (error) {
+                if (error.message === "Unauthorized" && retries < maxRetries) {
+                    await this.createOrResumeSession(account)
+                    retries++
+                } else {
+                    await this.updateAccountRateLimit(account, error)
+                    console.error("Échec de la récupération des messages de la conversation", error)
+                    throw error
+                }
             }
-
-            await this.updateAccountRateLimit(account);
-            return data.messages;
-        } catch (error) {
-            await this.updateAccountRateLimit(account, error);
-            console.error("Échec de la récupération des messages de la conversation", error);
-            throw error;
         }
+        throw new Error("Échec après 3 tentatives")
     }
 
     public async getConvoFromMembers(
         account: Account,
-        members: Array<string>,
-        authToken: string
+        members: Array<string>
     ) {
-        try {
-            const params = new URLSearchParams();
-            members.forEach(member => params.append('members', member));
-            const url = `https://api.bsky.chat/xrpc/chat.bsky.convo.getConvoForMembers?${params.toString()}`;
-            const response = await fetch(url, {
-                method: "GET",
-                headers: {
-                    "Authorization": `Bearer ${authToken}`,
-                    "Content-Type": "application/json",
-                    "atproto-Proxy": "did:web:api.bsky.chat"
+        let retries = 0
+        const maxRetries = 3
+
+        while (retries < maxRetries) {
+            try {
+                const convoToken = await this.getConvoToken(account)
+                const params = new URLSearchParams()
+                members.forEach(member => params.append('members', member))
+
+                const url = `https://api.bsky.chat/xrpc/chat.bsky.convo.getConvoForMembers?${params.toString()}`
+                const response = await fetch(url, {
+                    method: "GET",
+                    headers: {
+                        "Authorization": `Bearer ${convoToken}`,
+                        "Content-Type": "application/json",
+                        "atproto-Proxy": "did:web:api.bsky.chat"
+                    }
+                })
+
+                const data = await response.json()
+
+                if (!response.ok) {
+                    if (response.status === 401) throw new Error("Unauthorized")
+                    throw new Error(`Erreur HTTP ! Statut : ${response.status}, error : ${JSON.stringify(data)}`)
                 }
-            });
-            const data = await response.json();
 
-            if (!response.ok) {
-                throw new Error(`Erreur HTTP ! Statut : ${response.status}, error : ${JSON.stringify(data)}`);
+                await this.updateAccountRateLimit(account)
+                return data.convo
+            } catch (error) {
+                if (error.message === "Unauthorized" && retries < maxRetries) {
+                    await this.createOrResumeSession(account)
+                    retries++
+                } else {
+                    await this.updateAccountRateLimit(account, error)
+                    console.error("Échec de la récupération de la conversation", error)
+                    throw error
+                }
             }
-
-            await this.updateAccountRateLimit(account);
-            return data.convo;
-        } catch (error) {
-            await this.updateAccountRateLimit(account, error);
-            console.error("Échec de la récupération de la conversation à partir des membres", error);
-            throw error;
         }
+        throw new Error("Échec après 3 tentatives")
     }
 
-    public async sendMessageToConvo(account: Account, payload: MessagePayload, chatToken: string) {
-        try {
-            const url = `https://api.bsky.chat/xrpc/chat.bsky.convo.sendMessage`;
-            const response = await fetch(url, {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${chatToken}`,
-                    "Content-Type": "application/json",
-                    "atproto-Proxy": "did:web:api.bsky.chat"
-                },
-                body: JSON.stringify({
-                    convoId: payload.convoId,
-                    message: payload.message
-                })
-            });
-            const data = await response.json();
+    public async sendMessageToConvo(account: Account, payload: MessagePayload) {
+        let retries = 0
+        const maxRetries = 3
 
-            if (!response.ok) {
-                throw new Error(`Erreur HTTP ! Statut : ${response.status}, error : ${JSON.stringify(data)}`);
+        while (retries < maxRetries) {
+            try {
+                const chatToken = await this.getChatToken(account)
+                const url = `https://api.bsky.chat/xrpc/chat.bsky.convo.sendMessage`
+                const response = await fetch(url, {
+                    method: "POST",
+                    headers: {
+                        "Authorization": `Bearer ${chatToken}`,
+                        "Content-Type": "application/json",
+                        "atproto-Proxy": "did:web:api.bsky.chat"
+                    },
+                    body: JSON.stringify({
+                        convoId: payload.convoId,
+                        message: payload.message
+                    })
+                })
+
+                const data = await response.json()
+
+                if (!response.ok) {
+                    if (response.status === 401) throw new Error("Unauthorized")
+                    throw new Error(`Erreur HTTP ! Statut : ${response.status}, error : ${JSON.stringify(data)}`)
+                }
+
+                await this.updateAccountRateLimit(account)
+                return
+            } catch (error) {
+                if (error.message === "Unauthorized" && retries < maxRetries) {
+                    await this.createOrResumeSession(account)
+                    retries++
+                } else {
+                    await this.updateAccountRateLimit(account, error)
+                    console.error("Erreur d'envoi de message", error)
+                    throw error
+                }
             }
-        } catch (error) {
-            await this.updateAccountRateLimit(account, error);
-            console.error("Error:", error);
-            throw error;
         }
+        throw new Error("Échec après 3 tentatives")
     }
 
     public async followUser(account: Account, did: string): Promise<void> {
@@ -150,41 +194,90 @@ export default class AccountService {
     }
 
     public async getChatToken(account: Account) {
-        try {
-            if (!account.at_session) throw new Error("session is not defined")
-            let res = await this.agent.com.atproto.server.getServiceAuth({ aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.sendMessage" }, { headers: { Authorization: `Bearer ${account.at_session.accessJwt}` } });
-            await this.updateAccountRateLimit(account);
-            return res.data.token;
-        } catch (err) {
-            await this.updateAccountRateLimit(account, err);
-            throw err;
+        let retries = 0
+        const maxRetries = 3
+
+        while (retries < maxRetries) {
+            try {
+                await this.createOrResumeSession(account)
+                if (!account.at_session) throw new Error("Session non définie")
+
+                const res = await this.agent.com.atproto.server.getServiceAuth(
+                    { aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.sendMessage" },
+                    { headers: { Authorization: `Bearer ${account.at_session.accessJwt}` } }
+                )
+
+                await this.updateAccountRateLimit(account)
+                return res.data.token
+            } catch (error) {
+                if (error.status === 401 && retries < maxRetries) {
+                    await this.createOrResumeSession(account)
+                    retries++
+                } else {
+                    await this.updateAccountRateLimit(account, error)
+                    throw error
+                }
+            }
         }
+        throw new Error("Échec après 3 tentatives")
     }
 
     public async getMessagesToken(account: Account) {
-        try {
-            if (!account.at_session) throw new Error("session is not defined")
-            let res = await this.agent.com.atproto.server.getServiceAuth({
-                aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.getMessages"
-            }, { headers: { Authorization: `Bearer ${account.at_session.accessJwt}` } });
-            await this.updateAccountRateLimit(account);
-            return res.data.token;
-        } catch (err) {
-            await this.updateAccountRateLimit(account, err);
-            throw err;
+        let retries = 0
+        const maxRetries = 3
+
+        while (retries < maxRetries) {
+            try {
+                await this.createOrResumeSession(account)
+                if (!account.at_session) throw new Error("Session non définie")
+
+                const res = await this.agent.com.atproto.server.getServiceAuth(
+                    { aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.getMessages" },
+                    { headers: { Authorization: `Bearer ${account.at_session.accessJwt}` } }
+                )
+
+                await this.updateAccountRateLimit(account)
+                return res.data.token
+            } catch (error) {
+                if (error.status === 401 && retries < maxRetries) {
+                    await this.createOrResumeSession(account)
+                    retries++
+                } else {
+                    await this.updateAccountRateLimit(account, error)
+                    throw error
+                }
+            }
         }
+        throw new Error("Échec après 3 tentatives")
     }
 
     public async getConvoToken(account: Account) {
-        try {
-            if (!account.at_session) throw new Error("session is not defined")
-            let res = await this.agent.com.atproto.server.getServiceAuth({ aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.getConvoForMembers" }, { headers: { Authorization: `Bearer ${account.at_session.accessJwt}` } });
-            await this.updateAccountRateLimit(account);
-            return res.data.token;
-        } catch (err) {
-            await this.updateAccountRateLimit(account, err);
-            throw err;
+        let retries = 0
+        const maxRetries = 3
+
+        while (retries < maxRetries) {
+            try {
+                await this.createOrResumeSession(account)
+                if (!account.at_session) throw new Error("Session non définie")
+
+                const res = await this.agent.com.atproto.server.getServiceAuth(
+                    { aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.getConvoForMembers" },
+                    { headers: { Authorization: `Bearer ${account.at_session.accessJwt}` } }
+                )
+
+                await this.updateAccountRateLimit(account)
+                return res.data.token
+            } catch (error) {
+                if (error.status === 401 && retries < maxRetries) {
+                    await this.createOrResumeSession(account)
+                    retries++
+                } else {
+                    await this.updateAccountRateLimit(account, error)
+                    throw error
+                }
+            }
         }
+        throw new Error("Échec après 3 tentatives")
     }
 
     public async createOrResumeSession(account: Account): Promise<void> {
