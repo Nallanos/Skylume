@@ -24,6 +24,10 @@ services:
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - REDIS_PASSWORD=
+      - STRIPE_PUBLIC_KEY=pk_live_51QUCuEDBUZYEtnf3QM28XZpJhzAy4aHU8viWLBpBF2047gG6KBTz5iFbznsMHlFGyaQtEMUKOPGJ1phF2zyTWsY200O76Y0M9a
+      - STRIPE_SECRET_KEY=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
+      - STRIPE_PRICE_ID=price_1R5P9JDBUZYEtnf3NDZe4ZN5
+      - STRIPE_WEBHOOK_SECRET=whsec_KvWRGr3ZMJ8ikaJgofH9EXR5jBEzq30F
     depends_on:
       - postgresql
       - redis
