@@ -16,16 +16,29 @@ export default class StripesController {
     }
 
     public async redirectToStripe({ response, inertia, auth }: HttpContext) {
-        const coupon = await this.stripe.coupons.create({
-            percent_off: 100,
-            duration: 'once',
-            name: 'Free Trial',
-        });
+        let coupon: Stripe.Coupon;
+        try {
+            coupon = await this.stripe.coupons.retrieve('FREE_TRIAL');
+        } catch (error) {
+            // If the coupon doesn't exist, create it
+            coupon = await this.stripe.coupons.create({
+                id: 'FREE_TRIAL',
+                percent_off: 100,
+                duration: 'once',
+                name: 'Free Trial',
+            });
+        }
 
-        await this.stripe.promotionCodes.create({
-            coupon: coupon.id,
-            code: 'FREETRIAL',
-        });
+        // Check if the promotion code already exists
+        try {
+            await this.stripe.promotionCodes.retrieve('FREETRIAL');
+        } catch (error) {
+            // If the promotion code doesn't exist, create it
+            await this.stripe.promotionCodes.create({
+                coupon: coupon.id,
+                code: 'FREETRIAL',
+            });
+        }
 
         const user = auth.user
         if (!user) return response.redirect("/dashboard")
