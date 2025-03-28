@@ -93,8 +93,6 @@ export default class BotsController {
             }
 
 
-
-
             const listenerBotConvos = await BotConvo.findManyBy("listeners_convos.listeners_id", listenerId)
 
             let user_bot_service = users_bot_service_manager.userbotServiceMap.get(user.id)

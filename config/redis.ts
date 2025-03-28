@@ -23,6 +23,7 @@ const redisConfig = defineConfig({
       },
     },
   },
+
 })
 export default redisConfig
 

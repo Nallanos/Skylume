@@ -8,7 +8,7 @@
     <div class="mx-auto flex w-full flex-col justify-center space-y-6 sm:w-[350px]">
       <div class="flex flex-col space-y-2 text-center">
         <h1 class="text-2xl font-semibold tracking-tight">Login</h1>
-        <p class="text-muted-foreground text-sm">Enter your email below to login</p>
+        <p class="text-muted-foreground text-sm">Enter your handle below to login</p>
       </div>
       <UserAuthForm apiAuth={'login'} error={$page.props} />
       <p class="text-muted-foreground px-8 text-center text-sm">
