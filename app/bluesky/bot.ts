@@ -55,7 +55,7 @@ export class EventListener {
 
             await this.updateConvo(listener, convo, authorDid);
 
-            const res = await this.accountService.getMessages(account, convo.id, 100)
+            const res = await this.accountService.getMessages(account, convo.id)
             if (!res) throw new Error("error while getting messages")
             const isAlreadySent = res.length > 0 && res.some(msg => msg.text === this.message);
 

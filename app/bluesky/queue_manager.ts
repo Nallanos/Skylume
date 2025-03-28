@@ -8,6 +8,13 @@ import env from '#start/env';
 
 class QueueManager {
     public queueName = "listeners";
+
+    constructor() {
+        redis.connection('main').on('error', (err) => {
+            console.error('Redis Error:', err)
+        })
+    }
+
     public queue = new Queue(this.queueName, {
         defaultJobOptions: {
             attempts: 3,
@@ -110,6 +117,7 @@ class QueueManager {
     public async destroyQueue() {
         await this.queue.obliterate({ force: true })
     }
+
 }
 
 export default new QueueManager();
