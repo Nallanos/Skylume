@@ -4,9 +4,8 @@
   >
     <h1 class="text-2xl font-bold text-center">Contact Us</h1>
     <p class="text-center">
-      You can reach us at: <a
-        href="mailto:benameurallan06@gmail.com"
-        class="text-blue-600 hover:underline">benameurallan06@gmail.com</a
+      You can reach us at: <span class="text-blue-600 hover:underline"
+        >benameurallan06@gmail.com</span
       >
     </p>
   </div>
