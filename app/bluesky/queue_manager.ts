@@ -9,12 +9,6 @@ import env from '#start/env';
 class QueueManager {
     public queueName = "listeners";
 
-    constructor() {
-        redis.connection('main').on('error', (err) => {
-            console.error('Redis Error:', err)
-        })
-    }
-
     public queue = new Queue(this.queueName, {
         defaultJobOptions: {
             attempts: 3,
