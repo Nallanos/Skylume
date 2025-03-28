@@ -9,7 +9,5 @@ export default class BootQueue extends BaseCommand {
 
   async run() {
     await queue_manager.createAndStartListenersQueue()
-
-
   }
 }
