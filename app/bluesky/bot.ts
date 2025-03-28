@@ -66,13 +66,12 @@ export class EventListener {
             const user = await User.find(listener.user_id)
             if (!user) throw new Error("cannot find user in sendMessage")
             if (!isAlreadySent && !user.isDmsLimitReached) {
-                this.accountService.sendMessageToConvo(account, sendMessagePayload).then(async () => {
-                    listener.number_of_message_sent++;
-                    await listener.save();
-                    user.dmsSent++
-                    if (user.dmsSent >= 30 && user.plan == "free") user.isDmsLimitReached = true
-                    await user.save()
-                });
+                await this.accountService.sendMessageToConvo(account, sendMessagePayload)
+                listener.number_of_message_sent++;
+                await listener.save();
+                user.dmsSent++
+                if (user.dmsSent >= 30 && user.plan == "free") user.isDmsLimitReached = true
+                await user.save()
                 console.log(`message sent`);
             }
         } catch (err) {
