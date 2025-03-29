@@ -41,11 +41,18 @@
           Pricing
         </a>
         <a
+          href="/philosophy"
+          class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+        >
+          Our Philosophy
+        </a>
+        <a
           href="/login"
           class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
         >
           Login
         </a>
+
         <Button href="/dashboard" size="sm" class="gap-2">Join Alpha</Button>
       </div>
     </nav>

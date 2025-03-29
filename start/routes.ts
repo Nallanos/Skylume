@@ -18,6 +18,7 @@ router.on('/login').renderInertia('login')
 router.on("/terms").renderInertia("terms")
 router.on("/privacy").renderInertia("privacy")
 router.on("/pricing").renderInertia("pricing")
+router.on("/philosophy").renderInertia("philosophy")
 router.on("/password/reset").renderInertia("contact-us")
 
 router.on("/account/:id/ai-posts").renderInertia("AiPost").use(middleware.auth())

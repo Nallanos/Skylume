@@ -95,18 +95,6 @@ services:
     networks:
       - bluesky-copilot_default
 
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: pgadmin
-    environment:
-      PGADMIN_DEFAULT_EMAIL: 'benameurallan06@gmail.com' # Remplace par ton email
-      PGADMIN_DEFAULT_PASSWORD: 'blueskybluesky' # Remplace par ton mot de passe
-    ports:
-      - '5050:80'
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-    restart: always
-
 volumes:
   postgresql_data:
   pgadmin_data:
