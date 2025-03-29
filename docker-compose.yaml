@@ -13,7 +13,7 @@ services:
       - APP_KEY=QU3bPZtVbBgV3Hjl5YSazM_UCp505C_x
       - NODE_ENV=production
       - SESSION_DRIVER=cookie
-      - DB_HOST=postgresql
+      - DB_HOST=127.0.0.1
       - DB_PORT=5432
       - DB_USER=blueskybluesky
       - DB_PASSWORD=blueskybluesky
