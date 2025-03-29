@@ -31,16 +31,10 @@ export class EventListener {
             if (this.event === "follow" || this.event === "like" || this.event === "mention" || this.event === "reply") {
                 if (this.action === "Send a Message" && this.message) {
                     console.log(`Processing notification for event: ${this.event}`)
-                    await this.sendMessage(did).then(async () => {
-                        account.seenNotificationAt = new Date().toISOString();
-                        await account.save();
-                    })
+                    await this.sendMessage(did)
                 } else if (this.action === "Follow") {
                     console.log(`Processing notification for event: ${this.event}`)
-                    await this.accountService.followUser(account, did).then(async () => {
-                        account.seenNotificationAt = new Date().toISOString();
-                        await account.save();
-                    })
+                    await this.accountService.followUser(account, did)
                 }
             }
         } catch (err) {

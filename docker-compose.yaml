@@ -97,7 +97,6 @@ services:
 
 volumes:
   postgresql_data:
-  pgadmin_data:
 
 networks:
   bluesky-copilot_default:

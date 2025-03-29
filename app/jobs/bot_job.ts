@@ -39,6 +39,8 @@ const handle = async (data: BotJobPayload): Promise<void> => {
     await accountService.createOrResumeSession(accountWithMethod);
     await accountWithMethod.refresh()
     const notificationData: NotificationData[] | undefined = await accountService.fetchAccountNotifications(accountWithMethod);
+    accountWithMethod.seenNotificationAt = new Date().toISOString();
+    await accountWithMethod.save();
     if (!notificationData) {
       console.log(`\n[INFO] No notifications found for account: ${accountWithMethod.handle}`);
       return;
