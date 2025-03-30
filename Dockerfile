@@ -30,4 +30,4 @@ COPY --from=production-deps /app/node_modules /app/node_modules
 COPY --from=build /app/build /app
 EXPOSE 8081
 
-CMD ["sh", "-c", "echo $DB_USER && echo $DB_HOST && node server.js"]
+CMD ["node", "./bin/server.js"]
