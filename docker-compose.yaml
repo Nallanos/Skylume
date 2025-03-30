@@ -15,7 +15,7 @@ services:
       - SESSION_DRIVER=cookie
       - DB_HOST=127.0.0.1
       - DB_PORT=5432
-      - DB_USER=postgres
+      - DB_USER=blueskybluesky
       - DB_PASSWORD=blueskybluesky
       - DB_DATABASE=blueskybluesky
       - QUEUE_REDIS_HOST=redis
@@ -54,11 +54,6 @@ services:
       - postgresql_data:/var/lib/postgresql/data
     networks:
       - bluesky-copilot_default
-    healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U blueskybluesky']
-      interval: 10s
-      retries: 5
-      timeout: 5s
 
   redis:
     image: redis:7.4.1-alpine
@@ -94,20 +89,9 @@ services:
       - './letsencrypt:/letsencrypt'
     networks:
       - bluesky-copilot_default
-  pgadmin:
-    image: dpage/pgadmin4
-    container_name: pgadmin
-    environment:
-      PGADMIN_DEFAULT_EMAIL: 'benameurallan06@gmail.com' # Remplace par ton email
-      PGADMIN_DEFAULT_PASSWORD: 'postgres' # Remplace par ton mot de passe
-    ports:
-      - '5050:80'
-    volumes:
-      - pgadmin_data:/var/lib/pgadmin
-    restart: always
+
 volumes:
   postgresql_data:
-  pgadmin_data:
 
 networks:
   bluesky-copilot_default:
