@@ -123,4 +123,36 @@ export class TargetAudienceService {
     console.log('Deleting low scored followers...')
     return { followers: followers.filter(follower => follower.score >= 0.8), responseCursor: cursor };
   }
+
+  public async getSemanticSimilarity(text1: string, text2: string): Promise<number> {
+    await TargetAudienceService.modelPromise;
+
+    // Générer les embeddings pour les deux textes
+    const embeddings = await TargetAudienceService.model.embed([text1, text2]);
+    const [embedding1, embedding2] = tf.split(embeddings as unknown as tf.Tensor, 2);
+
+    try {
+      // Normaliser les embeddings
+      const normalized1 = this.normalize(embedding1 as tf.Tensor2D);
+      const normalized2 = this.normalize(embedding2 as tf.Tensor2D);
+
+      // Calculer la similarité cosinus
+      const similarity = tf.matMul(normalized1, normalized2.transpose());
+      const scoreData = await similarity.data();
+
+      return scoreData[0];
+    }
+    catch (error) {
+      console.error('Error calculating semantic similarity:', error);
+      throw error;
+    }
+    finally {
+      // Nettoyer les tensors
+      tf.dispose([
+        embeddings as unknown as tf.Tensor,
+        embedding1 as unknown as tf.Tensor,
+        embedding2 as unknown as tf.Tensor
+      ]);
+    }
+  }
 }
