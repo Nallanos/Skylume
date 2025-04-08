@@ -1,17 +1,12 @@
 <script lang="ts">
   import type User from '#models/user'
-  import type Account from '#models/account'
-  import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/ui/accordion'
   import {
-    Bot,
     Calendar,
-    Sparkles,
     LayoutDashboard,
-    Puzzle,
     Menu,
     EllipsisVertical,
-    MessageSquare,
     X as CloseIcon,
+    Hash,
   } from 'lucide-svelte'
   import { router } from '@inertiajs/svelte'
   import {
@@ -22,7 +17,6 @@
   } from '@/ui/dropdown-menu'
   import Button from '@/ui/button/button.svelte'
   export let user: User
-  export let accounts: Account[]
 
   let isSidebarOpen = false
 
@@ -77,12 +71,13 @@
         Dashboard
       </a>
       <a
-        href="/bot"
+        href="/feed"
         class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent text-foreground/90 hover:text-foreground"
       >
-        <Bot class="h-4 w-4" />
-        Add a bot
+        <Hash class="h-4 w-4" />
+        Feeds
       </a>
+
       <a
         href="/schedule"
         class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent text-foreground/90 hover:text-foreground"
@@ -90,49 +85,7 @@
         <Calendar class="h-4 w-4" />
         All your scheduled posts
       </a>
-      <a
-        href="/DM_Campaigns"
-        class="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors hover:bg-accent text-foreground/90 hover:text-foreground"
-      >
-        <MessageSquare class="h-4 w-4" />
-        DM Campaigns
-      </a>
     </div>
-    {#each accounts as account}
-      <Accordion class="border-t border-border pt-4">
-        <AccordionItem value="account">
-          <AccordionTrigger class="px-2 hover:no-underline">
-            <div class="flex-1 flex items-center gap-2 text-sm font-medium">
-              <Puzzle class="h-4 w-4" />
-              <span>{account.handle}</span>
-            </div>
-          </AccordionTrigger>
-          <AccordionContent class="mt-1 space-y-1">
-            <a
-              href={`/account/${account.id}/dashboard`}
-              class="flex items-center gap-3 rounded-md px-3 py-2 ml-4 text-sm transition-colors hover:bg-accent text-muted-foreground hover:text-foreground"
-            >
-              <LayoutDashboard class="h-4 w-4" />
-              Bot Dashboard
-            </a>
-            <a
-              href={`/schedule`}
-              class="flex items-center gap-3 rounded-md px-3 py-2 ml-4 text-sm transition-colors hover:bg-accent text-muted-foreground hover:text-foreground"
-            >
-              <Calendar class="h-4 w-4" />
-              Schedule your posts
-            </a>
-            <a
-              href={`/account/${account.id}/ai-posts`}
-              class="flex items-center gap-3 rounded-md px-3 py-2 ml-4 text-sm transition-colors hover:bg-accent text-muted-foreground hover:text-foreground"
-            >
-              <Sparkles class="h-4 w-4" />
-              AI posts generation
-            </a>
-          </AccordionContent>
-        </AccordionItem>
-      </Accordion>
-    {/each}
   </nav>
 
   <!-- Section utilisateur avec menu dropdown -->

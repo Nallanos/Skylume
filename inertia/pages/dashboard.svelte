@@ -9,13 +9,12 @@
   import Button from '@/ui/button/button.svelte'
 
   export let accounts: Account[]
-  console.log(accounts)
   $: user = $page.props.user as User
 </script>
 
 <div class="flex min-h-screen">
   <div class="h-screen">
-    <Sidebar {user} {accounts} />
+    <Sidebar {user} />
   </div>
 
   <main class="flex-1 p-8 relative pt-20">

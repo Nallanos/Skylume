@@ -15,8 +15,8 @@ export default class Unfollow extends BaseCommand {
     })
 
     await agent.login({
-      identifier: "nallanos.bsky.social",
-      password: "hffk-i5vk-ledd-dmpd",
+      identifier: "allanbe.bsky.social",
+      password: "psnw-vygg-oooh-uisz",
     })
 
     const profiles: ProfileView[] = []
@@ -44,12 +44,12 @@ export default class Unfollow extends BaseCommand {
     for (const profile of profiles) {
       try {
         if (profile.viewer?.following) {
-            console.log(`Unfollowing ${profile.handle}`)
-            await agent.deleteFollow(profile.viewer?.following!)
-          }
-        } catch (error) {
-          console.log(error)
+          console.log(`Unfollowing ${profile.handle}`)
+          await agent.deleteFollow(profile.viewer?.following!)
         }
+      } catch (error) {
+        console.log(error)
       }
+    }
   }
-  }
+}

@@ -23,9 +23,5 @@ yarn-error.log
 
 # Platform specific
 .DS_Store
-commands/follow.ts
-app/models/follow.ts
-commands/unfollow.ts
 docker-compose.yaml
 letsencrypt/acme.json
-commands/follow_2.ts

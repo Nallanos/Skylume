@@ -1,16 +1,14 @@
 <script lang="ts">
   import Sidebar from '@/components/Sidebar.svelte'
   import { page } from '@inertiajs/svelte'
-  import type Account from '#models/account'
   import type User from '#models/user'
 
   const user = $page.props.user as User
-  const accounts = user.account as unknown as Account[]
 </script>
 
 <div class="flex h-screen w-screen">
   <div class="h-screen">
-    <Sidebar {user} {accounts} />
+    <Sidebar {user} />
   </div>
 
   <div class="flex-1 flex items-center justify-center">
