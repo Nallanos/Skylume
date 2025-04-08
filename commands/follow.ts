@@ -4,7 +4,7 @@ import type { CommandOptions } from '@adonisjs/core/types/ace'
 import { AtpAgent } from '@atproto/api'
 import { DateTime } from 'luxon'
 import type { ProfileView } from '@atproto/api/dist/client/types/app/bsky/actor/defs.js'
-import { TargetAudienceService } from '#services/target_audience_service'
+import { TargetAudienceService } from '#services/AI_services'
 export default class FollowCommand extends BaseCommand {
   static commandName = 'follow'
   static description = 'Automated follow operations for Bluesky'

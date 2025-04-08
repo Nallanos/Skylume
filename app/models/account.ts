@@ -3,6 +3,7 @@ import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import User from './user.js'
 import Listener from './listener.js'
 import type { AtpSessionData } from "@atcute/client"
+import Feed from './feed.js'
 
 export default class Account extends BaseModel {
   @column({ isPrimary: true })
@@ -54,6 +55,15 @@ export default class Account extends BaseModel {
   @hasMany(() => Listener, { foreignKey: 'account_id' })
   declare listeners: HasMany<typeof Listener>
 
+  @hasMany(() => Feed, { foreignKey: 'account_id' })
+  declare feed: HasMany<typeof Feed>
+
   @belongsTo(() => User)
   declare user: BelongsTo<typeof User>
+
+  @column()
+  declare followerCursor: string | undefined
+
+  @column()
+  declare numbersOfFollowersAnalyzed: number
 }

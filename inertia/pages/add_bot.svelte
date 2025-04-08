@@ -46,7 +46,7 @@
 
 <div class="flex h-screen w-screen">
   <div class="h-screen">
-    <Sidebar {user} {accounts} />
+    <Sidebar {user} />
   </div>
   <div class="flex-1 flex relative flex-col items-center overflow-auto p-8 pt-16">
     {#if isFreeLimitReached}

@@ -3,11 +3,9 @@
   import { page, router } from '@inertiajs/svelte'
   import { RefreshCcw, MessageSquare, Send, Mail, BarChart } from 'lucide-svelte'
   import type User from '#models/user'
-  import type Account from '#models/account'
   import type { Listener } from '@/type'
 
   const user = $page.props.user as User
-  const accounts = user.account as Account[]
   $: bot = $page.props.bot as Listener
   $: responseRate =
     bot.numberOfMessageSent > 0
@@ -27,7 +25,7 @@
 
 <div class="flex min-h-screen bg-gray-900 text-gray-100">
   <div class="h-screen">
-    <Sidebar {user} {accounts} />
+    <Sidebar {user} />
   </div>
 
   {#if bot.action === 'Send a Message'}

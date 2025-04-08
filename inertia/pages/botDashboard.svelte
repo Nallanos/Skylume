@@ -34,7 +34,6 @@
   let user: User = $page.props.user
   $: isFreeLimitReached = user.plan === 'free' && user.isDmsLimitReached
 
-  let accounts = user.account as unknown as Account[]
   let editingListenerId: string | null = null
   let newMessage = ''
   let isProcessing = false
@@ -84,12 +83,11 @@
   function deleteListener(listener_id: string) {
     router.post('/bot/remove', { listener_id: listener_id })
   }
-  console.log(accounts)
 </script>
 
 <main class="flex md:flex-row min-h-screen">
   <div class="h-screen">
-    <Sidebar {user} {accounts} />
+    <Sidebar {user} />
   </div>
 
   <div class="flex flex-col w-full flex-2 overflow-hidden px-4 pt-6">

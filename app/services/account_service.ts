@@ -11,6 +11,30 @@ export default class AccountService {
         this.agent = agent
     }
 
+    public async getFollowing(actorHandle: string) {
+        const res = await this.agent.getFollows({ actor: actorHandle })
+        if (!res) throw new Error("Error while getting following")
+        return res.data.follows
+    }
+
+
+    public async getFollowersCount(account: Account): Promise<number> {
+        try {
+            const res = await this.agent.getProfile({ actor: account.handle });
+            if (!res) {
+                throw new Error("getProfile response is undefined")
+            }
+            if (!res.data.followersCount)
+                throw new Error("followersCount is undefined")
+            return res.data.followersCount
+        } catch (err) {
+            await this.updateAccountRateLimit(account, err);
+            console.error("Error while fetching followers count in the userBotService: ", err);
+            throw err;
+        }
+    }
+
+
     public async updateAccountRateLimit(account: Account, err?: any) {
         if (err) {
             if (err.message === "Rate Limit Exceeded") {
@@ -25,6 +49,48 @@ export default class AccountService {
         }
     }
 
+    public async searchPosts(account: Account, query: string, cursor?: string) {
+        try {
+            const res = await this.agent.app.bsky.feed.searchPosts({
+                q: query,
+                limit: 100,
+                cursor
+            })
+            if (!res) {
+                throw new Error("searchPosts response is undefined")
+            }
+            let posts = res.data
+            if (!posts || posts.length === 0) {
+                throw new Error("posts is undefined")
+            } else if (posts.cursor === undefined) {
+                if (cursor) {
+                    posts.cursor = (parseInt(cursor) - parseInt(cursor)).toString()
+                } else {
+                    throw new Error("cursor is undefined")
+                }
+            }
+            await this.updateAccountRateLimit(account)
+            return posts
+        } catch (err) {
+            throw new Error("Failed to search posts: " + err)
+        }
+    }
+
+    public async replyToPost(account: Account, postUri: string, postCid: string, message: string) {
+        try {
+            await this.agent.post({
+                text: message,
+                reply: {
+                    root: { uri: postUri, cid: postCid },
+                    parent: { uri: postUri, cid: postCid }
+                }
+            })
+
+        } catch (err) {
+            await this.updateAccountRateLimit(account, err)
+            throw new Error("Failed to reply to post: " + err)
+        }
+    }
 
     public async getAccountDid() {
         return this.agent.did

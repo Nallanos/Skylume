@@ -4,18 +4,16 @@
   import { Card, CardContent, CardHeader, CardTitle } from '@/ui/card'
   import { Gem, Zap, CheckCircle, ChevronRight } from 'lucide-svelte'
   import Sidebar from '@/components/Sidebar.svelte'
-  import type Account from '#models/account'
   import type User from '#models/user'
 
   let user: User = $page.props.user
-  let accounts = user.account as unknown as Account[]
   $: isFreePlan = user.plan === 'free'
   $: isProPlan = user.plan === 'pro'
 </script>
 
 <main class="flex md:flex-row min-h-screen">
   <div class="h-screen">
-    <Sidebar {user} {accounts} />
+    <Sidebar {user} />
   </div>
 
   <div class="flex flex-col w-full flex-2 overflow-hidden pt-6 px-12">

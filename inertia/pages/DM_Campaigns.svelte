@@ -8,14 +8,12 @@
   import { page } from '@inertiajs/svelte'
   import type User from '#models/user'
   import type { DmCampaign } from '@/type'
-  import type Account from '#models/account'
   import { router } from '@inertiajs/svelte'
 
   export let campaigns: Array<DmCampaign>
 
   let user: User = $page.props.user
 
-  let accounts = user.account as unknown as Account[]
   $: totalEngagement = campaigns.reduce((sum, l) => sum + l.numberOfMessageSent, 0)
   $: totalResponses = campaigns.reduce((sum, l) => sum + l.numberOfMessageReceived, 0)
   $: activeListeners = campaigns.filter((l) => l.status).length
@@ -33,7 +31,7 @@
 
 <div class="flex min-h-screen flex-col md:flex-row">
   <div class="md:h-screen md:sticky md:top-0">
-    <Sidebar {user} {accounts} />
+    <Sidebar {user} />
   </div>
 
   <main class="flex-1 p-4 md:p-8 pt-16 md:pt-20 relative">

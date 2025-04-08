@@ -62,6 +62,18 @@ class UsersBotServiceManager {
             console.error(`[ERROR] Failed to initialize bot service for user_id: ${user_id}`, error);
         }
     }
-}
 
+
+    public async getUserBotService(user_id: string): Promise<UserBotService> {
+        let userService = this.userbotServiceMap.get(user_id);
+        if (!userService) {
+            await this.initializeUserService(user_id);
+            userService = this.userbotServiceMap.get(user_id);
+            if (!userService) {
+                throw new Error(`UserBotService not found for user_id: ${user_id}`);
+            }
+        }
+        return userService;
+    }
+}
 export default new UsersBotServiceManager();

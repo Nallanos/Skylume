@@ -10,9 +10,10 @@ export default class FollowCommand extends BaseCommand {
   static description = 'Create a follow session and optionally fetch new follows'
   static options: CommandOptions = {
     startApp: true,
+    staysAlive: true
   }
 
-  private readonly HOURLY_FOLLOW_LIMIT = 200
+  private readonly HOURLY_FOLLOW_LIMIT = 700
 
   private async checkRateLimit(): Promise<{ canProceed: boolean; availableSlots: number }> {
     const recentFollowsCount = await Follow.query()
