@@ -1,11 +1,12 @@
 import { DateTime } from 'luxon'
 import hash from '@adonisjs/core/services/hash'
 import { compose } from '@adonisjs/core/helpers'
-import { BaseModel, column, hasMany } from '@adonisjs/lucid/orm'
+import { BaseModel, column, hasMany, computed } from '@adonisjs/lucid/orm'
 import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
 import Account from './account.js'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
 import Scheduling from './scheduling.js'
+import FollowersHistory from './followers_history.js'
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
   uids: ['email'],
   passwordColumnName: 'password',
@@ -51,9 +52,27 @@ export default class User extends compose(BaseModel, AuthFinder) {
   @hasMany(() => Scheduling)
   declare scheduling: HasMany<typeof Scheduling>
 
+  @hasMany(() => FollowersHistory)
+  declare followersHistory: HasMany<typeof FollowersHistory>
+
   @column()
   declare token_app_password: string | null
 
   @column()
   declare marketing_consent: boolean
+
+  @computed()
+  get scheduledCount(): number {
+    return this.$extras.scheduledCount || 0
+  }
+
+  @computed()
+  get followersCount(): number {
+    return this.$extras.followersCount || 0
+  }
+
+  @computed()
+  get followersGrowth(): number {
+    return this.$extras.followersGrowth || 0
+  }
 }

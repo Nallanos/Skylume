@@ -4,7 +4,7 @@ import pQueue from 'p-queue';
 import KMeans from 'ml-kmeans';
 
 // Import Transformers.js (cela fonctionnera localement avec WASM ou en pur JS)
-import { FeatureExtractionPipeline, pipeline, Tensor } from '@xenova/transformers';
+import { FeatureExtractionPipeline, pipeline } from '@xenova/transformers';
 
 type KeywordData = {
   set: Set<string>;
@@ -34,7 +34,7 @@ export class TargetAudienceService {
     }
   }
 
-  
+
   // Convertit un Float32Array en tableau de tableaux (number[][])
   // en découpant le tableau selon le batchSize (nombre d'entrées passées au modèle)
   private convertEmbeddings(embeddingData: Float32Array, batchSize: number): number[][] {

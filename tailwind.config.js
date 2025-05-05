@@ -1,11 +1,14 @@
 import { fontFamily } from "tailwindcss/defaultTheme";
 import form from "@tailwindcss/forms"
+
 /** @type {import('tailwindcss').Config} */
 const config = {
 	content: [
 		"./inertia/**/*.{svelte,ts}",
 		"./resources/**/*.{edge,js,ts}",
-	], safelist: ["dark"],
+	],
+	darkMode: 'class',
+	safelist: ["light"],
 	theme: {
 		container: {
 			center: true,
@@ -18,6 +21,9 @@ const config = {
 			colors: {
 				border: "hsl(var(--border) / <alpha-value>)",
 				input: "hsl(var(--input) / <alpha-value>)",
+				ring: "hsl(var(--ring) / <alpha-value>)",
+				foreground: "hsl(var(--foreground) / <alpha-value>)",
+				background: "hsl(var(--background) / <alpha-value>)",
 				primary: {
 					DEFAULT: "hsl(var(--primary) / <alpha-value>)",
 					foreground: "hsl(var(--primary-foreground) / <alpha-value>)"
@@ -46,9 +52,6 @@ const config = {
 					DEFAULT: "hsl(var(--card) / <alpha-value>)",
 					foreground: "hsl(var(--card-foreground) / <alpha-value>)"
 				},
-				background: {
-					DEFAULT: "hsl(var(--background) / <alpha-value>)",
-				}
 			},
 			borderRadius: {
 				lg: "var(--radius)",

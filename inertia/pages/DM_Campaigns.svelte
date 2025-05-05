@@ -1,254 +1,268 @@
 <script lang="ts">
-  import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/ui/card'
-  import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/ui/table'
-  import { Button } from '@/ui/button'
-  import { Badge } from '@/ui/badge'
-  import { Plus, Activity, Mail, Sliders, Trash, Loader, Lock } from 'lucide-svelte'
-  import Sidebar from '@/components/Sidebar.svelte'
+  import { Card, CardHeader, CardTitle, CardContent, CardDescription } from '@/shadcn-ui/card'
+  import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/shadcn-ui/table'
+  import { Button } from '@/shadcn-ui/button'
+  import { Badge } from '@/shadcn-ui/badge'
+  import {
+    Plus,
+    Activity,
+    Mail,
+    Trash,
+    Loader,
+    Lock,
+    MessageSquare,
+    RefreshCcw,
+  } from 'lucide-svelte'
   import { page } from '@inertiajs/svelte'
   import type User from '#models/user'
   import type { DmCampaign } from '@/type'
   import { router } from '@inertiajs/svelte'
+  import Layout from '@/components/Layout.svelte'
 
   export let campaigns: Array<DmCampaign>
 
   let user: User = $page.props.user
+  let isToggling: number | null = null
 
   $: totalEngagement = campaigns.reduce((sum, l) => sum + l.numberOfMessageSent, 0)
   $: totalResponses = campaigns.reduce((sum, l) => sum + l.numberOfMessageReceived, 0)
-  $: activeListeners = campaigns.filter((l) => l.status).length
+  $: activeCampaigns = campaigns.filter((l) => l.status).length
+  $: responseRate = totalEngagement > 0 ? Math.round((totalResponses / totalEngagement) * 100) : 0
 
   async function toggleCampaignStatus(campaign_id: number) {
-    router.post('/dm_campaign/start', { campaign_id })
-    await new Promise((resolve) => setTimeout(resolve, 2000))
-    router.get('/DM_Campaigns')
+    isToggling = campaign_id
+    try {
+      await router.post('/dm_campaign/start', { campaign_id })
+      // Wait to allow the server to update
+      await new Promise((resolve) => setTimeout(resolve, 1000))
+      router.get('/DM_Campaigns')
+    } finally {
+      setTimeout(() => {
+        isToggling = null
+      }, 500)
+    }
   }
 
   const deleteCampaign = async (campaign_id: number) => {
-    await router.put('/dm_campaign/delete', { campaign_id })
+    if (confirm('Are you sure you want to delete this campaign?')) {
+      await router.put('/dm_campaign/delete', { campaign_id })
+    }
   }
 </script>
 
-<div class="flex min-h-screen flex-col md:flex-row">
-  <div class="md:h-screen md:sticky md:top-0">
-    <Sidebar {user} />
-  </div>
-
-  <main class="flex-1 p-4 md:p-8 pt-16 md:pt-20 relative">
-    {#if user.plan === 'free'}
-      <div
-        class="absolute inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center"
-      >
-        <div class="bg-background rounded-lg p-6 max-w-md text-center space-y-4">
-          <Lock class="h-8 w-8 mx-auto text-primary" />
-          <h3 class="text-lg font-semibold">Upgrade to DM Campaign</h3>
-          <p class="text-sm text-muted-foreground">This feature is not available to free users.</p>
+<Layout {user}>
+  {#if user.plan === 'free'}
+    <div
+      class="absolute inset-0 z-50 bg-background/80 backdrop-blur-md flex items-center justify-center"
+    >
+      <Card class="max-w-md w-full">
+        <CardContent class="pt-6 px-6 pb-6 text-center flex flex-col items-center">
+          <div class="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+            <Lock class="h-8 w-8 text-primary" />
+          </div>
+          <h3 class="text-xl font-semibold mb-2">Premium Feature</h3>
+          <p class="text-muted-foreground mb-6">
+            DM campaigns are only available for premium users.
+          </p>
           <Button
             on:click={async () => {
               const { sessionStripe } = await router.post('/create-stripe-session')
               if (sessionStripe) {
-                window.location.href = sessionStripe // ✅ Redirection vers Stripe
+                window.location.href = sessionStripe
               } else {
-                console.error('Erreur lors de la création de la session')
+                console.error('Error creating the session')
               }
             }}
+            class="w-full"
           >
-            Upgrade Plan</Button
-          >
-        </div>
-      </div>
-    {/if}
-
-    <div class="mb-6 space-y-4">
-      <div class="flex flex-col justify-between items-start gap-4 md:gap-0">
-        <div class="flex justify-between w-full">
-          <div class="flex-col">
-            <h1 class="text-2xl md:text-3xl font-bold text-gray-100">Campaigns Dashboard</h1>
-            <p class="text-gray-400 mt-1">
-              {campaigns.length} active campaign{campaigns.length !== 1 ? 's' : ''}
-            </p>
-          </div>
-          {#if user.plan !== 'free'}
-            <Button
-              href="/add/campaign"
-              class="w-full md:w-auto group hover:scale-[1.02] ml-auto transition-transform whitespace-nowrap"
-            >
-              <Plus class="mr-2 h-4 w-4 transition-transform group-hover:rotate-90" />
-              New Campaign
-            </Button>
-          {:else}
-            <Button
-              href="/pricing"
-              class="w-full md:w-auto group hover:scale-[1.02] ml-auto transition-transform whitespace-nowrap"
-              variant="default"
-            >
-              <Plus class="mr-2 h-4 w-4 transition-transform group-hover:rotate-90" />
-              Upgrade to Create Campaign
-            </Button>
-          {/if}
-        </div>
-        <p class="text-gray-100">
-          Reach your Bluesky followers with precision, with massive dm campaign specifically
-          targeted
-        </p>
-      </div>
-
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 animate-fade-in-up">
-        <Card class="transition-colors duration-300 border-gray-800 hover:border-blue-400">
-          <CardHeader class="flex flex-row items-center justify-between pb-2">
-            <CardTitle class="text-sm font-medium text-gray-300">
-              Total Engagement
-              <span class="text-blue-400 text-xs ml-1">(+24h)</span>
-            </CardTitle>
-            <div class="p-2 bg-blue-500/10 rounded-lg">
-              <Activity class="h-5 w-5 text-blue-400" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div class="text-2xl md:text-3xl font-bold text-blue-400">{totalEngagement}</div>
-            <p class="text-sm text-gray-400 mt-1">This month</p>
-          </CardContent>
-        </Card>
-
-        <Card class="transition-colors duration-300 border-gray-800 hover:border-green-400">
-          <CardHeader class="flex flex-row items-center justify-between pb-2">
-            <CardTitle class="text-sm font-medium text-gray-300">
-              Active Now
-              <span class="text-green-400 text-xs ml-1">Live</span>
-            </CardTitle>
-            <div class="p-2 bg-green-500/10 rounded-lg">
-              <Mail class="h-5 w-5 text-green-400" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div class="text-2xl md:text-3xl font-bold text-green-400">{activeListeners}</div>
-            <p class="text-sm text-gray-400 mt-1">Real-time monitoring</p>
-          </CardContent>
-        </Card>
-
-        <Card class="transition-colors duration-300 border-gray-800 hover:border-purple-400">
-          <CardHeader class="flex flex-row items-center justify-between pb-2">
-            <CardTitle class="text-sm font-medium text-gray-300">
-              Messages Received
-              <span class="text-purple-400 text-xs ml-1">(+24h)</span>
-            </CardTitle>
-            <div class="p-2 bg-purple-500/10 rounded-lg">
-              <Sliders class="h-5 w-5 text-purple-400" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div class="text-2xl md:text-3xl font-bold text-purple-400">{totalResponses}</div>
-            <p class="text-sm text-gray-400 mt-1">All campaigns</p>
-          </CardContent>
-        </Card>
-      </div>
+            Upgrade to Premium
+          </Button>
+        </CardContent>
+      </Card>
     </div>
+  {/if}
 
-    <Card class="border-gray-800">
-      <CardHeader class="p-4">
-        <CardTitle class="text-gray-100">Active Campaigns</CardTitle>
-        <CardDescription class="text-gray-400">Manage your running DM campaigns</CardDescription>
-      </CardHeader>
-      <CardContent class="p-0">
-        <div class="overflow-x-auto">
-          <Table class="min-w-[600px] md:min-w-full">
-            <TableHeader class="bg-gray-900">
-              <TableRow class="hover:bg-transparent">
-                <TableHead class="text-gray-300 py-3">Status</TableHead>
-                <TableHead class="text-gray-300">Campaign</TableHead>
-                <TableHead class="text-gray-300">Strategy</TableHead>
-                <TableHead class="text-gray-300">Keywords</TableHead>
-                <TableHead class="text-gray-300">Account</TableHead>
-                <TableHead class="text-gray-300 text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
+  <!-- Header Section -->
+  <div class="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+    <div>
+      <h1 class="text-2xl font-bold gradient-heading">DM Campaigns</h1>
+      <p class="text-muted-foreground mt-1">
+        {campaigns.length} active campaign{campaigns.length !== 1 ? 's' : ''}
+      </p>
+    </div>
+    {#if user.plan !== 'free'}
+      <Button
+        href="/add/campaign"
+        size="sm"
+        class="group shadow-sm hover:shadow-md transition-all rounded-md"
+      >
+        <Plus class="h-4 w-4 mr-2 transition-transform group-hover:rotate-90" />
+        New Campaign
+      </Button>
+    {:else}
+      <Button
+        href="/pricing"
+        variant="default"
+        size="sm"
+        class="group shadow-sm hover:shadow-md transition-all rounded-md"
+      >
+        <Plus class="h-4 w-4 mr-2 transition-transform group-hover:rotate-90" />
+        Upgrade to Premium
+      </Button>
+    {/if}
+  </div>
 
-            <TableBody class="divide-y divide-gray-700">
-              {#each campaigns as campaign}
-                <TableRow class="hover:bg-gray-800/50">
-                  <TableCell class="py-3">
-                    <div class="flex items-center gap-2">
-                      <div
-                        class={`h-2 w-2 rounded-full ${campaign.status ? 'bg-green-400' : 'bg-red-400'}`}
-                      />
-                      <Badge
-                        variant={campaign.status ? 'default' : 'secondary'}
-                        class="border border-gray-800 text-xs"
-                      >
-                        {campaign.status ? 'Active' : 'Paused'}
-                      </Badge>
-                    </div>
-                  </TableCell>
-                  <TableCell class="font-medium text-gray-100 truncate max-w-[150px]"
-                    >{campaign.name}</TableCell
-                  >
-                  <TableCell class="text-gray-300 capitalize text-sm">
-                    {campaign.strategy.replaceAll('-', ' ')}
-                  </TableCell>
-                  <TableCell>
-                    <div class="flex flex-wrap gap-1">
-                      {#each JSON.parse(campaign.keywords) as keyword}
-                        <Badge
-                          variant="outline"
-                          class="border-gray-800 text-gray-300 text-xs px-2 py-1"
-                        >
-                          {keyword}
-                        </Badge>
-                      {/each}
-                    </div>
-                  </TableCell>
-                  <TableCell class="text-gray-300 truncate max-w-[100px] text-sm"
-                    >{campaign.accountHandle}</TableCell
-                  >
-                  <TableCell>
-                    <div class="flex justify-end gap-2">
-                      <Button
-                        size="sm"
-                        variant={campaign.status ? 'destructive' : 'default'}
-                        class="text-sm px-3 py-1"
-                        on:click={() => toggleCampaignStatus(campaign.id)}
-                      >
-                        {#if campaign.status}
-                          <Loader class="h-4 w-4 mr-1 animate-spin" />
-                        {/if}
-                        {campaign.status ? 'Pause' : 'Start'}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        class="text-red-400 hover:bg-red-400/10 p-2"
-                        on:click={() => deleteCampaign(campaign.id)}
-                      >
-                        <Trash class="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </TableCell>
-                </TableRow>
-              {:else}
-                <TableRow>
-                  <TableCell class="text-center h-24 text-gray-400">No campaigns found</TableCell>
-                </TableRow>
-              {/each}
-            </TableBody>
-          </Table>
+  <!-- Stats Overview -->
+  <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+    <Card class="card-hover border-primary/10">
+      <CardHeader class="pb-2 pt-4">
+        <div class="flex justify-between items-start">
+          <CardTitle class="text-sm font-medium">Messages Sent</CardTitle>
+          <div class="dashboard-stat-icon">
+            <MessageSquare class="h-4 w-4" />
+          </div>
         </div>
+      </CardHeader>
+      <CardContent>
+        <div class="text-2xl font-bold">{totalEngagement}</div>
+        <p class="text-xs text-muted-foreground mt-1">Last 30 days total</p>
       </CardContent>
     </Card>
-  </main>
-</div>
 
-<style global>
-  @keyframes fade-in-up {
-    from {
-      opacity: 0;
-      transform: translateY(20px);
-    }
-    to {
-      opacity: 1;
-      transform: translateY(0);
-    }
-  }
-  .animate-fade-in-up {
-    animation: fade-in-up 0.6s ease-out forwards;
-  }
-</style>
+    <Card class="card-hover border-primary/10">
+      <CardHeader class="pb-2 pt-4">
+        <div class="flex justify-between items-start">
+          <CardTitle class="text-sm font-medium">Active Campaigns</CardTitle>
+          <div class="dashboard-stat-icon">
+            <Activity class="h-4 w-4" />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div class="text-2xl font-bold">{activeCampaigns}</div>
+        <p class="text-xs text-muted-foreground mt-1">Currently running</p>
+      </CardContent>
+    </Card>
+
+    <Card class="card-hover border-primary/10">
+      <CardHeader class="pb-2 pt-4">
+        <div class="flex justify-between items-start">
+          <CardTitle class="text-sm font-medium">Response Rate</CardTitle>
+          <div class="dashboard-stat-icon">
+            <Mail class="h-4 w-4" />
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div class="text-2xl font-bold">
+          {responseRate}%
+          <span class="text-xs text-success ml-1">{totalResponses} responses</span>
+        </div>
+        <p class="text-xs text-muted-foreground mt-1">Overall performance</p>
+      </CardContent>
+    </Card>
+  </div>
+
+  <!-- Campaigns Table -->
+  <Card>
+    <CardHeader>
+      <div class="flex justify-between items-center">
+        <div>
+          <CardTitle>Active Campaigns</CardTitle>
+          <CardDescription>Manage your running DM campaigns</CardDescription>
+        </div>
+        <Button variant="ghost" size="sm" class="h-8 gap-1">
+          <RefreshCcw class="h-3.5 w-3.5" />
+          Refresh
+        </Button>
+      </div>
+    </CardHeader>
+    <CardContent class="p-0">
+      <div class="overflow-x-auto">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Status</TableHead>
+              <TableHead>Campaign</TableHead>
+              <TableHead>Strategy</TableHead>
+              <TableHead>Keywords</TableHead>
+              <TableHead>Account</TableHead>
+              <TableHead class="text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+
+          <TableBody>
+            {#each campaigns as campaign}
+              <TableRow>
+                <TableCell>
+                  <div class="flex items-center gap-2">
+                    <div
+                      class={`h-2 w-2 rounded-full ${campaign.status ? 'bg-success' : 'bg-destructive'}`}
+                    />
+                    <Badge
+                      variant={campaign.status ? 'outline' : 'secondary'}
+                      class="bg-transparent border-primary/20 text-xs"
+                    >
+                      {campaign.status ? 'Active' : 'Paused'}
+                    </Badge>
+                  </div>
+                </TableCell>
+                <TableCell class="font-medium truncate max-w-[150px]">
+                  {campaign.name}
+                </TableCell>
+                <TableCell class="capitalize text-sm">
+                  {campaign.strategy.replaceAll('-', ' ')}
+                </TableCell>
+                <TableCell>
+                  <div class="flex flex-wrap gap-1">
+                    {#each JSON.parse(campaign.keywords) as keyword}
+                      <Badge
+                        variant="outline"
+                        class="text-xs px-2 py-0.5 bg-primary/5 border-primary/10"
+                      >
+                        {keyword}
+                      </Badge>
+                    {/each}
+                  </div>
+                </TableCell>
+                <TableCell class="truncate max-w-[100px] text-sm">
+                  {campaign.accountHandle}
+                </TableCell>
+                <TableCell>
+                  <div class="flex justify-end gap-2">
+                    <Button
+                      size="sm"
+                      variant={campaign.status ? 'destructive' : 'default'}
+                      class="h-8 text-xs px-3"
+                      disabled={isToggling === campaign.id}
+                      on:click={() => toggleCampaignStatus(campaign.id)}
+                    >
+                      {#if isToggling === campaign.id}
+                        <Loader class="h-3 w-3 mr-1 animate-spin" />
+                      {/if}
+                      {campaign.status ? 'Pause' : 'Start'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      class="h-8 w-8 p-0 text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      on:click={() => deleteCampaign(campaign.id)}
+                    >
+                      <Trash class="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            {:else}
+              <TableRow>
+                <TableCell class="text-center h-24 text-muted-foreground">
+                  No campaigns found
+                </TableCell>
+              </TableRow>
+            {/each}
+          </TableBody>
+        </Table>
+      </div>
+    </CardContent>
+  </Card>
+</Layout>

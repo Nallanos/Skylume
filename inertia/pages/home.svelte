@@ -1,8 +1,13 @@
 <script lang="ts">
   import LayoutLandingPage from '@/components/layoutLandingPage.svelte'
-  import Button from '@/ui/button/button.svelte'
+  import Button from '@/shadcn-ui/button/button.svelte'
   import { CheckCircle, BarChart, Zap, MessageSquare } from 'lucide-svelte'
-  import { Accordion, AccordionItem, AccordionTrigger, AccordionContent } from '@/ui/accordion'
+  import {
+    Accordion,
+    AccordionItem,
+    AccordionTrigger,
+    AccordionContent,
+  } from '@/shadcn-ui/accordion'
 
   let showMore = false
 </script>
@@ -318,28 +323,28 @@
                 </div>
               </div>
               <div>
-                <p class="text-blue-400 hover:text-blue-300 transition-colors">
+                <p class="text-blue-950 hover:text-blue-800 transition-colors">
                   @dem...ny.bsky.social
                 </p>
-                <p class="text-sm text-gray-400">Content creator</p>
+                <p class="text-sm text-gray-800">Content creator</p>
               </div>
             </div>
 
             <div class="space-y-2">
-              <blockquote class="text-lg italic text-gray-300">
-                "I started using the Bluesky bot to help grow my platform, and honestly, it’s been a
+              <blockquote class="text-lg italic text-gray-900">
+                "I started using the Bluesky bot to help grow my platform, and honestly, it's been a
                 game changer."
               </blockquote>
               {#if showMore}
-                <blockquote class="text-lg italic text-gray-300">
+                <blockquote class="text-lg italic text-gray-900">
                   "I can never go back to not using it. It's very user-friendly. Just go through the
-                  options, find the one you want, and you're done. There’s no complicated code you
+                  options, find the one you want, and you're done. There's no complicated code you
                   need to understand or anything."
                 </blockquote>
 
-                <blockquote class="text-lg italic text-gray-300">
-                  "If you want to connect with your community but don’t have a lot of time (or even
-                  if you do), I’d really recommend testing it out."
+                <blockquote class="text-lg italic text-gray-900 dark:text-gray-300">
+                  "If you want to connect with your community but don't have a lot of time (or even
+                  if you do), I'd really recommend testing it out."
                 </blockquote>
               {/if}
             </div>

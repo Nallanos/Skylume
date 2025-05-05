@@ -1,6 +1,6 @@
 <script lang="ts">
   import LayoutLandingPage from '@/components/layoutLandingPage.svelte'
-  import Button from '@/ui/button/button.svelte'
+  import Button from '@/shadcn-ui/button/button.svelte'
   import { Rocket, Sparkles, CheckCircle, X } from 'lucide-svelte'
 
   type PlanFeature = {

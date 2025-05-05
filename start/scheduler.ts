@@ -1,6 +1,8 @@
 import cron from 'node-cron'
 import User from '#models/user'
+import app from '@adonisjs/core/services/app'
 
+// Réinitialisation des compteurs au 1er jour de chaque mois (à minuit)
 cron.schedule('0 0 1 * *', async () => {
     let users = await User.findManyBy("plan", "free")
     for (const user of users) {
@@ -9,5 +11,29 @@ cron.schedule('0 0 1 * *', async () => {
         user.isDmsLimitReached = false
         user.isScheduledLimitReached = false
         user.save()
+    }
+})
+
+// Enregistrement quotidien du nombre d'abonnés (tous les jours à 1h du matin)
+cron.schedule('0 1 * * *', async () => {
+    try {
+        const { default: RecordFollowersCountCommand } = await import('../commands/record_followers_count.js')
+        const command = await app.container.make(RecordFollowersCountCommand)
+        await command.exec()
+        console.log('Nombre d\'abonnés enregistré avec succès.')
+    } catch (error) {
+        console.error('Erreur lors de l\'enregistrement du nombre d\'abonnés:', error)
+    }
+})
+
+// Synchronisation quotidienne des posts pour les analytics (tous les jours à 2h du matin)
+cron.schedule('0 2 * * *', async () => {
+    try {
+        const { default: SyncPostsCommand } = await import('../commands/sync_posts.js')
+        const command = await app.container.make(SyncPostsCommand)
+        await command.exec()
+        console.log('Synchronisation des posts terminée avec succès.')
+    } catch (error) {
+        console.error('Erreur lors de la synchronisation des posts:', error)
     }
 })

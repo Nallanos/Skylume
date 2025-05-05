@@ -1,6 +1,7 @@
 <script lang="ts">
-  import Button from '@/ui/button/button.svelte'
+  import Button from '@/shadcn-ui/button/button.svelte'
   import { Menu, X } from 'lucide-svelte'
+  import ThemeToggle from '@/components/theme-toggle/theme-toggle.svelte'
 
   let isSidebarOpen = false
   let isScrolled = false
@@ -36,22 +37,24 @@
       <div class="hidden md:flex items-center gap-6">
         <a
           href="/pricing"
-          class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          class="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-foreground transition-colors"
         >
           Pricing
         </a>
         <a
           href="/philosophy"
-          class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          class="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-foreground transition-colors"
         >
           Our Philosophy
         </a>
         <a
           href="/login"
-          class="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+          class="text-sm font-medium text-gray-700 dark:text-gray-300 hover:text-foreground transition-colors"
         >
           Login
         </a>
+
+        <ThemeToggle />
 
         <Button href="/dashboard" size="sm" class="gap-2">Join Alpha</Button>
       </div>
@@ -66,11 +69,11 @@
     : 'opacity-0 invisible'}"
 >
   <div
-    class="fixed left-0 top-0 h-full w-3/4 max-w-xs border-r border-gray-800 bg-background shadow-lg transition-transform duration-300 {isSidebarOpen
+    class="fixed left-0 top-0 h-full w-3/4 max-w-xs border-r border-gray-500/40 bg-background shadow-lg transition-transform duration-300 {isSidebarOpen
       ? 'translate-x-0'
       : '-translate-x-full'}"
   >
-    <div class="p-4 border-b border-gray-800">
+    <div class="p-4 border-b border-gray-500/40">
       <div class="flex items-center justify-between">
         <span class="text-lg font-semibold">Menu</span>
         <button on:click={() => (isSidebarOpen = false)} class="p-2 hover:bg-accent rounded-lg">
@@ -85,6 +88,10 @@
       <a href="/pricing" class="py-2 px-3 rounded-lg hover:bg-accent transition-colors">
         Pricing
       </a>
+      <div class="flex items-center justify-between py-2 px-3">
+        <span class="text-sm">Theme</span>
+        <ThemeToggle />
+      </div>
       <Button href="/dashboard" class="w-full mt-4">Join Alpha</Button>
     </div>
   </div>

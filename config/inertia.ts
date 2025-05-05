@@ -1,5 +1,6 @@
 import { defineConfig } from '@adonisjs/inertia'
 import type { InferSharedProps } from '@adonisjs/inertia/types'
+import app from '@adonisjs/core/services/app'
 
 const inertiaConfig = defineConfig({
   /**
@@ -18,9 +19,11 @@ const inertiaConfig = defineConfig({
         await user.load('account')
         await user.load("scheduling")
 
-        for (const account of user.account) {
-          await account.load('listeners')
-        }
+        // Calculer les statistiques de l'utilisateur
+        // Utilisation d'une importation dynamique pour supporter HMR (Hot Module Replacement)
+        const { default: UsersController } = await import('#controllers/users_controller')
+        const usersController = await app.container.make(UsersController)
+        await usersController.enrichUserWithStats(user)
 
         return {
           id: user.id,
@@ -31,6 +34,10 @@ const inertiaConfig = defineConfig({
           marketing_consent: user.marketing_consent,
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
+          // Ajouter les nouvelles statistiques
+          scheduledCount: user.scheduledCount,
+          followersCount: user.followersCount,
+          followersGrowth: user.followersGrowth,
           account: user.account.map(account => ({
             id: account.id,
             jobId: account.jobId,
@@ -40,17 +47,6 @@ const inertiaConfig = defineConfig({
             number_of_message_sent: account.number_of_message_sent,
             number_of_message_received: account.number_of_message_received,
             seenNotificationAt: account.seenNotificationAt,
-            listeners: account.listeners.map(listener => ({
-              id: listener.id,
-              isActive: listener.isActive,
-              event: listener.event,
-              handler: listener.handler,
-              wait_time: listener.wait_time,
-              message: listener.message,
-              action: listener.action,
-              number_of_message_sent: listener.number_of_message_sent,
-              number_of_message_received: listener.number_of_message_received,
-            }))
           })),
           scheduling: user.scheduling.map(schedule => ({
             id: schedule.id,
