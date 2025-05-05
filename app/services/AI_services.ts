@@ -1,10 +1,10 @@
 import type { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/defs.js";
 import { Agent } from "@atproto/api";
 import pQueue from 'p-queue';
-import { removeStopwords, eng } from 'stopword';
+import KMeans from 'ml-kmeans';
 
 // Import Transformers.js (cela fonctionnera localement avec WASM ou en pur JS)
-import { FeatureExtractionPipeline, pipeline } from '@xenova/transformers';
+import { FeatureExtractionPipeline, pipeline, Tensor } from '@xenova/transformers';
 
 type KeywordData = {
   set: Set<string>;
@@ -34,7 +34,7 @@ export class TargetAudienceService {
     }
   }
 
-  // ──────────────────────────────
+  
   // Convertit un Float32Array en tableau de tableaux (number[][])
   // en découpant le tableau selon le batchSize (nombre d'entrées passées au modèle)
   private convertEmbeddings(embeddingData: Float32Array, batchSize: number): number[][] {
@@ -82,143 +82,6 @@ export class TargetAudienceService {
     }
     return dot;
   }
-
-  // ──────────────────────────────
-  // Méthode de clustering avec k-means sur les embeddings des tokens uniques.
-  // On sélectionne le token le plus fréquent dans chaque cluster comme mot-clé représentatif.
-  // Version améliorée : on concatène toutes les descriptions pour utiliser l'intégralité du texte.
-  private async generateDynamicKeywords(profiles: ProfileView[], top: number = 10): Promise<string[]> {
-    // 1. Concaténer toutes les descriptions en une seule chaîne.
-
-    let combinedDescriptions = "";
-    for (const profile of profiles) {
-      if (profile.description) {
-        combinedDescriptions += " " + profile.description.toLowerCase();
-      }
-    }
-    if (!combinedDescriptions) return [];
-
-    // Définir les stopwords personnalisés.
-    const customStopwords = new Set([
-      "com", "https", "http", "www", "org", "net", "trump", "good", "not",
-      "pro", "con", "like", "love", "hate", "want", "need", "see", "say",
-      "go", "get", "make", "know", "dms", "dm", "off", "life", "fuck",
-      "future", "link", "linktree", "just", "time", "day", "year", "people",
-      "follow", "build"
-    ]);
-
-    // 2. Extraire les tokens de l'intégralité du texte.
-    const tokens = combinedDescriptions.split(/\W+/)
-      .filter(word => word.length > 2 && !customStopwords.has(word));
-    // Supprimer les stopwords en anglais.
-    const filteredTokens = removeStopwords(tokens, eng);
-
-    // 3. Utiliser le modèle pour extraire les embeddings de tous ces tokens.
-    await TargetAudienceService.modelPromise;
-    if (!TargetAudienceService.model) throw new Error('Model not initialized');
-    const embeddingResult = await TargetAudienceService.model(filteredTokens);
-    const embeddings = this.convertEmbeddings(embeddingResult.data as Float32Array, filteredTokens.length);
-    const normalizedEmbeddings = this.normalizeEmbeddings(embeddings);
-
-    // 4. Clustering par k-means. Si le nombre de tokens est inférieur à "top", on ajuste k.
-    const k = Math.min(top, filteredTokens.length);
-    const clusters = this.kMeans(normalizedEmbeddings, k);
-
-    // 5. Pour chaque cluster, sélectionner le token ayant la fréquence la plus élevée.
-    const tokenFrequency = new Map<string, number>();
-    filteredTokens.forEach(token => {
-      tokenFrequency.set(token, (tokenFrequency.get(token) || 0) + 1);
-    });
-
-    const representativeTokens: string[] = [];
-    for (const cluster of clusters) {
-      let bestToken = "";
-      let bestFreq = 0;
-      for (const idx of cluster.indices) {
-        const token = filteredTokens[idx];
-        const freq = tokenFrequency.get(token) || 0;
-        if (freq > bestFreq) {
-          bestFreq = freq;
-          bestToken = token;
-        }
-      }
-      if (bestToken) representativeTokens.push(bestToken);
-    }
-
-    console.log("Dynamic keywords generated (clustering):", representativeTokens);
-    return representativeTokens;
-  }
-
-  // ──────────────────────────────
-  // Calcul de la distance euclidienne entre deux vecteurs.
-  private euclideanDistance(vec1: number[], vec2: number[]): number {
-    return Math.sqrt(vec1.reduce((sum, v, i) => sum + (v - vec2[i]) ** 2, 0));
-  }
-
-  // Implémentation simple de k-means sur un ensemble de vecteurs.
-  private kMeans(data: number[][], k: number, maxIter = 100): { indices: number[] }[] {
-    const n = data.length;
-    if (n === 0) return [];
-
-    // Initialisation : choisir k indices aléatoires distincts comme centroïdes.
-    const centroids: number[][] = [];
-    const usedIndices = new Set<number>();
-    while (centroids.length < k) {
-      const idx = Math.floor(Math.random() * n);
-      if (!usedIndices.has(idx)) {
-        usedIndices.add(idx);
-        centroids.push([...data[idx]]);
-      }
-    }
-
-    let assignments: number[] = new Array(n).fill(-1);
-    for (let iter = 0; iter < maxIter; iter++) {
-      let changed = false;
-      // Affecter chaque point au centroïde le plus proche.
-      for (let i = 0; i < n; i++) {
-        let minDist = Infinity;
-        let bestCluster = -1;
-        for (let j = 0; j < k; j++) {
-          const dist = this.euclideanDistance(data[i], centroids[j]);
-          if (dist < minDist) {
-            minDist = dist;
-            bestCluster = j;
-          }
-        }
-        if (assignments[i] !== bestCluster) {
-          assignments[i] = bestCluster;
-          changed = true;
-        }
-      }
-      if (!changed) break;
-
-      // Recalcul des centroïdes.
-      const newCentroids: number[][] = Array.from({ length: k }, () => new Array(data[0].length).fill(0));
-      const counts = new Array(k).fill(0);
-      for (let i = 0; i < n; i++) {
-        const cluster = assignments[i];
-        counts[cluster]++;
-        for (let d = 0; d < data[i].length; d++) {
-          newCentroids[cluster][d] += data[i][d];
-        }
-      }
-      for (let j = 0; j < k; j++) {
-        if (counts[j] === 0) continue;
-        for (let d = 0; d < newCentroids[j].length; d++) {
-          newCentroids[j][d] /= counts[j];
-        }
-      }
-      centroids.splice(0, centroids.length, ...newCentroids);
-    }
-
-    // Regrouper les indices par cluster.
-    const clusters: { indices: number[] }[] = Array.from({ length: k }, () => ({ indices: [] }));
-    assignments.forEach((cluster, idx) => {
-      clusters[cluster].indices.push(idx);
-    });
-    return clusters;
-  }
-
   // ──────────────────────────────
   // Calcul de la similarité sémantique entre un ensemble de mots et des keywords.
   private async semanticMatch(words: string[], keywordData: KeywordData): Promise<number> {
@@ -256,45 +119,54 @@ export class TargetAudienceService {
       agent.getAuthorFeed({ actor: did, limit: 50 }).then(r => r.data.feed),
     ]);
   }
-  // ──────────────────────────────
-  // Classifie les intérêts d'un profil à partir de sa description en se basant sur les mots-clés dynamiques.
-  private async classifyProfileInterest(
-    profile: ProfileView,
-    keywordData: KeywordData,
-    interestKeywords: string[]
-  ): Promise<string[]> {
-    if (!profile.description) return [];
-    const descriptionWords = profile.description.split(/\s+/).map(w => w.toLowerCase());
-    const filteredWords = removeStopwords(descriptionWords, eng);
-    if (!TargetAudienceService.model) throw new Error('Model not initialized');
-    const wordEmbeddingsRes = await TargetAudienceService.model(filteredWords);
-    const wordEmbeddings = this.convertEmbeddings(wordEmbeddingsRes.data as Float32Array, filteredWords.length);
-    const normalizedWordEmbeddings = this.normalizeEmbeddings(wordEmbeddings);
-    const interests: string[] = [];
-    const threshold = 0.65;
-    for (let i = 0; i < interestKeywords.length; i++) {
-      const keyword = interestKeywords[i];
-      if (filteredWords.includes(keyword.toLowerCase())) {
-        interests.push(keyword);
-        continue;
+
+  private getGlobalProfileEmbedding(profile: ProfileEmbeddings): number[] {
+    const allEmbeddings = [
+      profile.bio,
+      ...profile.posts,
+      ...profile.followingBio,
+    ].filter(vec => vec.length > 0); // filtre les vides
+
+    return this.averageVectors(allEmbeddings);
+  }
+
+  private averageVectors(vectors: number[][]): number[] {
+    if (vectors.length === 0) return [];
+
+    const dim = vectors[0].length;
+    const sum = new Array(dim).fill(0);
+
+    for (const vec of vectors) {
+      console.log(vec.length)
+      if (vec.length !== dim) {
+        console.error("Expected dimension:", dim, "but got:", vec.length);
+        console.error("Vector content:", vec);
+        throw new Error("Inconsistent embedding dimensions");
       }
-      // Obtenir l'embedding du mot-clé
-      const kwRes = await TargetAudienceService.model([keyword]);
-      const kwEmbeddingArr = this.convertEmbeddings(kwRes.data as Float32Array, 1);
-      const normalizedKw = this.normalizeEmbeddings(kwEmbeddingArr)[0];
-      // Comparer avec chaque mot de la description
-      let maxSim = 0;
-      for (let j = 0; j < normalizedWordEmbeddings.length; j++) {
-        const sim = this.cosineSimilarity(normalizedWordEmbeddings[j], normalizedKw);
-        if (sim > maxSim) {
-          maxSim = sim;
-        }
-      }
-      if (maxSim >= threshold) {
-        interests.push(keyword);
+      for (let i = 0; i < dim; i++) {
+        sum[i] += vec[i];
       }
     }
-    return interests;
+
+    return sum.map(v => v / vectors.length);
+  }
+
+  private async getEmbedding(text: string): Promise<number[]> {
+    try {
+      if (!TargetAudienceService.model) throw new Error("Model is not initialized");
+      if (!text) throw new Error("Text is null");
+
+      const tensor = await TargetAudienceService.model(text, {
+        pooling: "mean",
+        normalize: true,
+      });
+
+      const embedding = tensor.tolist()[0];
+      return embedding;
+    } catch (err) {
+      console.error("Error while getting embedding", err);
+      return [];
+    }
   }
 
   public async getTargetedAudience(
@@ -348,52 +220,86 @@ export class TargetAudienceService {
     return this.cosineSimilarity(normalized[0], normalized[1]);
   }
 
-
-
   public async getClassifiedFollowers(
     agent: Agent,
     profiles: ProfileView[]
   ) {
     try {
       await TargetAudienceService.modelPromise;
-      // Générer des mots-clés dynamiques à partir des profils.
-      const dynamicKeywords = await this.generateDynamicKeywords(profiles, 10);
-      console.log(dynamicKeywords)
-      const keywordData = await this.prepareKeywords(dynamicKeywords);
-      const results: { handle: string, interest: string[] }[] = [];
+      let profilesEmbeddings: ProfileEmbeddings[] = [];
+      const profileProcessingQueue = new pQueue({ concurrency: 10 }); // Contrôle de la concurrence
 
-      for (const profile of profiles) {
-        // Récupération des données additionnelles : following et posts du profil
-        const [following, posts] = await this.getProfileData(profile.did, agent);
+      const tasks = profiles.map((profile) =>
+        profileProcessingQueue.add(async () => {
+          const [following, posts] = await this.getProfileData(profile.did, agent);
+          let profileEmbeddings: ProfileEmbeddings = {
+            handle: profile.handle,
+            bio: [],
+            posts: [],
+            followingBio: [],
+          };
 
-        // Concaténer la description du profil, les bios des comptes suivis et le texte des posts
-        let combinedText = profile.description ? profile.description : "";
-
-        following.forEach(follow => {
-          if (follow.description) {
-            combinedText += " " + follow.description;
+          console.log("getting embedding of description");
+          if (profile.description) {
+            profileEmbeddings.bio = await this.getEmbedding(profile.description);
           }
+
+          console.log("getting embedding of following");
+          for (const follow of following) {
+            if (follow.description) {
+              profileEmbeddings.followingBio.push(await this.getEmbedding(follow.description));
+            }
+          }
+
+          console.log("getting embedding of posts", posts.length);
+          for (const post of posts as unknown as any) {
+            const record = post.post?.record as any;
+            if (!record?.text) continue;
+            profileEmbeddings.posts.push(await this.getEmbedding(record.text));
+          }
+
+          profilesEmbeddings.push(profileEmbeddings);
+        })
+      );
+
+      await Promise.all(tasks);
+
+      let averageProfilesEmbeddings: AverageProfileEmbeddings[] = [];
+      for (const profile of profilesEmbeddings) {
+        const averageProfileEmbeddings = this.getGlobalProfileEmbedding(profile);
+        averageProfilesEmbeddings.push({
+          handle: profile.handle,
+          embedding: averageProfileEmbeddings,
         });
-
-        posts.forEach(post => {
-          // On suppose ici que la structure des posts reste similaire à celle utilisée dans getTargetedAudience.
-          const text: string = (post.post?.record as any)?.text || "";
-          combinedText += " " + text;
-        });
-
-        // Création d'un objet temporaire en réinjectant la description combinée
-        const tempProfile: ProfileView = { ...profile, description: combinedText };
-
-        // Classification des intérêts à partir de la description combinée
-        const interests = await this.classifyProfileInterest(tempProfile, keywordData, dynamicKeywords);
-        results.push({ handle: profile.handle, interest: interests });
       }
-      return results;
-    } catch (err) {
-      console.error("error while getting classiefied cofoerpazjkrjaeu gtnhezi" + "ta mère la pute" + err)
-    }
 
+      const embeddings = averageProfilesEmbeddings.map((profile) => profile.embedding);
+      const kmeans = KMeans.kmeans(embeddings, 10, {});
+      const clusteredProfiles = averageProfilesEmbeddings.map((profile, idx) => ({
+        handle: profile.handle,
+        embedding: profile.embedding,
+        cluster: kmeans.clusters[idx],
+      }));
+
+      console.log("clusteredProfiles", clusteredProfiles);
+      return clusteredProfiles;
+    } catch (err) {
+      console.log(err);
+    }
   }
+}
+
+type AverageProfileEmbeddings = {
+  handle: string,
+  embedding: number[]
+}
+
+
+type ProfileEmbeddings = {
+  handle: string,
+  bio: number[],
+  posts: number[][],
+  followingBio: number[][],
 }
 
 export default new TargetAudienceService();

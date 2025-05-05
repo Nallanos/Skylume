@@ -62,8 +62,5 @@ export default class Account extends BaseModel {
   declare user: BelongsTo<typeof User>
 
   @column()
-  declare followerCursor: string | undefined
-
-  @column()
   declare numbersOfFollowersAnalyzed: number
 }

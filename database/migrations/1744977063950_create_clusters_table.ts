@@ -1,13 +1,13 @@
 import { BaseSchema } from '@adonisjs/lucid/schema'
 
 export default class extends BaseSchema {
-  protected tableName = 'followers'
+  protected tableName = 'clusters'
 
   async up() {
     this.schema.createTable(this.tableName, (table) => {
-      table.string('handle').primary()
-      table.string('account_handle').notNullable().references('accounts.handle')
-      table.jsonb('interest').notNullable()
+      table.string('tag')
+      table.string("embeddings")
+      table.integer("size")
     })
   }
 

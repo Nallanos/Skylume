@@ -13,14 +13,11 @@ export default class FeedsController {
 
     public async processPosts({ request, response, auth, inertia }: HttpContext) {
         try {
-            console.log("processPosts")
             const feedId = request.params().id
             const user = auth.getUserOrFail()
 
-            // Récupération de tous les feeds de l'utilisateur
             const userFeeds = await Feed.query().where('user_id', user.id)
 
-            // Redirection si aucun feed_id fourni
             if (!feedId) {
                 if (userFeeds.length === 0) {
                     return response.redirect(`/feed`)
@@ -29,7 +26,6 @@ export default class FeedsController {
                 return response.redirect(`/feed`)
             }
 
-            // Récupération du feed spécifique
             const feed = await Feed.findOrFail(feedId)
             const account = await Account.findOrFail(feed.account_id)
             const userService = await users_bot_service_manager.getUserBotService(user.id)
