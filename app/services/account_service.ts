@@ -404,6 +404,7 @@ export default class AccountService {
     public async getFollowers(account: Account, did: string, cursor?: string) {
         try {
             const res = await this.agent.getFollowers({ actor: did, cursor: cursor });
+            console.log(`getting follower ${res.data.cursor}`)
             await this.updateAccountRateLimit(account);
             return res.data;
         } catch (err) {
