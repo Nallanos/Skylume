@@ -1,16 +1,16 @@
 <script lang="ts">
   import { router } from '@inertiajs/svelte'
-  import Card from '@/ui/card/card.svelte'
-  import CardHeader from '@/ui/card/card-header.svelte'
+  import Card from '@/shadcn-ui/card/card.svelte'
+  import CardHeader from '@/shadcn-ui/card/card-header.svelte'
   import { Key, ShieldCheck, Loader, UserPlus } from 'lucide-svelte'
   import { page } from '@inertiajs/svelte'
-  import Button from '@/ui/button/button.svelte'
-  import Input from '@/ui/input/input.svelte'
-  import AlertTitle from '@/ui/alert/alert-title.svelte'
-  import AlertDescription from '@/ui/alert/alert-description.svelte'
-  import Alert from '@/ui/alert/alert.svelte'
-  import CardContent from '@/ui/card/card-content.svelte'
-  import CardTitle from '@/ui/card/card-title.svelte'
+  import Button from '@/shadcn-ui/button/button.svelte'
+  import Input from '@/shadcn-ui/input/input.svelte'
+  import AlertTitle from '@/shadcn-ui/alert/alert-title.svelte'
+  import AlertDescription from '@/shadcn-ui/alert/alert-description.svelte'
+  import Alert from '@/shadcn-ui/alert/alert.svelte'
+  import CardContent from '@/shadcn-ui/card/card-content.svelte'
+  import CardTitle from '@/shadcn-ui/card/card-title.svelte'
   let token_app_password = ''
   let bksy_social = ''
   $: isLoading = false
@@ -35,7 +35,7 @@
     >
       Connect Your Bluesky Account
     </h1>
-    <p class="text-gray-300 text-lg">
+    <p class="text-gray-700 dark:text-gray-300 text-lg">
       Grant us limited access to your Bluesky account using an app password. To do this, go to
       Bluesky and follow the steps below:
     </p>
@@ -51,12 +51,14 @@
         </div>
         <div>
           <CardTitle class="text-xl">Step 1: Create App Password</CardTitle>
-          <p class="text-gray-400">Settings → Privacy and security → App Passwords</p>
+          <p class="text-gray-600 dark:text-gray-400">
+            Settings → Privacy and security → App Passwords
+          </p>
         </div>
       </CardHeader>
       <CardContent class="grid md:grid-cols-2 gap-6 items-center">
         <div class="space-y-2">
-          <p class="text-gray-300">
+          <p class="text-gray-700 dark:text-gray-300">
             1. Enable <strong>Direct Messages</strong> access<br />
             2. Copy generated token
           </p>
@@ -72,7 +74,7 @@
         </div>
         <div>
           <CardTitle class="text-xl">Step 2: Authorize Access</CardTitle>
-          <p class="text-gray-400">Securely link your account</p>
+          <p class="text-gray-600 dark:text-gray-400">Securely link your account</p>
         </div>
       </CardHeader>
       <CardContent class="space-y-6">
@@ -85,28 +87,28 @@
 
         <form on:submit|preventDefault={handleSubmit} class="space-y-4">
           <div class="space-y-2">
-            <h3 class="text-sm font-medium text-gray-300">Bluesky Handle</h3>
+            <h3 class="text-sm font-medium text-gray-800 dark:text-gray-300">Bluesky Handle</h3>
             <div
-              class="flex items-center rounded-md bg-gray-800 border border-gray-700 text-gray-100 focus:ring-2 focus:ring-blue-400"
+              class="flex items-center rounded-md bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-400"
             >
-              <span class="pl-2"> @ </span>
+              <span class="pl-2 text-gray-800 dark:text-gray-100"> @ </span>
               <Input
                 bind:value={bksy_social}
                 placeholder="yourhandle.bsky.social"
                 required
-                class="flex items-center bg-gray-800  text-gray-100 focus:ring-2 focus:ring-blue-400"
+                class="flex items-center bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-400"
               ></Input>
             </div>
           </div>
 
           <div class="space-y-2">
-            <h3 class="text-sm font-medium text-gray-300">App Password</h3>
+            <h3 class="text-sm font-medium text-gray-800 dark:text-gray-300">App Password</h3>
             <Input
               type="password"
               bind:value={token_app_password}
               placeholder="Paste your token here"
               required
-              class="bg-gray-800 border-gray-700 text-gray-100 focus:ring-2 focus:ring-blue-400"
+              class="bg-white dark:bg-gray-800 border-gray-300 dark:border-gray-700 text-gray-800 dark:text-gray-100 focus:ring-2 focus:ring-blue-400"
             />
           </div>
 

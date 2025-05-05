@@ -1,13 +1,12 @@
 import DmCampaign from '#models/dm_campaign'
 import { HttpContext } from '@adonisjs/core/http'
-import users_bot_service_manager from '../bluesky/users_bot_service_manager.js'
 import Account from '#models/account'
 import type { MessageViewSender } from '@atproto/api/dist/client/types/chat/bsky/convo/defs.js'
-import type UserBotService from '../bluesky/user_bot_service.js'
-import type { AtpAgent } from '@atproto/api'
 import type { ProfileView } from '@atproto/api/dist/client/types/app/bsky/actor/defs.js'
 import AccountService from '#services/account_service'
 import { inject } from '@adonisjs/core'
+import AccountManager from '#services/account_manager'
+
 interface AuthTokens {
     convoAuth: any
     messagesAuth: any
@@ -16,17 +15,10 @@ interface AuthTokens {
 @inject()
 export default class DmCampaignsController {
     // Variables d'état pour le traitement en cours
+    private accountService: AccountService | undefined
+    private authTokens!: AuthTokens
     private currentAccount!: Account
     private currentDmCampaign!: DmCampaign
-    private userBotService!: UserBotService | undefined
-    private agent!: AtpAgent
-    private authTokens!: AuthTokens
-    private accountService: AccountService
-
-    constructor() {
-        this.accountService = new AccountService(this.agent)
-    }
-
 
     public async createDmCampaign({ request, response, auth, session }: HttpContext) {
         try {
@@ -72,10 +64,10 @@ export default class DmCampaignsController {
         }
     }
 
-    public async startCampaign({ request, response, auth, session }: HttpContext) {
+    public async startCampaign({ request, response, session }: HttpContext) {
         try {
             await this.toggleDmCampaignStatus({ request, response } as HttpContext)
-            await this.initializeCampaignContext(request, auth)
+            await this.initializeCampaignContext(request)
             if (!this.currentDmCampaign.status) {
                 session.flash('error', 'La campagne est désactivée')
                 return response.redirect().back()
@@ -91,20 +83,18 @@ export default class DmCampaignsController {
     }
 
     //#region Méthodes privées
-    private async initializeCampaignContext(request: HttpContext['request'], auth: HttpContext['auth']) {
-        const user = auth.getUserOrFail()
-        this.userBotService = users_bot_service_manager.userbotServiceMap.get(user.id)
-        if (!this.userBotService) {
-            await users_bot_service_manager.initOneUserBotService(user.id)
-            this.userBotService = users_bot_service_manager.userbotServiceMap.get(user.id)
-            if (!this.userBotService)
-                throw new Error("User bot service not found")
-        }
+    private async initializeCampaignContext(request: HttpContext['request']) {
         const { campaign_id } = request.only(["campaign_id"])
         this.currentDmCampaign = await DmCampaign.findOrFail(campaign_id)
 
         const account_handle = this.currentDmCampaign.accountHandle
         this.currentAccount = await Account.findByOrFail("handle", account_handle)
+
+        // Obtenir le AccountService via AccountManager
+        this.accountService = await AccountManager.getOrCreateAccountService(this.currentAccount)
+        if (!this.accountService) {
+            throw new Error("Account service not found")
+        }
 
         await this.refreshAuthTokens()
     }
@@ -114,7 +104,13 @@ export default class DmCampaignsController {
         try {
             while (await this.shouldContinueProcessing()) {
                 console.log("Fetching followers...")
-                let response = await this.accountService.getFollowers(this.currentAccount, this.currentAccount.at_session?.did as string, cursor)
+                if (!this.currentAccount.at_session?.did) {
+                    throw new Error('Account session or DID is missing')
+                }
+                if (!this.accountService) {
+                    throw new Error('Account Service not defined in Process followers')
+                }
+                let response = await this.accountService.getFollowers(this.currentAccount, this.currentAccount.at_session.did, cursor)
                 console.log(response.cursor)
                 if (!response.cursor) {
                     break
@@ -151,8 +147,14 @@ export default class DmCampaignsController {
                 throw new Error("Account session missing")
             }
             const did = this.currentAccount.at_session.did
+
             const convo = await this.withRetry(
-                () => this.accountService.getConvoFromMembers(account, [did as string, follow.did]),
+                () => {
+                    if (!this.accountService) {
+                        throw new Error('Account Service not defined in Process followers')
+                    }
+                    return this.accountService.getConvoFromMembers(account, [did as string, follow.did])
+                },
                 'getConvoFromMembers'
             )
 
@@ -171,7 +173,12 @@ export default class DmCampaignsController {
 
     private async processConversation(convo: any, account: Account) {
         const messages = await this.withRetry(
-            () => this.accountService.getMessages(account, convo.id),
+            () => {
+                if (!this.accountService) {
+                    throw new Error('Account Service not defined in Process followers')
+                }
+                return this.accountService.getMessages(account, convo.id)
+            },
             'getMessages'
         ) as unknown as MessageViewSender[]
 
@@ -194,10 +201,15 @@ export default class DmCampaignsController {
 
     private async sendCampaignMessage(convo: any, account: Account) {
         await this.withRetry(
-            () => this.accountService.sendMessageToConvo(
-                account,
-                { convoId: convo.id, message: { text: this.currentDmCampaign.message } },
-            ),
+            () => {
+                if (!this.accountService) {
+                    throw new Error('Account Service not defined in sendCampaignMessage')
+                }
+                return this.accountService.sendMessageToConvo(
+                    account,
+                    { convoId: convo.id, message: { text: this.currentDmCampaign.message } },
+                )
+            },
             'sendMessageToConvo'
         )
     }
@@ -209,7 +221,7 @@ export default class DmCampaignsController {
     }
 
     private async refreshAuthTokens() {
-        if (!this.userBotService) throw new Error("User bot service not found")
+        if (!this.accountService) throw new Error("Account service not found")
         await this.accountService.createOrResumeSession(this.currentAccount)
         await this.currentAccount.refresh()
 

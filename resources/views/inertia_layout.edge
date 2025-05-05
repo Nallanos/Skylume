@@ -8,6 +8,25 @@
       Bluesky-Bot
     </title>
 
+    <!-- Script pour appliquer le thème immédiatement et éviter le flash -->
+    <script>
+      // Récupérer le thème depuis localStorage ou utiliser les préférences système
+      const storedTheme = localStorage.getItem("theme");
+      
+      const prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+      
+      const theme = storedTheme || (prefersDark ? "dark" : "light");
+      // Appliquer la classe au document html
+      
+      document.documentElement.className = theme;
+      // Assurer que les textes sont toujours lisibles
+      
+      if (theme === "light") {
+        document.documentElement.style.setProperty("--text-primary", "#111827"); // Plus foncé pour meilleure lisibilité
+        document.documentElement.style.setProperty("--text-secondary", "#374151"); // Plus foncé pour meilleure lisibilité  
+      }
+    </script>
+
     <link rel="preconnect" href="https://fonts.bunny.net" />
     <link
       href="https://fonts.bunny.net/css?family=instrument-sans:400,400i,500,500i,600,600i,700,700i"
@@ -34,7 +53,7 @@
     @vite(['inertia/app/app.ts', `inertia/pages/${page.component}.svelte`])
   </head>
 
-  <body class="min-h-screen font-sans bg-background text-white">
+  <body class="min-h-screen font-sans bg-background">
     @inertia()
   </body>
 

@@ -5,7 +5,7 @@ import Account from '#models/account';
 import type { AtpSessionData } from '@atproto/api';
 
 export default class AccountService {
-    private agent: AtpAgent
+    public agent: AtpAgent;
 
     constructor(agent: AtpAgent) {
         this.agent = agent
@@ -16,7 +16,6 @@ export default class AccountService {
         if (!res) throw new Error("Error while getting following")
         return res.data.follows
     }
-
 
     public async getFollowersCount(account: Account): Promise<number> {
         try {
@@ -34,6 +33,80 @@ export default class AccountService {
         }
     }
 
+    public async getPostsCount(account: Account): Promise<number> {
+        try {
+            const res = await this.agent.getProfile({ actor: account.handle });
+            if (!res) {
+                throw new Error("getProfile response is undefined")
+            }
+            if (!res.data.postsCount) {
+                throw new Error("postsCount is undefined")
+            }
+            return res.data.postsCount
+        } catch (err) {
+            await this.updateAccountRateLimit(account, err);
+            console.error("Error while fetching posts count: ", err);
+            throw err;
+        }
+    }
+
+    public async calculateEngagementRate(account: Account): Promise<string> {
+        try {
+            const profile = await this.agent.getProfile({ actor: account.handle });
+            if (!profile || !profile.data) {
+                throw new Error("Profile data is undefined")
+            }
+
+            const followersCount = profile.data.followersCount || 0;
+            if (followersCount === 0) return "0%";
+
+            // Get recent posts to analyze engagement
+            const feed = await this.agent.getAuthorFeed({ actor: account.handle, limit: 10 });
+            if (!feed || !feed.data || !feed.data.feed || feed.data.feed.length === 0) {
+                return "0%";
+            }
+
+            // Calculate average engagement (likes + reposts) per post
+            let totalEngagement = 0;
+            feed.data.feed.forEach(post => {
+                totalEngagement += (post.post.likeCount || 0) + (post.post.repostCount || 0);
+            });
+
+            const avgEngagement = totalEngagement / feed.data.feed.length;
+            // Calculate engagement rate as a percentage of followers
+            const engagementRate = (avgEngagement / followersCount) * 100;
+
+            return engagementRate.toFixed(1) + "%";
+        } catch (err) {
+            await this.updateAccountRateLimit(account, err);
+            console.error("Error calculating engagement rate: ", err);
+            return "0%";
+        }
+    }
+
+    public async updateAccountStats(account: Account): Promise<void> {
+        try {
+            await this.createOrResumeSession(account);
+
+            // Get all stats concurrently
+            const [followersCount, postsCount, engagementRate] = await Promise.all([
+                this.getFollowersCount(account),
+                this.getPostsCount(account),
+                this.calculateEngagementRate(account)
+            ]);
+
+            // Update account with new stats
+            account.followers_count = followersCount;
+            account.posts_count = postsCount;
+            account.engagement_rate = engagementRate;
+
+            await account.save();
+            console.log(`Stats updated for ${account.handle}: ${followersCount} followers, ${postsCount} posts, ${engagementRate} engagement`);
+        } catch (err) {
+            console.error("Error updating account stats: ", err);
+            // Don't throw error to prevent dashboard loading failure
+        }
+    }
 
     public async updateAccountRateLimit(account: Account, err?: any) {
         if (err) {
@@ -346,7 +419,7 @@ export default class AccountService {
         try {
             if (!this.agent) this.agent = new AtpAgent({ service: "https://bsky.social" });
             if (!this.agent.sessionManager.hasSession || !account.session) {
-                console.log("account", account.handle, account.appPassword);
+                console.log("Creating new session for account:", account.handle);
                 const session = (await this.agent.login({
                     identifier: account.handle,
                     password: account.appPassword,
@@ -355,6 +428,7 @@ export default class AccountService {
                 account.session = JSON.stringify(session);
                 await account.save();
             } else if (account.at_session) {
+                console.log("Resuming session for account:", account.handle);
                 await this.agent.resumeSession({
                     accessJwt: account.at_session.accessJwt,
                     refreshJwt: account.at_session.refreshJwt,
@@ -364,8 +438,9 @@ export default class AccountService {
             }
             await this.updateAccountRateLimit(account);
             return;
-        } catch {
+        } catch (err) {
             try {
+                console.log("Failed to resume session, attempting new login for:", account.handle);
                 const session = (await this.agent.login({
                     identifier: account.handle,
                     password: account.appPassword,
@@ -376,7 +451,8 @@ export default class AccountService {
                 await this.updateAccountRateLimit(account);
             } catch (err) {
                 await this.updateAccountRateLimit(account, err);
-                console.error("Error while creating or resuming the session in the userBotService:", err);
+                console.error("Error while creating or resuming the session for account:", account.handle, err);
+                throw new Error(`Failed to authenticate account ${account.handle}: ${err.message}`);
             }
         }
     }

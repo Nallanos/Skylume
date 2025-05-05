@@ -1,10 +1,10 @@
 <script lang="ts">
   import { router } from '@inertiajs/svelte'
-  import { Button } from '@/ui/button'
-  import { Input } from '@/ui/input/'
+  import { Button } from '@/shadcn-ui/button'
+  import { Input } from '@/shadcn-ui/input/'
   import { cn } from '@/utils'
-  import Label from '@/ui/label/label.svelte'
-  import Checkbox from '@/ui/checkbox/checkbox.svelte'
+  import Label from '@/shadcn-ui/label/label.svelte'
+  import Checkbox from '@/shadcn-ui/checkbox/checkbox.svelte'
   export let apiAuth: string
   export let error: any
 

@@ -1,7 +1,6 @@
 import { BaseModel, belongsTo, column, computed, hasMany } from '@adonisjs/lucid/orm'
 import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import User from './user.js'
-import Listener from './listener.js'
 import type { AtpSessionData } from "@atcute/client"
 import Feed from './feed.js'
 
@@ -39,6 +38,15 @@ export default class Account extends BaseModel {
   @column()
   declare number_of_message_received: number
 
+  @column()
+  declare followers_count: number
+
+  @column()
+  declare posts_count: number
+
+  @column()
+  declare engagement_rate: string
+
   @computed()
   get at_session(): AtpSessionData | undefined {
     if (this.session) {
@@ -46,14 +54,26 @@ export default class Account extends BaseModel {
     }
   }
 
+  @computed()
+  get followersCount(): number {
+    return this.followers_count || 0
+  }
+
+  @computed()
+  get postsCount(): number {
+    return this.posts_count || 0
+  }
+
+  @computed()
+  get engagementRate(): string {
+    return this.engagement_rate || '0%'
+  }
+
   @column()
   declare seenNotificationAt: string
 
   @column()
   declare handle: string
-
-  @hasMany(() => Listener, { foreignKey: 'account_id' })
-  declare listeners: HasMany<typeof Listener>
 
   @hasMany(() => Feed, { foreignKey: 'account_id' })
   declare feed: HasMany<typeof Feed>

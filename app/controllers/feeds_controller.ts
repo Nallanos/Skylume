@@ -1,15 +1,13 @@
 import type { HttpContext } from '@adonisjs/core/http'
-import AccountService from '#services/account_service'
-import users_bot_service_manager from '../bluesky/users_bot_service_manager.js'
 import Account from '#models/account'
 import { FeedService } from '#services/feed_service'
 import { inject } from '@adonisjs/core'
 import Feed from '#models/feed'
+import account_manager from '#services/account_manager'
 
 @inject()
 export default class FeedsController {
     private feedService: FeedService = new FeedService()
-
 
     public async processPosts({ request, response, auth, inertia }: HttpContext) {
         try {
@@ -28,8 +26,7 @@ export default class FeedsController {
 
             const feed = await Feed.findOrFail(feedId)
             const account = await Account.findOrFail(feed.account_id)
-            const userService = await users_bot_service_manager.getUserBotService(user.id)
-            const accountService = new AccountService(userService.agent)
+            const accountService = await account_manager.getOrCreateAccountService(account)
             const data = await this.feedService.getPertinentPosts(
                 accountService,
                 account,
@@ -69,7 +66,6 @@ export default class FeedsController {
             const user = auth.getUserOrFail()
             const account = await Account.findOrFail(account_id)
             let keywordCursor = new Map<string, string | null>()
-            // Création du feed avec validation
             keywords = keywords.trim()
 
             for (const keyword of keywords.split(',')) {
@@ -82,7 +78,6 @@ export default class FeedsController {
                 accountHandle: account.handle,
             })
             console.log("feed", feed.keywordsCursor)
-            // Redirection vers le nouveau feed
             return response.redirect().toPath(`/feed/`)
 
         } catch (error) {

@@ -1,7 +1,6 @@
 import Account from "#models/account";
 import Scheduling from "#models/scheduling";
-import AccountService from "#services/account_service";
-import users_bot_service_manager from "../bluesky/users_bot_service_manager.js";
+import account_manager from "#services/account_manager";
 
 interface ScheduleJobPayload {
     schedule_id: number;
@@ -10,25 +9,13 @@ interface ScheduleJobPayload {
 const handle = async (data: ScheduleJobPayload): Promise<void> => {
     try {
         const schedule = await Scheduling.find(data.schedule_id);
-        
+
         if (!schedule) {
             throw new Error(`Schedule not found for ID: ${data.schedule_id}`);
         }
 
-        let user_service = users_bot_service_manager.userbotServiceMap.get(schedule.userId);
-
-        if (!user_service) {
-            await users_bot_service_manager.initAllUsersBotService();
-            user_service = users_bot_service_manager.userbotServiceMap.get(schedule.userId);
-
-            if (!user_service) {
-                throw new Error(`User service not found for userId: ${schedule.userId}`);
-            }
-        }
-        const account_service = new AccountService(user_service.agent);
-
-
-        const account = await Account.find(schedule.account_id);
+        const account = await Account.findOrFail(schedule.account_id)
+        const account_service = await account_manager.getOrCreateAccountService(account)
 
         if (!account) {
             throw new Error(`Account not found for ID: ${schedule.account.id}`);

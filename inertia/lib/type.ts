@@ -10,20 +10,6 @@ export type BotPayload = {
     action: string
 }
 
-export type Listener = {
-    id: string
-    accountId: string
-    event: string
-    user_id: number
-    handler: string
-    wait_time: number
-    message: string
-    action: string
-    numberOfMessageSent: number
-    numberOfMessageReceived: number
-    isActive: boolean
-    stateSendToAll: boolean | undefined
-}
 
 export type MetricData = {
 
