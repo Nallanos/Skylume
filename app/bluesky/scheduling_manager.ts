@@ -3,9 +3,16 @@ import Scheduling from '#models/scheduling'
 import handle from '../jobs/schedule_job.js'
 import env from '#start/env'
 import crypto from 'crypto'
+import { inject } from '@adonisjs/core'
+import type { Account_manager } from '#services/account_manager'
+import Account from '#models/account'
 
-class SchedulingQueueManager {
+
+@inject()
+export class SchedulingQueueManager {
     public queueName = 'schedulers'
+
+    constructor(protected account_manager: Account_manager) { }
 
     public queue = new Queue(this.queueName, {
         connection: {
@@ -37,8 +44,10 @@ class SchedulingQueueManager {
                 this.queueName,
                 async (job) => {
                     const { schedule_id } = job.data
+                    const scheduling = await Scheduling.findOrFail(schedule_id)
+                    const account = await Account.findOrFail(scheduling.account_id)
                     console.log(`Processing schedule job ${job.id} for schedule ID: ${schedule_id}`)
-                    await handle({ schedule_id })
+                    await handle({ schedule_id }, await this.account_manager.getOrCreateAccountService(account))
                 },
                 {
                     connection: {
@@ -106,5 +115,3 @@ class SchedulingQueueManager {
         }
     }
 }
-
-export default new SchedulingQueueManager()

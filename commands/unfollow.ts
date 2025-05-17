@@ -24,7 +24,7 @@ export default class Unfollow extends BaseCommand {
     try {
       while (profiles.length < 3000) {
         const response = await agent.getFollows({
-          actor: "nallanos.bsky.social",
+          actor: "allanbe.bsky.social",
           limit: 100,
           cursor,
         })

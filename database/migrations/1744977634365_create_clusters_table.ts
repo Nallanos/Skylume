@@ -7,11 +7,11 @@ export default class extends BaseSchema {
     this.schema.createTable(this.tableName, (table) => {
       table.increments("id").primary()
       table.string('tag')
-      table.string("embeddings")
+      table.jsonb("embeddings")
       table.jsonb("handles")
       table.integer("size")
-      table.string("account_id").references("accounts.id").onDelete('CASCADE')
-      table.integer("super_clusters_id").references("super_clusters.id").onDelete('CASCADE')
+      table.string("account_handle").references("accounts.handle").onDelete('CASCADE')
+      table.integer("super_cluster_id").references("super_clusters.id").onDelete('CASCADE')
     })
   }
 

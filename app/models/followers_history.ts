@@ -26,8 +26,6 @@ export default class FollowersHistory extends BaseModel {
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime
 
-  @belongsTo(() => Account, {
-    foreignKey: 'accountId',
-  })
+  @belongsTo(() => Account)
   declare account: BelongsTo<typeof Account>
 }

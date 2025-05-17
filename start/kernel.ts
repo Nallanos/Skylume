@@ -11,11 +11,6 @@ import router from '@adonisjs/core/services/router'
 import server from '@adonisjs/core/services/server'
 
 /**
- * Import WebSocket service to initialize it at startup
- */
-import './websocket'
-
-/**
  * The error handler is used to convert an exception
  * to a HTTP response.
  */

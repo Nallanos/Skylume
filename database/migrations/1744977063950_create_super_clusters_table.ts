@@ -10,7 +10,7 @@ export default class extends BaseSchema {
       table.jsonb("embeddings")
       table.jsonb("handles")
       table.integer("size")
-      table.string("account_id").references("accounts.id").onDelete('CASCADE')
+      table.string("account_handle").references("accounts.handle").onDelete('CASCADE')
     })
   }
 

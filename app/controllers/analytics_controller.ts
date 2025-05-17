@@ -4,142 +4,273 @@ import PostHistory from '#models/post_history'
 import FollowersHistory from '#models/followers_history'
 import { DateTime } from 'luxon'
 import { inject } from '@adonisjs/core'
-import account_manager from '#services/account_manager'
+import Cluster from '#models/cluster'
+import SuperCluster from '#models/superCluster'
+import Database from '@adonisjs/lucid/services/db'
+import AccountManager from '#services/account_manager'
+import { CacheManager } from '#services/cache_manager'
+// Interfaces pour typer les données d'analytics
+interface FollowerHistory {
+    date: string | null
+    count: number
+}
 
+interface PostingDay {
+    date: string
+    count: number
+}
+
+interface PostData {
+    text: string
+    likes: number
+    reposts: number
+    replies: number
+    date: string | null
+    url: string
+    engagement_rate: number
+}
+
+interface AnalyticsData {
+    followers_history: FollowerHistory[]
+    posting_days: PostingDay[]
+    all_posts: PostData[]
+    account: Account
+}
 @inject()
 export default class AnalyticsController {
+    constructor(protected account_manager: AccountManager, protected cacheManager: CacheManager) { }
+
     /**
-     * Affiche la page d'analytics avec les données nécessaires
+     * Affiche la page d'analytics de base avec les données nécessaires
+     * Optimisé pour de meilleures performances
      */
-    public async index({ inertia, auth, params, response, request }: HttpContext) {
+    public async basicAnalytics({ inertia, auth, params, response }: HttpContext) {
         const user = await auth.authenticate()
         if (!user) {
-            return inertia.location('/login')
+            return inertia.location('/dashboard')
         }
 
-        const accountId = params.id // Get account ID from URL
+        const accountId = params.id
+        const cacheKey = `analytics:basic:${accountId}`
 
-        // Find the specific account by ID and ensure it belongs to the user
+        const cachedData = await this.cacheManager.get(cacheKey) as AnalyticsData | null
+        if (cachedData) {
+            console.log('Utilisation des données en cache pour analytics')
+            const { followers_history, posting_days, all_posts, account } = cachedData
+            return inertia.render('Analytics', {
+                followers_history,
+                posting_days,
+                all_posts,
+                account
+            })
+        }
+
+
         let selectedAccount: Account | null = null
         try {
             selectedAccount = await Account.query()
+                .select('id', 'userId', 'handle', 'followers_count', 'posts_count', 'appPassword')
                 .where('id', accountId)
                 .andWhere('userId', user.id)
                 .firstOrFail()
         } catch (error) {
-            // Handle case where account is not found or doesn't belong to the user
             console.error(`Account not found or access denied for ID ${accountId} and user ${user.id}`, error)
-            return response.redirect('/dashboard') // Redirect to a safe page
+            return response.redirect('/dashboard')
         }
 
-        // Vérifier si des données existent et synchroniser si nécessaire
-        const hasFollowersHistory = await FollowersHistory.query()
-            .where('accountId', selectedAccount.id)
-            .first();
+        const account_service = await this.account_manager.getOrCreateAccountService(selectedAccount)
+        await account_service.updateAccountStats(selectedAccount)
 
-        const hasPostHistory = await PostHistory.query()
-            .where('accountId', selectedAccount.id)
-            .first();
-
-        // Si aucune donnée n'existe, effectuer une synchronisation initiale
-        if (!hasFollowersHistory || !hasPostHistory) {
-            console.log("Aucune donnée d'analytics trouvée, synchronisation initiale...");
-
-            // Synchroniser les posts récents
-            await this.syncPostsData(selectedAccount);
-
-            // Enregistrer l'historique des abonnés pour aujourd'hui
-            await this.recordFollowersHistory(selectedAccount);
-        }
-
-        // Récupérer l'historique des followers des 30 derniers jours
         const thirtyDaysAgo = DateTime.now().minus({ days: 30 }).startOf('day')
+        const lastYear = DateTime.now().minus({ years: 1 }).startOf('day')
+        const thirtyDaysAgoSQL = thirtyDaysAgo.toSQL()
+        const lastYearSQL = lastYear.toSQL()
 
-        let followersHistory = await FollowersHistory.query()
-            .where('accountId', selectedAccount.id)
-            .where('recordedAt', '>=', thirtyDaysAgo.toSQL())
-            .orderBy('recordedAt', 'asc')
+        const [hasDataResults, postCount, followersTotalCount] = await Promise.all([
+            Database.query()
+                .from(query => {
+                    query.from('followers_histories')
+                        .count('* as followers_count')
+                        .where('account_id', selectedAccount!.id)
+                        .as('f')
+                })
+                .joinRaw('CROSS JOIN (SELECT COUNT(*) as posts_count FROM post_histories WHERE account_id = ?) p', [selectedAccount!.id])
+                .select('followers_count', 'posts_count')
+                .first(),
+            selectedAccount.posts_count
+                ? Promise.resolve(selectedAccount.posts_count)
+                : this.account_manager.getOrCreateAccountService(selectedAccount)
+                    .then(service => service.getPostsCount(selectedAccount)),
 
-        // Transformer les données pour le graphique
-        let followers_history = followersHistory.map(record => ({
-            date: record.recordedAt.toISODate(),
-            count: record.followersCount
+            FollowersHistory.query()
+                .where('account_id', selectedAccount.id)
+                .orderBy('recordedAt', 'desc')
+                .limit(1)
+                .firstOrFail()
+                .then(latest => latest.followersCount)
+                .catch(() => selectedAccount.followers_count || 0)
+        ])
+
+        const needsInitialSync =
+            !hasDataResults ||
+            parseInt(hasDataResults.followers_count) === 0 ||
+            parseInt(hasDataResults.posts_count) === 0
+
+        if (needsInitialSync) {
+            console.log("Aucune donnée d'analytics trouvée, synchronisation initiale...")
+
+            await Promise.all([
+                this.syncPostsData(selectedAccount),
+                this.recordFollowersHistory(selectedAccount)
+            ])
+        }
+
+        const [followersHistory, allPosts] = await Promise.all([
+
+            FollowersHistory.query()
+                .select('recordedAt', 'followersCount')
+                .where('account_id', selectedAccount.id)
+                .where('recordedAt', '>=', thirtyDaysAgoSQL)
+                .orderBy('recordedAt', 'asc')
+                .limit(31),
+
+
+            PostHistory.query()
+                .select('text', 'likes', 'reposts', 'replies', 'postedAt', 'postUri')
+                .where('account_id', selectedAccount.id)
+                .orderBy('postedAt', 'desc')
+                .limit(500)
+        ])
+
+
+        const postsCountDifference = postCount - allPosts.length
+        if (postsCountDifference > 5) {
+            console.log(`Le nombre de posts dans la base de données (${allPosts.length}) est significativement inférieur au nombre attendu (${postCount}). Synchronisation des posts en arrière-plan...`)
+
+            this.syncPostsData(selectedAccount).catch(err =>
+                console.error('Erreur lors de la synchronisation en arrière-plan:', err)
+            )
+        }
+
+        const followers_history: FollowerHistory[] = followersHistory.map(record => ({
+            date: record.recordedAt ? record.recordedAt.toISODate() : null,
+            count: record.followersCount || 0
         }))
 
-        const account_service = await account_manager.getOrCreateAccountService(selectedAccount)
-        const postCount = await account_service.getPostsCount(selectedAccount)
+        const postingDaysRaw = await Database.from('post_histories')
+            .select(Database.raw('DATE(posted_at) as date, COUNT(*) as count'))
+            .where('account_id', selectedAccount.id)
+            .where('posted_at', '>=', lastYearSQL)
+            .groupBy('date')
+            .orderBy('date')
 
-        // Récupérer tous les posts de l'utilisateur
-        let allPosts = await PostHistory.query()
-            .where('accountId', selectedAccount.id)
-            .orderBy('postedAt', 'desc')
+        const posting_days: PostingDay[] = postingDaysRaw.map(item => ({
+            date: item.date || '',
+            count: Number(item.count) || 0
+        }))
 
-        if (allPosts.length != postCount) {
-            console.log(`Le nombre de posts dans la base de données (${allPosts.length}) ne correspond pas au nombre de posts récupérés (${postCount}). Synchronisation des posts...`);
-            // Synchroniser les posts récents
-            await this.syncPostsData(selectedAccount);
-            allPosts = await PostHistory.query()
-                .where('accountId', selectedAccount.id)
-                .orderBy('postedAt', 'desc')
-        }
 
-        // Transformer les données pour l'affichage - AUCUN FILTRAGE PAR DATE
-        let all_posts = allPosts.map(post => {
-            const totalEngagement = post.likes + post.reposts + post.replies
-            const engagementRate = selectedAccount.followers_count > 0
-                ? (totalEngagement / selectedAccount.followers_count) * 100
-                : 0
+        const followersDivisor = Math.max(1, followersTotalCount)
+        const baseUrl = `https://bsky.app/profile/${selectedAccount.handle}/post/`
+
+        const all_posts: PostData[] = allPosts.map(post => {
+            const totalEngagement = (post.likes || 0) + (post.reposts || 0) + (post.replies || 0)
+            const engagementRate = (totalEngagement / followersDivisor) * 100
+            const postId = post.postUri ? post.postUri.substring(post.postUri.lastIndexOf('/') + 1) : ''
 
             return {
-                text: post.text,
-                likes: post.likes,
-                reposts: post.reposts,
-                replies: post.replies,
-                date: post.postedAt.toISODate(),
-                url: `https://bsky.app/profile/${selectedAccount.handle}/post/${post.postUri.split('/').pop()}`,
+                text: post.text || '',
+                likes: post.likes || 0,
+                reposts: post.reposts || 0,
+                replies: post.replies || 0,
+                date: post.postedAt ? post.postedAt.toISODate() : null,
+                url: baseUrl + postId,
                 engagement_rate: engagementRate
             }
         })
 
-        // Trier les posts par taux d'engagement (du plus élevé au plus bas)
-        all_posts.sort((a, b) => b.engagement_rate - a.engagement_rate);
+        all_posts.sort((a, b) => b.engagement_rate - a.engagement_rate)
 
-        // Récupérer les jours de publication pour le calendrier
-        const lastYear = DateTime.now().minus({ years: 1 }).startOf('day')
+        const responseData: AnalyticsData = {
+            followers_history,
+            posting_days,
+            all_posts,
+            account: selectedAccount
+        }
 
-        const postingDaysData = await PostHistory.query()
-            .where('accountId', selectedAccount.id)
-            .where('postedAt', '>=', lastYear.toSQL())
-            .select('postedAt')
-
-        // Agréger les publications par jour
-        const postingDaysMap = new Map()
-        postingDaysData.forEach(post => {
-            const dateStr = post.postedAt.toISODate()
-            postingDaysMap.set(dateStr, (postingDaysMap.get(dateStr) || 0) + 1)
-        })
-
-        // Transformer les données pour le calendrier
-        let posting_days = Array.from(postingDaysMap.entries()).map(([date, count]) => ({
-            date,
-            count: count as number
-        }))
-
-        console.log(`Total Posts: ${all_posts.length}`)
+        await this.cacheManager.set(cacheKey, responseData, 300)
 
         return inertia.render('Analytics', {
             followers_history,
             posting_days,
-            all_posts
+            all_posts,
+            account: selectedAccount
         })
     }
+
+    /**
+     * Affiche la page d'analyse d'audience pour un compte spécifique
+     */
+    public async audienceAnalysisPage({ params, response, auth, inertia }: HttpContext) {
+        const user = await auth.authenticate()
+        if (!user) {
+            return response.status(401).redirect('/login')
+        }
+
+        const accountId = params.id
+
+        try {
+            // Trouver le compte spécifique
+            const selectedAccount = await Account.query()
+                .where('id', accountId)
+                .andWhere('userId', user.id)
+                .firstOrFail()
+
+
+            console.log(selectedAccount.id)
+            const [clusters, superClusters] = await Promise.all([
+                Cluster.query()
+                    .where('accountHandle', selectedAccount.handle)
+                    .preload('superCluster'),
+                SuperCluster.query()
+                    .where('accountHandle', selectedAccount.handle)
+            ])
+
+            console.log("Clusters:", clusters)
+            console.log("superClusters: ", superClusters)
+
+            // Si l'analyse est complétée, charger les clusters et super clusters
+            if (superClusters.length > 0) {
+                console.log('Analyse d\'audience déjà commencée, chargement des données...')
+
+                console.log(superClusters)
+                return inertia.render('AudienceAnalysis', {
+                    account: selectedAccount,
+                    clusters,
+                    superClusters
+                })
+            } else {
+                // Si l'analyse n'est pas encore complétée, afficher la page avec les données de base
+                console.log('Analyse d\'audience non complétée, affichage de la page avec données de base...')
+                return inertia.render('AudienceAnalysis', {
+                    account: selectedAccount,
+                    clusters: [],
+                    superClusters: []
+                })
+            }
+        } catch (error) {
+            console.error('Erreur lors du chargement de l\'analyse d\'audience:', error)
+            return response.redirect('/dashboard')
+        }
+    }
+
 
     /**
      * Enregistre l'état actuel des followers pour un compte
      */
     private async recordFollowersHistory(account: Account) {
         try {
-            const accountService = await account_manager.getOrCreateAccountService(account);
+            const accountService = await this.account_manager.getOrCreateAccountService(account);
             await accountService.createOrResumeSession(account);
 
             // Mettre à jour les stats du compte
@@ -153,25 +284,6 @@ export default class AnalyticsController {
                 recordedAt: DateTime.now()
             });
 
-            // Créer quelques points de données historiques fictives pour avoir un graphique plus intéressant
-            const now = DateTime.now();
-            const baseCount = account.followers_count || 10;
-
-            // Générer 30 jours d'historique fictif avec une croissance progressive
-            for (let i = 1; i <= 30; i++) {
-                // Simuler une croissance inversée (de maintenant vers le passé)
-                const pastFollowersCount = Math.max(5, Math.floor(baseCount * (1 - (i / 100))));
-                // Ajouter un peu de variation aléatoire
-                const randomVariation = Math.floor(Math.random() * 5) - 2;
-
-                await FollowersHistory.create({
-                    userId: account.userId,
-                    accountId: account.id,
-                    followersCount: pastFollowersCount + randomVariation,
-                    recordedAt: now.minus({ days: i })
-                });
-            }
-
             console.log(`Historique des followers créé pour ${account.handle}`);
         } catch (error) {
             console.error("Erreur lors de l'enregistrement de l'historique des followers:", error);
@@ -184,7 +296,7 @@ export default class AnalyticsController {
     private async syncPostsData(account: Account) {
         try {
             // Créer une instance de l'agent et du service
-            const accountService = await account_manager.getOrCreateAccountService(account);
+            const accountService = await this.account_manager.getOrCreateAccountService(account);
 
             // Établir une session
             await accountService.createOrResumeSession(account);

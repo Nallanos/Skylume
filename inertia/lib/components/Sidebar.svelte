@@ -131,21 +131,6 @@
         <MessageSquare class="h-[18px] w-[18px] flex-shrink-0" />
         DM Campaigns
       </a>
-      <a
-        href="/ai-analysis"
-        class="flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-all duration-150 {isActive(
-          '/ai-analysis'
-        )
-          ? 'bg-blue-500/10 text-blue-950 dark:text-blue-500 font-semibold shadow-sm'
-          : 'text-blue-950 dark:text-blue-400 hover:bg-accent/50 hover:text-blue-900 dark:hover:text-blue-500 font-medium'}"
-      >
-        <span
-          class="flex h-[18px] w-[18px] items-center justify-center rounded-full bg-blue-500 text-[9px] font-bold text-white"
-        >
-          AI
-        </span>
-        AI Analysis
-      </a>
     </div>
 
     {#if user?.plan === 'pro'}

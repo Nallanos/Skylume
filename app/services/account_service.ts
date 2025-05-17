@@ -23,13 +23,13 @@ export default class AccountService {
             if (!res) {
                 throw new Error("getProfile response is undefined")
             }
-            if (!res.data.followersCount)
-                throw new Error("followersCount is undefined")
-            return res.data.followersCount
+            // Retourner 0 si followersCount est undefined ou null
+            return res.data.followersCount || 0;
         } catch (err) {
             await this.updateAccountRateLimit(account, err);
             console.error("Error while fetching followers count in the userBotService: ", err);
-            throw err;
+            // Retourne 0 en cas d'erreur pour éviter l'échec de la fonction
+            return 0;
         }
     }
 
@@ -39,14 +39,13 @@ export default class AccountService {
             if (!res) {
                 throw new Error("getProfile response is undefined")
             }
-            if (!res.data.postsCount) {
-                throw new Error("postsCount is undefined")
-            }
-            return res.data.postsCount
+            // Retourner 0 si postsCount est undefined ou null
+            return res.data.postsCount || 0;
         } catch (err) {
             await this.updateAccountRateLimit(account, err);
             console.error("Error while fetching posts count: ", err);
-            throw err;
+            // Retourne 0 en cas d'erreur pour éviter l'échec de la fonction
+            return 0;
         }
     }
 
@@ -84,16 +83,42 @@ export default class AccountService {
         }
     }
 
+    // Update account stats including followers count, posts count, and engagement rate in the database
     public async updateAccountStats(account: Account): Promise<void> {
         try {
             await this.createOrResumeSession(account);
 
-            // Get all stats concurrently
-            const [followersCount, postsCount, engagementRate] = await Promise.all([
-                this.getFollowersCount(account),
-                this.getPostsCount(account),
-                this.calculateEngagementRate(account)
-            ]);
+            let profile, feed;
+            try {
+                profile = await this.agent.getProfile({ actor: account.handle });
+                if (!profile || !profile.data) {
+                    throw new Error("Profile data is undefined");
+                }
+
+                if (profile.data.followersCount && profile.data.followersCount > 0) {
+                    feed = await this.agent.getAuthorFeed({ actor: account.handle, limit: 10 });
+                }
+            } catch (err) {
+                await this.updateAccountRateLimit(account, err);
+                console.error("Error fetching profile data: ", err);
+                return;
+            }
+
+            const followersCount = profile.data.followersCount || 0;
+            const postsCount = profile.data.postsCount || 0;
+
+            // Calculate engagement rate
+            let engagementRate = "0%";
+            if (followersCount > 0 && feed && feed.data && feed.data.feed && feed.data.feed.length > 0) {
+                let totalEngagement = 0;
+                feed.data.feed.forEach(post => {
+                    totalEngagement += (post.post.likeCount || 0) + (post.post.repostCount || 0);
+                });
+
+                const avgEngagement = totalEngagement / feed.data.feed.length;
+                const engagementRateValue = (avgEngagement / followersCount) * 100;
+                engagementRate = engagementRateValue.toFixed(1) + "%";
+            }
 
             // Update account with new stats
             account.followers_count = followersCount;
@@ -452,7 +477,7 @@ export default class AccountService {
             } catch (err) {
                 await this.updateAccountRateLimit(account, err);
                 console.error("Error while creating or resuming the session for account:", account.handle, err);
-                throw new Error(`Failed to authenticate account ${account.handle}: ${err.message}`);
+                throw new Error(`Failed to authenticate account ${account.handle} : ${err.message}`);
             }
         }
     }
@@ -479,8 +504,9 @@ export default class AccountService {
 
     public async getFollowers(account: Account, did: string, cursor?: string) {
         try {
+            console.log("in get followers old cursor: ", cursor)
             const res = await this.agent.getFollowers({ actor: did, cursor: cursor });
-            console.log(`getting follower ${res.data.cursor}`)
+            console.log(`getting follower new cursor: ${res.data.cursor}`)
             await this.updateAccountRateLimit(account);
             return res.data;
         } catch (err) {

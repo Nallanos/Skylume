@@ -1,17 +1,22 @@
-import type { HttpContext } from '@adonisjs/core/http'
-import crypto from 'crypto'
-import Account from '#models/account'
+import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
-import { DateTime } from 'luxon';
-import User from '#models/user'
+import crypto from 'node:crypto'
+import { DateTime } from 'luxon'
 import { AtpAgent } from '@atproto/api'
-import AccountService from '#services/account_service'
-import PostHistory from '#models/post_history'
+
+// Models
+import User from '#models/user'
+import Account from '#models/account'
 import FollowersHistory from '#models/followers_history'
-import account_manager from '#services/account_manager';
+import PostHistory from '#models/post_history'
+import AccountManager from '#services/account_manager'
+import { QueueManager } from '#services/queue_manager'
+import { CacheManager } from '#services/cache_manager'
 
 @inject()
 export default class AccountController {
+  constructor(protected queueManager: QueueManager, protected account_manager: AccountManager, protected cacheManager: CacheManager) { }
+
 
   public async createAccount({ request, auth, response, session }: HttpContext) {
     const agent = new AtpAgent({ service: "https://bsky.social" })
@@ -80,7 +85,7 @@ export default class AccountController {
       }
 
       // Initialiser l'historique des abonnés pour le nouveau compte
-      const accountService = await account_manager.getOrCreateAccountService(account)
+      const accountService = await this.account_manager.getOrCreateAccountService(account)
       await accountService.createOrResumeSession(account)
 
       try {
@@ -190,14 +195,20 @@ export default class AccountController {
         return response.redirect().back()
       }
 
-      const agent = new AtpAgent({ service: "https://bsky.social" })
-      const accountService = new AccountService(agent)
+      const accountService = await this.account_manager.getOrCreateAccountService(account)
 
       // Établir la session
       await accountService.createOrResumeSession(account)
 
       // Mettre à jour les statistiques
       await accountService.updateAccountStats(account)
+
+      try {
+        await this.cacheManager.delete(`analytics:basic:${accountId}`)
+        console.log(`Cache invalidé pour le compte ${account.handle}`)
+      } catch (cacheError) {
+        console.warn('Échec d\'invalidation du cache:', cacheError)
+      }
 
       // Mettre à jour l'historique des abonnés
       try {
@@ -230,7 +241,7 @@ export default class AccountController {
       // Synchroniser les posts récents
       try {
         // Récupérer les posts récents de l'utilisateur
-        const authorFeed = await agent.getAuthorFeed({ actor: account.handle, limit: 10 })
+        const authorFeed = await accountService.agent.getAuthorFeed({ actor: account.handle, limit: 10 })
 
         if (authorFeed && authorFeed.data && authorFeed.data.feed) {
           for (const item of authorFeed.data.feed) {

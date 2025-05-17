@@ -8,7 +8,7 @@ export default class PostHistory extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
 
-  @column()
+  @column({ columnName: 'account_id' })
   declare accountId: string
 
   @column()
@@ -35,7 +35,7 @@ export default class PostHistory extends BaseModel {
   @column()
   declare views: number
 
-  @column.dateTime()
+  @column.dateTime({ columnName: 'posted_at' })
   declare postedAt: DateTime
 
   @column.dateTime({ autoCreate: true })

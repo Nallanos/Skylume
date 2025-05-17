@@ -1,8 +1,17 @@
 import Scheduling from "#models/scheduling";
 import { HttpContext } from "@adonisjs/core/http";
+import { SchedulingQueueManager } from "../bluesky/scheduling_manager.js";
 import Account from "#models/account";
-import scheduling_manager from "../bluesky/scheduling_manager.js";
+import { inject } from "@adonisjs/core";
+
+
+@inject()
 export default class SchedulingsController {
+    constructor(
+        protected scheduling_manager: SchedulingQueueManager) {
+
+    }
+
     public async schedulePost({ request, response, auth }: HttpContext) {
         const user = auth.user
         if (!user) throw new Error("user is not auth")
@@ -28,7 +37,7 @@ export default class SchedulingsController {
 
         const scheduling = await Scheduling.create({ account_id: account.id, message, scheduleTime: schedule_time, userId: account.userId });
 
-        await scheduling_manager.createOneJob(scheduling)
+        await this.scheduling_manager.createOneJob(scheduling)
 
         return response.redirect("/schedule");
     }
@@ -42,8 +51,8 @@ export default class SchedulingsController {
         scheduling.scheduleTime = schedule_time;
         await scheduling.save();
 
-        scheduling_manager.removeJob(scheduling.jobId)
-        scheduling_manager.createOneJob(scheduling)
+        this.scheduling_manager.removeJob(scheduling.jobId)
+        this.scheduling_manager.createOneJob(scheduling)
 
         return response.redirect().back();
     }
@@ -52,7 +61,7 @@ export default class SchedulingsController {
         const { schedule_id } = request.all()
         const scheduling = await Scheduling.findOrFail(schedule_id);
 
-        await scheduling_manager.removeJob(scheduling.jobId);
+        await this.scheduling_manager.removeJob(scheduling.jobId);
 
         await scheduling.delete();
 

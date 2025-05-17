@@ -2,7 +2,7 @@ import AccountService from "./account_service.js"
 import { AtpAgent } from '@atproto/api'
 import Account from '#models/account'
 
-class Account_manager {
+export default class AccountManager {
     public accountServiceMap: Map<string, AccountService> = new Map()
 
     public async getOrCreateAccountService(account: Account): Promise<AccountService> {
@@ -66,5 +66,3 @@ class Account_manager {
         }
     }
 }
-
-export default new Account_manager()

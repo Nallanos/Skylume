@@ -23,16 +23,16 @@
   }
 </script>
 
-<Card>
+<Card class="border-gray-100">
   <CardHeader>
     <CardTitle>Best Performing Posts</CardTitle>
     <CardDescription>Posts with the highest engagement rates</CardDescription>
   </CardHeader>
   <CardContent>
     <div class="overflow-x-auto">
-      <Table>
+      <Table class="border-collapse">
         <TableHeader>
-          <TableRow>
+          <TableRow class="border-b border-gray-100 dark:border-gray-800">
             <TableHead>Post</TableHead>
             <TableHead class="text-right">Likes</TableHead>
             <TableHead class="text-right">Reposts</TableHead>
@@ -47,7 +47,7 @@
             </TableRow>
           {:else}
             {#each posts as post}
-              <TableRow>
+              <TableRow class="border-b border-gray-50 dark:border-gray-800">
                 <TableCell class="max-w-[400px]">
                   <a
                     href={post.url}

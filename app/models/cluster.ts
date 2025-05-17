@@ -10,24 +10,46 @@ export default class Cluster extends BaseModel {
   @column()
   declare tag: string
 
-  @column()
+  @column({
+    prepare: (value: string[] | string) => typeof value === 'string' ? value : JSON.stringify(value),
+    consume: (value: string) => {
+      if (!value) return [];
+      try {
+        return typeof value === 'string' ? JSON.parse(value) : value;
+      } catch (error) {
+        console.error('Error parsing handles:', error);
+        return [];
+      }
+    }
+  })
   declare handles: string[]
 
   @column()
   declare superClusterId: number
 
-  @column()
-  declare embedding: number[]
+  @column({
+    prepare: (value: number[] | string) => typeof value === 'string' ? value : JSON.stringify(value),
+    consume: (value: string) => {
+      if (!value) return [];
+      try {
+        return typeof value === 'string' ? JSON.parse(value) : value;
+      } catch (error) {
+        console.error('Error parsing embeddings:', error);
+        return [];
+      }
+    }
+  })
+  declare embeddings: number[]
 
   @column()
   declare size: number
 
   @column()
-  declare accountId: string
+  declare accountHandle: string
 
   @belongsTo(() => Account)
   declare account: BelongsTo<typeof Account>
 
   @belongsTo(() => SuperCluster)
-  declare SuperCluster: BelongsTo<typeof SuperCluster>
+  declare superCluster: BelongsTo<typeof SuperCluster>
 }
