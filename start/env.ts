@@ -46,7 +46,16 @@ export default await Env.create(new URL('../', import.meta.url), {
 
   STRIPE_PUBLIC_KEY: Env.schema.string(),
   STRIPE_PRICE_ID: Env.schema.string(),
-  STRIPE_SECRET_KEY: Env.schema.string()
+  STRIPE_SECRET_KEY: Env.schema.string(),
+
+  /*
+  |----------------------------------------------------------
+  | Variables for @rlanz/bull-queue
+  |----------------------------------------------------------
+  */
+  QUEUE_REDIS_HOST: Env.schema.string({ format: 'host' }),
+  QUEUE_REDIS_PORT: Env.schema.number(),
+  QUEUE_REDIS_PASSWORD: Env.schema.string.optional()
 })
 
 

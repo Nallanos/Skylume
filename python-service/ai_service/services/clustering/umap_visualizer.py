@@ -4,6 +4,7 @@ import umap
 import os
 from typing import List, Optional, Dict, Tuple
 import logging
+from sklearn.preprocessing import normalize
 
 class UMAPVisualizer:
     """
@@ -13,7 +14,7 @@ class UMAPVisualizer:
     def __init__(self, 
                  n_neighbors: int = 20, 
                  min_dist: float = 0.1,
-                 metric: str = 'cosine',
+                 metric: str = 'euclidean',
                  output_dir: str = './',
                  random_state: int = 42):
         """
@@ -29,6 +30,7 @@ class UMAPVisualizer:
         self.n_neighbors = n_neighbors
         self.min_dist = min_dist
         self.metric = metric
+        self.original_metric = metric  # Pour conserver la métrique d'origine demandée
         self.random_state = random_state
         self.output_dir = output_dir
         
@@ -53,11 +55,23 @@ class UMAPVisualizer:
         Returns:
             Tuple des chemins vers les images générées
         """
+        # Convertir en tableau numpy si nécessaire
+        if isinstance(embeddings, list):
+            embeddings = np.array(embeddings)
+            
+        # Prétraitement spécial pour la similarité cosinus
+        # Si la métrique demandée était 'cosine', nous normalisons les vecteurs
+        # puis utilisons la distance euclidienne (équivalent à la distance cosinus)
+        metric_to_use = self.metric
+        if self.original_metric.lower() == 'cosine':
+            embeddings = normalize(embeddings)
+            metric_to_use = 'euclidean'
+        
         # Configurer UMAP pour la réduction de dimensionnalité
         reducer = umap.UMAP(
             n_neighbors=self.n_neighbors,
             min_dist=self.min_dist,
-            metric=self.metric,
+            metric=metric_to_use,
             random_state=self.random_state
         )
         

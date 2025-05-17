@@ -39,6 +39,12 @@ export default defineConfig({
     () => import('@adonisjs/auth/auth_provider'),
     () => import('@adonisjs/inertia/inertia_provider'),
     () => import('@adonisjs/redis/redis_provider'),
+    // Custom service providers
+    // () => import('./app/providers/cache_manager_provider.js'),
+    // () => import('./app/providers/account_manager_provider.js'),
+    // () => import('./app/providers/follower_analysis_service_provider.js'),
+    // () => import('./app/providers/ai_services_provider.js'),
+    // () => import('./app/providers/queue_manager_provider.js'),
   ],
 
   /*
@@ -49,7 +55,7 @@ export default defineConfig({
   | List of modules to import before starting the application.
   |
   */
-  preloads: [() => import('#start/routes'), () => import('#start/kernel'), () => import('#start/websocket')],
+  preloads: [() => import('#start/routes'), () => import('#start/kernel')],
 
   /*
   |--------------------------------------------------------------------------

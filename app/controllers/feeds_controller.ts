@@ -1,13 +1,14 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import Account from '#models/account'
 import { FeedService } from '#services/feed_service'
+import AccountManager from '#services/account_manager'
 import { inject } from '@adonisjs/core'
 import Feed from '#models/feed'
-import account_manager from '#services/account_manager'
 
 @inject()
 export default class FeedsController {
-    private feedService: FeedService = new FeedService()
+
+    constructor(protected feedService: FeedService, protected account_manager: AccountManager) { }
 
     public async processPosts({ request, response, auth, inertia }: HttpContext) {
         try {
@@ -26,7 +27,7 @@ export default class FeedsController {
 
             const feed = await Feed.findOrFail(feedId)
             const account = await Account.findOrFail(feed.account_id)
-            const accountService = await account_manager.getOrCreateAccountService(account)
+            const accountService = await this.account_manager.getOrCreateAccountService(account)
             const data = await this.feedService.getPertinentPosts(
                 accountService,
                 account,

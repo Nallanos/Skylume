@@ -2,6 +2,7 @@ import hdbscan
 import numpy as np
 from typing import List, Dict, Any, Tuple, Optional
 from ai_service.models.interfaces.clustering_model import ClusteringModel
+from sklearn.preprocessing import normalize
 
 class HDBSCANClusterer(ClusteringModel):
     """
@@ -9,19 +10,20 @@ class HDBSCANClusterer(ClusteringModel):
     """
     
     def __init__(self, min_cluster_size: int = 3, min_samples: Optional[int] = None, 
-                 metric: str = "cosine", cluster_selection_method: str = 'eom'):
+                 metric: str = "euclidean", cluster_selection_method: str = 'eom'):
         """
         Initialise le clusterer HDBSCAN
         
         Args:
             min_cluster_size: Taille minimale d'un cluster
             min_samples: Nombre minimum d'échantillons dans un voisinage pour un point central
-            metric: Métrique de distance à utiliser ('cosine', 'euclidean', etc.)
+            metric: Métrique de distance à utiliser ('euclidean', 'manhattan', etc.)
             cluster_selection_method: Méthode de sélection des clusters ('eom' ou 'leaf')
         """
         self.min_cluster_size = min_cluster_size
         self.min_samples = min_samples if min_samples is not None else min_cluster_size - 1
         self.metric = metric
+        self.original_metric = metric  # Pour garder trace de la métrique d'origine demandée
         self.cluster_selection_method = cluster_selection_method
         
     def fit_predict(self, embeddings: List[List[float]]) -> Tuple[np.ndarray, Any]:
@@ -39,6 +41,13 @@ class HDBSCANClusterer(ClusteringModel):
         # Convertir en tableau numpy si ce n'est pas déjà fait
         if isinstance(embeddings, list):
             embeddings = np.array(embeddings)
+            
+        # Prétraitement spécial pour la similarité cosinus
+        # Si la métrique demandée était 'cosine', nous normalisons les vecteurs
+        # puis utilisons la distance euclidienne (équivalent à la distance cosinus)
+        if self.original_metric.lower() == 'cosine':
+            embeddings = normalize(embeddings)
+            self.metric = 'euclidean'
         
         # Créer et configurer le clusterer
         clusterer = hdbscan.HDBSCAN(
@@ -51,7 +60,8 @@ class HDBSCANClusterer(ClusteringModel):
         )
         
         # Effectuer le clustering
-        labels = clusterer.fit_predict(embeddings)
+        # Appel direct à la méthode fit_predict de l'instance HDBSCAN plutôt qu'à notre propre méthode
+        labels = clusterer.fit(embeddings).labels_
         
         return labels, clusterer
     
@@ -65,7 +75,7 @@ class HDBSCANClusterer(ClusteringModel):
         return {
             "min_cluster_size": self.min_cluster_size,
             "min_samples": self.min_samples,
-            "metric": self.metric,
+            "metric": self.original_metric,  # Renvoyer la métrique d'origine demandée
             "cluster_selection_method": self.cluster_selection_method
         }
     
@@ -87,6 +97,7 @@ class HDBSCANClusterer(ClusteringModel):
                 self.min_samples = self.min_cluster_size - 1
         
         if 'metric' in kwargs:
+            self.original_metric = kwargs['metric']
             self.metric = kwargs['metric']
             
         if 'cluster_selection_method' in kwargs:
@@ -100,7 +111,10 @@ class HDBSCANClusterer(ClusteringModel):
             dataset_size: Nombre d'éléments dans le dataset
         """
         # Ajuster min_cluster_size en fonction de la taille du dataset
-        # Règle heuristique: environ 5% de la taille du dataset, avec un minimum de 3
-        self.min_cluster_size = max(3, int(dataset_size * 0.05))
-        # Ajuster min_samples automatiquement
-        self.min_samples = max(2, self.min_cluster_size - 1)
+        # Règle heuristique: environ 2% de la taille du dataset, avec un minimum de 2
+        self.min_cluster_size = max(2, int(dataset_size * 0.02))
+        # Ajuster min_samples plus bas pour permettre des clusters moins denses
+        self.min_samples = max(1, int(self.min_cluster_size * 0.5))
+        # Pour les très petits ensembles de données, utiliser le mode "leaf"
+        if dataset_size < 50:
+            self.cluster_selection_method = 'leaf'

@@ -43,7 +43,8 @@ class TagService:
         """
         # Initialiser ou utiliser les composants par défaut
         self.embedding_model = embedding_model or TransformerEmbedder("sentence-transformers/all-mpnet-base-v2")
-        self.clusterer = clusterer or HDBSCANClusterer()
+        # Utiliser la métrique cosinus qui est plus adaptée aux embeddings de texte
+        self.clusterer = clusterer or HDBSCANClusterer(metric="cosine", cluster_selection_method="leaf")
         self.tag_generator = tag_generator or KeyBERTTagger()
         self.text_cleaner = text_cleaner or TextCleaner()
         self.visualizer = UMAPVisualizer(output_dir=visualizer_output_dir)
@@ -71,7 +72,7 @@ class TagService:
         try:
             # Configuration
             semaphore = asyncio.Semaphore(max_concurrent)
-            account_service = self._create_account_service(database, account_handle)
+            account_service = await self._create_account_service(database, account_handle)
             
             # Récupération des données
             self.logger.info(f"Démarrage de generate_tags pour {account_handle} avec {len(followers)} followers")
@@ -110,16 +111,18 @@ class TagService:
         """
         Crée et configure un service de compte Bluesky
         """
-        account_service = AccountService(Client())
+        client = Client()
+        account_service = AccountService(client)
         
         # Récupérer les données du compte
         self.logger.info("Récupération des données du compte")
         account = await database.fetch("SELECT * FROM accounts WHERE handle=$1", account_handle)
+        print(account)
         if not account:
             raise ValueError(f"Compte non trouvé: {account_handle}")
         
         # Login
-        await asyncio.to_thread(account_service.login, account[0]["handle"], account[0]["app_password"])
+        account_service.login(account[0]["handle"], account[0]["app_password"])
         return account_service
     
     async def _fetch_follower_data(self, followers: List[ProfileView], 
@@ -142,17 +145,24 @@ class TagService:
         """
         Récupère les données pour un seul follower
         """
-        profile = await asyncio.to_thread(account_service.get_profile, follower["handle"])
-        if not profile:
-            return None
+        async with semaphore:
+            try:
+                # Get profile is a synchronous method, so we use to_thread
+                profile = await asyncio.to_thread(account_service.get_profile, follower["handle"])
+                if not profile:
+                    return None
 
-        follows, posts = await self._process_follows_and_posts(account_service, profile.did, semaphore)
+                # Get profile data is a synchronous method that returns follows and posts
+                follows, posts = await asyncio.to_thread(account_service.get_profile_data, profile.did)
 
-        return {
-            "profile": profile,
-            "follows": follows,
-            "posts": posts
-        }
+                return {
+                    "profile": profile,
+                    "follows": follows,
+                    "posts": posts
+                }
+            except Exception as e:
+                self.logger.error(f"Error fetching data for follower {follower['handle']}: {e}")
+                return None
     
     async def _process_follows_and_posts(self, account_service: AccountService, 
                                         did: str, 

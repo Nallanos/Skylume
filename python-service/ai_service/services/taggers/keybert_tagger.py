@@ -70,10 +70,9 @@ class KeyBERTTagger(TagGenerator):
                 corpus,
                 keyphrase_ngram_range=(1, 3),
                 top_n=top_n,
-                nr_candidates=30,  # Augmentation des candidats
+                nr_candidates=40,  # Augmentation des candidats
                 use_mmr=True,
-                diversity=0.5,     # Plus de diversité
-                threshold=0.25,    # Seuil plus bas pour capter plus de mots-clés
+
             )
             
             # Puis extraction avec MaxSum pour les termes les plus représentatifs
@@ -106,10 +105,10 @@ class KeyBERTTagger(TagGenerator):
             
             # Utiliser le modèle d'embedding fourni ou utiliser KeyBERT
             if self.embedding_model:
-                keywords_embeddings = self.embedding_model.encode(keyword_texts)
+                keywords_embeddings = self.embedding_model.encode(corpus)
             else:
                 # Utiliser le modèle intégré de KeyBERT
-                doc_embeddings = self.model.model.encode(keyword_texts)
+                doc_embeddings = self.model.model.encode(cleaned_texts)
                 keywords_embeddings = doc_embeddings.tolist()
             
             return final_keywords, keywords_embeddings

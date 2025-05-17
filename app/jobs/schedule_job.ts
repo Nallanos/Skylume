@@ -1,12 +1,12 @@
 import Account from "#models/account";
 import Scheduling from "#models/scheduling";
-import account_manager from "#services/account_manager";
+import type AccountService from "#services/account_service";
 
 interface ScheduleJobPayload {
     schedule_id: number;
 }
 
-const handle = async (data: ScheduleJobPayload): Promise<void> => {
+const handle = async (data: ScheduleJobPayload, account_service: AccountService): Promise<void> => {
     try {
         const schedule = await Scheduling.find(data.schedule_id);
 
@@ -15,7 +15,6 @@ const handle = async (data: ScheduleJobPayload): Promise<void> => {
         }
 
         const account = await Account.findOrFail(schedule.account_id)
-        const account_service = await account_manager.getOrCreateAccountService(account)
 
         if (!account) {
             throw new Error(`Account not found for ID: ${schedule.account.id}`);

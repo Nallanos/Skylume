@@ -2,6 +2,7 @@
   import Sidebar from '@/components/Sidebar.svelte'
   import { page } from '@inertiajs/svelte'
   import type User from '#models/user'
+  import type Account from '#models/account'
 
   // Import components
   import FollowersChart from '@/components/FollowersChart.svelte'
@@ -20,16 +21,9 @@
     url: string
     engagement_rate: number
   }[] = []
+  export let account: Account
 
   $: user = $page.props.user as User
-  $: accounts = user?.account || []
-  $: selectedAccount = accounts.length > 0 ? accounts[0].handle : null
-
-  // Handle account change in the selector
-  function handleAccountChange(handle: string) {
-    selectedAccount = handle
-    window.location.href = `/analytics/${handle}`
-  }
 </script>
 
 <div class="flex min-h-screen bg-background">
@@ -43,20 +37,15 @@
         <p class="text-muted-foreground mt-1">Insights and performance of your Bluesky accounts</p>
       </div>
 
-      <!-- Account selector for multi-account users -->
-      {#if accounts.length > 1}
-        <div class="w-full md:w-auto">
-          <select
-            class="border border-gray-200 dark:border-gray-800 rounded-md px-3 py-2 bg-transparent"
-            bind:value={selectedAccount}
-            on:change={(e) => handleAccountChange(e.currentTarget.value)}
-          >
-            {#each accounts as account}
-              <option value={account.handle}>@{account.handle}</option>
-            {/each}
-          </select>
-        </div>
-      {/if}
+      <div class="flex space-x-3 items-center">
+        <!-- Lien vers l'analyse d'audience avancée -->
+        <a
+          href="/analytics/{account.id}/audience"
+          class="bg-gradient-to-r from-blue-500 to-indigo-500 hover:from-blue-600 hover:to-indigo-600 text-white px-4 py-2 rounded-md text-sm font-medium"
+        >
+          Analyse d'audience avancée
+        </a>
+      </div>
     </div>
 
     <div class="space-y-6">

@@ -2,6 +2,8 @@ import type { ProfileView } from "@atproto/api/dist/client/types/app/bsky/actor/
 import { Agent } from "@atproto/api";
 import pQueue from 'p-queue';
 import KMeans from 'ml-kmeans';
+import crypto from 'crypto';
+
 
 // Import Transformers.js (cela fonctionnera localement avec WASM ou en pur JS)
 import { FeatureExtractionPipeline, pipeline } from '@xenova/transformers';
@@ -15,17 +17,22 @@ export class TargetAudienceService {
   // Utilisation d'un modèle via Transformers.js
   private static model: FeatureExtractionPipeline | null = null;
   private static modelPromise: Promise<void>;
-  private apiQueue = new pQueue({ concurrency: 5, interval: 1200, intervalCap: 2 });
+  private apiQueue = new pQueue({ concurrency: 15, interval: 600, intervalCap: 5 }); // Augmentation de la concurrence
+
+  // Cache pour stocker les embeddings déjà calculés
+  private embeddingsCache: Map<string, number[]> = new Map();
+  private similarityCache: Map<string, number> = new Map();
 
   constructor() {
     TargetAudienceService.modelPromise = this.initModel();
+    console.log('TargetAudienceService initialized with cache');
   }
 
   private async initModel() {
     console.log('Initializing Transformers model (all-MiniLM-L6-v2)...');
     if (!TargetAudienceService.model) {
       try {
-        // Crée un pipeline pour l’extraction d’embeddings (le modèle sera téléchargé si nécessaire)
+        // Crée un pipeline pour l'extraction d'embeddings (le modèle sera téléchargé si nécessaire)
         TargetAudienceService.model = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
         console.log('Model loaded successfully.');
       } catch (error) {
@@ -34,6 +41,16 @@ export class TargetAudienceService {
     }
   }
 
+  // Génère une clé de cache unique pour deux textes
+  private generateCacheKey(text1: string, text2?: string): string {
+    if (text2) {
+      // Pour la similarité entre deux textes, créer une clé qui ne dépend pas de l'ordre
+      const sortedTexts = [text1, text2].sort();
+      return crypto.createHash('md5').update(sortedTexts.join('|')).digest('hex');
+    }
+    // Pour un seul texte (embedding)
+    return crypto.createHash('md5').update(text1).digest('hex');
+  }
 
   // Convertit un Float32Array en tableau de tableaux (number[][])
   // en découpant le tableau selon le batchSize (nombre d'entrées passées au modèle)
@@ -57,11 +74,46 @@ export class TargetAudienceService {
     if (!TargetAudienceService.model) {
       throw new Error('Model not initialized');
     }
-    const res = await TargetAudienceService.model(keywords);
-    // Conversion du DataArray en number[][]
-    const embeddings = this.convertEmbeddings(res.data as Float32Array, keywords.length);
-    console.log(`Prepared embeddings for ${keywords.length} keywords. ${embeddings.length} embeddings generated.`);
-    return { set: kwSet, embeddings: this.normalizeEmbeddings(embeddings) };
+
+    // Utiliser le cache pour les mots clés déjà traités
+    const cachedEmbeddings: number[][] = [];
+    const uncachedKeywords: string[] = [];
+
+    // Vérifier quels mots clés sont déjà en cache
+    for (const keyword of keywords) {
+      const cacheKey = this.generateCacheKey(keyword);
+      const cachedEmbedding = this.embeddingsCache.get(cacheKey);
+
+      if (cachedEmbedding) {
+        cachedEmbeddings.push(cachedEmbedding);
+      } else {
+        uncachedKeywords.push(keyword);
+      }
+    }
+
+    // Traiter uniquement les mots clés non mis en cache
+    let newEmbeddings: number[][] = [];
+    if (uncachedKeywords.length > 0) {
+      const res = await TargetAudienceService.model(uncachedKeywords);
+      newEmbeddings = this.convertEmbeddings(res.data as Float32Array, uncachedKeywords.length);
+
+      // Mettre en cache les nouveaux embeddings
+      uncachedKeywords.forEach((keyword, index) => {
+        const cacheKey = this.generateCacheKey(keyword);
+        this.embeddingsCache.set(cacheKey, this.normalizeEmbeddings([newEmbeddings[index]])[0]);
+      });
+    }
+
+    // Combiner les embeddings en cache et les nouveaux
+    const allEmbeddings = [...cachedEmbeddings, ...newEmbeddings];
+    console.log(`Prepared embeddings for ${keywords.length} keywords. ${allEmbeddings.length} embeddings generated.`);
+
+    return {
+      set: kwSet,
+      embeddings: allEmbeddings.length === cachedEmbeddings.length ?
+        allEmbeddings : // Si tout était en cache, pas besoin de normaliser à nouveau
+        this.normalizeEmbeddings(allEmbeddings)
+    };
   }
 
   // ──────────────────────────────
@@ -73,22 +125,59 @@ export class TargetAudienceService {
     });
   }
 
-  // ──────────────────────────────
-  // Calcul de la similarité cosinus (les vecteurs étant normalisés, le produit scalaire suffit)
-  private cosineSimilarity(vec1: number[], vec2: number[]): number {
+
+  public cosineSimilarity(vec1: number[], vec2: number[]): number {
     let dot = 0;
+    let normA = 0;
+    let normB = 0;
+
     for (let i = 0; i < vec1.length; i++) {
       dot += vec1[i] * vec2[i];
+      normA += vec1[i] * vec1[i];
+      normB += vec2[i] * vec2[i];
     }
-    return dot;
+
+    return dot / (Math.sqrt(normA) * Math.sqrt(normB));
   }
   // ──────────────────────────────
   // Calcul de la similarité sémantique entre un ensemble de mots et des keywords.
   private async semanticMatch(words: string[], keywordData: KeywordData): Promise<number> {
     if (!TargetAudienceService.model) throw new Error('Model not initialized');
-    const wordEmbeddingsRes = await TargetAudienceService.model(words);
-    const wordEmbeddings = this.convertEmbeddings(wordEmbeddingsRes.data as Float32Array, words.length);
-    const normalizedWords = this.normalizeEmbeddings(wordEmbeddings);
+
+    // Traiter les mots en utilisant le cache
+    const cachedEmbeddings: number[][] = [];
+    const uncachedWords: string[] = [];
+
+    for (const word of words) {
+      const cacheKey = this.generateCacheKey(word);
+      const cachedEmbedding = this.embeddingsCache.get(cacheKey);
+
+      if (cachedEmbedding) {
+        cachedEmbeddings.push(cachedEmbedding);
+      } else {
+        uncachedWords.push(word);
+      }
+    }
+
+    // Traiter uniquement les mots non mis en cache
+    let newEmbeddings: number[][] = [];
+    if (uncachedWords.length > 0) {
+      const wordEmbeddingsRes = await TargetAudienceService.model(uncachedWords);
+      newEmbeddings = this.convertEmbeddings(wordEmbeddingsRes.data as Float32Array, uncachedWords.length);
+      const normalizedNew = this.normalizeEmbeddings(newEmbeddings);
+
+      // Mettre en cache les nouveaux embeddings
+      uncachedWords.forEach((word, index) => {
+        const cacheKey = this.generateCacheKey(word);
+        this.embeddingsCache.set(cacheKey, normalizedNew[index]);
+      });
+
+      newEmbeddings = normalizedNew;
+    }
+
+    // Combiner les embeddings en cache et les nouveaux
+    const normalizedWords = [...cachedEmbeddings, ...newEmbeddings];
+
     let matchCount = 0;
     const threshold = 0.65;
     for (let i = 0; i < normalizedWords.length; i++) {
@@ -156,12 +245,18 @@ export class TargetAudienceService {
       if (!TargetAudienceService.model) throw new Error("Model is not initialized");
       if (!text) throw new Error("Text is null");
 
+      const cacheKey = this.generateCacheKey(text);
+      if (this.embeddingsCache.has(cacheKey)) {
+        return this.embeddingsCache.get(cacheKey)!;
+      }
+
       const tensor = await TargetAudienceService.model(text, {
         pooling: "mean",
         normalize: true,
       });
 
       const embedding = tensor.tolist()[0];
+      this.embeddingsCache.set(cacheKey, embedding);
       return embedding;
     } catch (err) {
       console.error("Error while getting embedding", err);
@@ -214,10 +309,25 @@ export class TargetAudienceService {
   public async getSemanticSimilarity(text1: string, text2: string): Promise<number> {
     await TargetAudienceService.modelPromise;
     if (!TargetAudienceService.model) throw new Error('Model not initialized');
+
+    // Vérifier le cache de similarité
+    const cacheKey = this.generateCacheKey(text1, text2);
+    if (this.similarityCache.has(cacheKey)) {
+      return this.similarityCache.get(cacheKey)!;
+    }
+
+    // Traiter les deux textes pour obtenir leurs embeddings
     const embeddingsRes = await TargetAudienceService.model([text1, text2]);
     const embeddings = this.convertEmbeddings(embeddingsRes.data as Float32Array, 2);
     const normalized = this.normalizeEmbeddings(embeddings);
-    return this.cosineSimilarity(normalized[0], normalized[1]);
+
+    // Calculer la similarité
+    const similarity = this.cosineSimilarity(normalized[0], normalized[1]);
+
+    // Mettre en cache le résultat
+    this.similarityCache.set(cacheKey, similarity);
+
+    return similarity;
   }
 
   public async getClassifiedFollowers(
@@ -287,6 +397,8 @@ export class TargetAudienceService {
       console.log(err);
     }
   }
+
+
 }
 
 type AverageProfileEmbeddings = {
@@ -302,4 +414,3 @@ type ProfileEmbeddings = {
   followingBio: number[][],
 }
 
-export default new TargetAudienceService();

@@ -5,27 +5,66 @@
   // Props
   export let posting_days: { date: string; count: number }[] = []
 
-  // Reactive variable for theme detection
+  // Normaliser les données au cas où le format ne serait pas celui attendu
+  $: normalized_posting_days = posting_days.map((day) => ({
+    date:
+      typeof day.date === 'string'
+        ? day.date.includes('T')
+          ? day.date.split('T')[0]
+          : day.date
+        : day.date,
+    count: typeof day.count === 'number' ? day.count : parseInt(day.count as any) || 0,
+  }))
+  // Reactive variable for theme detection - initialized with browser preference when possible
   let isDarkMode = false
 
+  // Initial theme check - will work during SSR without causing hydration issues
+  if (typeof window !== 'undefined' && typeof document !== 'undefined') {
+    // Check for both dark mode class and system preference
+    isDarkMode =
+      document.documentElement.classList.contains('dark') ||
+      (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
+  }
+
   // Contribution calendar data
-  $: calendarData = generateCalendarData()
+  $: calendarData = generateCalendarData(normalized_posting_days)
 
   // Helper function to format dates
   function formatFullDate(dateString: string) {
-    const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' })
+    try {
+      const date = new Date(dateString)
+      if (isNaN(date.getTime())) {
+        console.error(`Date invalide: "${dateString}"`)
+        return 'Date invalide'
+      }
+      return date.toLocaleDateString('en-US', { day: '2-digit', month: 'long', year: 'numeric' })
+    } catch (error) {
+      console.error(`Erreur lors du formatage de la date: "${dateString}"`, error)
+      return 'Erreur de date'
+    }
   }
 
   // Generate calendar data
-  function generateCalendarData() {
+  function generateCalendarData(normalizedPostingDays: { date: string; count: number }[]) {
+    // Déterminer la plage de dates à afficher
+    // Si des dates futures sont présentes, utiliser la date la plus récente comme fin
     const now = new Date()
-    const startDate = new Date(now)
-    startDate.setMonth(now.getMonth() - 11)
+    let endDate = new Date(now)
+
+    // Trouver la date la plus récente dans les données
+    normalizedPostingDays.forEach((day) => {
+      const postDate = new Date(day.date)
+      if (postDate > endDate) {
+        endDate = postDate
+      }
+    })
+
+    // Calculer la date de début (12 mois avant la date de fin)
+    const startDate = new Date(endDate)
+    startDate.setMonth(endDate.getMonth() - 11)
     startDate.setDate(1) // Start from the first day of the month
 
     const days = []
-    const months = []
     const monthPositions = []
     const weekdays = ['Mon', 'Wed', 'Fri']
 
@@ -35,7 +74,7 @@
 
     // Generate all days and track month positions
     const current = new Date(startDate)
-    while (current <= now) {
+    while (current <= endDate) {
       // If month changes, record its position
       if (current.getMonth() !== currentMonth) {
         currentMonth = current.getMonth()
@@ -62,8 +101,9 @@
     }
 
     // Update intensity for each day based on contributions
-    const contributions = posting_days.reduce(
+    const contributions = normalizedPostingDays.reduce(
       (acc: Record<string, number>, day) => {
+        // La date est déjà normalisée à ce stade
         acc[day.date] = day.count
         return acc
       },
@@ -92,54 +132,37 @@
     return 4
   }
 
-  // Generate all days in a week-based grid for the calendar
-  function getGridDays() {
-    // Group days by week (7 days per row) and day of week (column)
-    const grid = []
-    let week = []
-    let lastDayOfWeek = 0
-
-    for (const day of calendarData.days) {
-      const dayOfWeek = new Date(day.date).getDay()
-
-      // If we've wrapped around to a new week, start a new row
-      if (dayOfWeek < lastDayOfWeek) {
-        grid.push(week)
-        week = Array(7).fill(null) // Initialize with nulls for empty spots
-      }
-
-      // If this is the first week, we may need to pad the start
-      if (week.length === 0) {
-        week = Array(7).fill(null) // Initialize with nulls
-      }
-
-      week[dayOfWeek] = day
-      lastDayOfWeek = dayOfWeek
-    }
-
-    // Add the last week if it's not empty
-    if (week.some((d) => d !== null)) {
-      grid.push(week)
-    }
-
-    return grid
-  }
-
   onMount(() => {
-    // Check for dark mode only after component is mounted (client-side)
+    // Update dark mode status after component is mounted (client-side)
     isDarkMode =
-      typeof document !== 'undefined' && document.documentElement.classList.contains('dark')
+      document.documentElement.classList.contains('dark') ||
+      (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)
 
     // Add listener to update if theme changes
-    if (typeof document !== 'undefined') {
-      const observer = new MutationObserver(() => {
-        isDarkMode = document.documentElement.classList.contains('dark')
-      })
+    const observer = new MutationObserver(() => {
+      isDarkMode = document.documentElement.classList.contains('dark')
+    })
 
-      observer.observe(document.documentElement, {
-        attributes: true,
-        attributeFilter: ['class'],
-      })
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class'],
+    })
+
+    // Also listen for system preference changes
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
+    const handleChange = (e: MediaQueryListEvent) => {
+      if (
+        !document.documentElement.classList.contains('dark') &&
+        !document.documentElement.classList.contains('light')
+      ) {
+        isDarkMode = e.matches
+      }
+    }
+
+    mediaQuery.addEventListener('change', handleChange)
+    return () => {
+      observer.disconnect()
+      mediaQuery.removeEventListener('change', handleChange)
     }
   })
 </script>
@@ -153,7 +176,7 @@
     <div class="contribution-calendar pb-4">
       <!-- Month labels with correct positioning -->
       <div class="month-labels relative h-6 mb-2">
-        {#each calendarData.monthPositions as month, i}
+        {#each calendarData.monthPositions as month}
           <div
             class="absolute text-xs text-muted-foreground"
             style="left: calc({month.position} * 20px)"
@@ -179,16 +202,11 @@
               {@const intensity = day.intensity}
               <div
                 class="contribution-cell w-4 h-4 rounded-sm transition-all cursor-pointer m-[2px]"
-                class:bg-gray-200={intensity === 0 && !isDarkMode}
-                class:bg-gray-800={intensity === 0 && isDarkMode}
-                class:bg-green-100={intensity === 1 && !isDarkMode}
-                class:bg-green-900={intensity === 1 && isDarkMode}
-                class:bg-green-200={intensity === 2 && !isDarkMode}
-                class:bg-green-700={intensity === 2 && isDarkMode}
-                class:bg-green-300={intensity === 3 && !isDarkMode}
-                class:bg-green-600={intensity === 3 && isDarkMode}
-                class:bg-green-400={intensity === 4 && !isDarkMode}
-                class:bg-green-500={intensity === 4 && isDarkMode}
+                class:contribution-cell-empty={intensity === 0}
+                class:contribution-cell-level-1={intensity === 1}
+                class:contribution-cell-level-2={intensity === 2}
+                class:contribution-cell-level-3={intensity === 3}
+                class:contribution-cell-level-4={intensity === 4}
                 title={`${formatFullDate(day.date)}: ${calendarData.contributions[day.date] || 0} posts`}
               ></div>
             {/each}
@@ -199,11 +217,11 @@
       <!-- Legend -->
       <div class="flex items-center justify-end mt-4 text-xs text-muted-foreground">
         <span class="mr-2">Less</span>
-        <div class="w-3 h-3 rounded-sm bg-gray-200 dark:bg-gray-800 mr-1"></div>
-        <div class="w-3 h-3 rounded-sm bg-green-100 dark:bg-green-900 mr-1"></div>
-        <div class="w-3 h-3 rounded-sm bg-green-200 dark:bg-green-700 mr-1"></div>
-        <div class="w-3 h-3 rounded-sm bg-green-300 dark:bg-green-600 mr-1"></div>
-        <div class="w-3 h-3 rounded-sm bg-green-400 dark:bg-green-500 mr-1"></div>
+        <div class="w-3 h-3 rounded-sm contribution-cell-empty mr-1"></div>
+        <div class="w-3 h-3 rounded-sm contribution-cell-level-1 mr-1"></div>
+        <div class="w-3 h-3 rounded-sm contribution-cell-level-2 mr-1"></div>
+        <div class="w-3 h-3 rounded-sm contribution-cell-level-3 mr-1"></div>
+        <div class="w-3 h-3 rounded-sm contribution-cell-level-4 mr-1"></div>
         <span>More</span>
       </div>
     </div>
@@ -234,10 +252,53 @@
     grid-auto-flow: column;
     grid-auto-columns: 20px;
     gap: 1px;
+    min-height: 118px; /* Hauteur minimale pour éviter les sauts lors du rendu */
   }
 
   .contribution-cell {
     width: 16px;
     height: 16px;
+  }
+
+  /* Dedicated classes for each intensity level with proper light/dark mode support */
+  .contribution-cell-empty {
+    background-color: #ebedf0; /* Light gray for light mode */
+  }
+
+  .contribution-cell-level-1 {
+    background-color: #9be9a8; /* Light green */
+  }
+
+  .contribution-cell-level-2 {
+    background-color: #40c463; /* Medium green */
+  }
+
+  .contribution-cell-level-3 {
+    background-color: #30a14e; /* Darker green */
+  }
+
+  .contribution-cell-level-4 {
+    background-color: #216e39; /* Darkest green */
+  }
+
+  /* Dark mode overrides using :global to ensure they apply */
+  :global(.dark) .contribution-cell-empty {
+    background-color: #2d333b; /* Dark gray for dark mode */
+  }
+
+  :global(.dark) .contribution-cell-level-1 {
+    background-color: #0e4429; /* Dark green level 1 */
+  }
+
+  :global(.dark) .contribution-cell-level-2 {
+    background-color: #006d32; /* Dark green level 2 */
+  }
+
+  :global(.dark) .contribution-cell-level-3 {
+    background-color: #26a641; /* Dark green level 3 */
+  }
+
+  :global(.dark) .contribution-cell-level-4 {
+    background-color: #39d353; /* Dark green level 4 */
   }
 </style>
