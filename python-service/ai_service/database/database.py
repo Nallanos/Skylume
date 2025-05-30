@@ -35,7 +35,7 @@ class Database:
                 return await conn.fetch(query, *args)
         except Exception as e: 
             print("error while fetching database", e)
-            raise Exception("error while fetching database" + e)
+            raise Exception(f"error while fetching database: {str(e)}")
 
     async def execute(self, query, *args):
         if not self._pool:

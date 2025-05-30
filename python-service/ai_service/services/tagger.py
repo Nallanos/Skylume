@@ -50,7 +50,7 @@ def _get_tag_service() -> TagService:
     
     return _tag_service
 
-async def generate_tags(account_handle: str, followers: List[ProfileView], database: Database, max_concurrent: int = 15) -> List[Dict[str, Any]]:
+async def generate_tags(account_handle: str, followers: List[ProfileView], database: Database, max_concurrent: int = 1) -> List[Dict[str, Any]]:
     """
     Génère des tags pour regrouper les followers d'un compte.
     Cette fonction est le point d'entrée principal du module.

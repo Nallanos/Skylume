@@ -1,9 +1,8 @@
 import { BaseModel, belongsTo, column, computed, hasMany } from '@adonisjs/lucid/orm'
 import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import User from './user.js'
-import type { AtpSessionData } from "@atcute/client"
 import Feed from './feed.js'
-
+import type { AtpSessionData } from '@atproto/api'
 export default class Account extends BaseModel {
   @column({ isPrimary: true })
   declare id: string
@@ -83,4 +82,7 @@ export default class Account extends BaseModel {
 
   @column()
   declare numbersOfFollowersAnalyzed: number
+
+  @column()
+  declare numbersOfFollowersToAnalyze: number
 }

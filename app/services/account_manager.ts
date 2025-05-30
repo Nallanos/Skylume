@@ -1,7 +1,9 @@
 import AccountService from "./account_service.js"
 import { AtpAgent } from '@atproto/api'
 import Account from '#models/account'
+import { inject } from '@adonisjs/core'
 
+@inject()
 export default class AccountManager {
     public accountServiceMap: Map<string, AccountService> = new Map()
 
