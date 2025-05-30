@@ -10,12 +10,11 @@ import Account from '#models/account'
 import FollowersHistory from '#models/followers_history'
 import PostHistory from '#models/post_history'
 import AccountManager from '#services/account_manager'
-import { QueueManager } from '#services/queue_manager'
 import { CacheManager } from '#services/cache_manager'
 
 @inject()
 export default class AccountController {
-  constructor(protected queueManager: QueueManager, protected account_manager: AccountManager, protected cacheManager: CacheManager) { }
+  constructor(protected account_manager: AccountManager, protected cacheManager: CacheManager) { }
 
 
   public async createAccount({ request, auth, response, session }: HttpContext) {
@@ -89,8 +88,11 @@ export default class AccountController {
       await accountService.createOrResumeSession(account)
 
       try {
-        // Récupérer le nombre actuel d'abonnés
-        const followersCount = await accountService.getFollowersCount(account)
+        // Mettre à jour les statistiques du compte (followers_count, posts_count, engagement_rate)
+        await accountService.updateAccountStats(account)
+
+        // Récupérer le nombre actuel d'abonnés (maintenant stocké dans account.followers_count)
+        const followersCount = account.followers_count || await accountService.getFollowersCount(account)
 
         // Créer un premier enregistrement dans l'historique des abonnés
         await FollowersHistory.create({
@@ -124,9 +126,7 @@ export default class AccountController {
         }
       } catch (error) {
         console.error("Erreur lors de l'initialisation des données d'analytics:", error)
-        // Ne pas bloquer la création du compte en cas d'erreur
       }
-
       return response.redirect('/dashboard')
     } catch (err: any) {
       if (err && err.error === "AuthFactorTokenRequired") {

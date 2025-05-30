@@ -178,28 +178,60 @@ export class TargetAudienceService {
     // Combiner les embeddings en cache et les nouveaux
     const normalizedWords = [...cachedEmbeddings, ...newEmbeddings];
 
-    let matchCount = 0;
-    const threshold = 0.65;
+    // Système de scoring progressif avec plusieurs seuils (plus permissifs)
+    let totalScore = 0;
+    const highThreshold = 0.70;    // Correspondance très forte (réduit de 0.75)
+    const mediumThreshold = 0.55;  // Correspondance moyenne (réduit de 0.60)
+    const lowThreshold = 0.40;     // Correspondance faible mais significative (réduit de 0.45)
+
     for (let i = 0; i < normalizedWords.length; i++) {
+      let bestSimilarity = 0;
       for (let j = 0; j < keywordData.embeddings.length; j++) {
         const sim = this.cosineSimilarity(normalizedWords[i], keywordData.embeddings[j]);
-        if (sim > threshold) matchCount++;
+        bestSimilarity = Math.max(bestSimilarity, sim);
+      }
+
+      // Scoring progressif basé sur la meilleure similarité
+      if (bestSimilarity >= highThreshold) {
+        totalScore += 3.0; // Score élevé pour correspondance forte
+      } else if (bestSimilarity >= mediumThreshold) {
+        totalScore += 2.0; // Score moyen
+      } else if (bestSimilarity >= lowThreshold) {
+        totalScore += 1.0; // Score faible mais comptabilisé
+      }
+
+      // Log pour debug des correspondances significatives
+      if (bestSimilarity >= lowThreshold) {
+        console.log(`Semantic match found: similarity ${bestSimilarity.toFixed(3)}, score added: ${bestSimilarity >= highThreshold ? 3.0 : bestSimilarity >= mediumThreshold ? 2.0 : 1.0}`);
       }
     }
-    return matchCount;
+
+    return totalScore;
   }
 
-  // Compte les correspondances exactes et sémantiques
+  // Compte les correspondances exactes et sémantiques avec scoring amélioré
   private async countMatches(words: string[], keywordData: KeywordData): Promise<number> {
-    const exactMatches = words.filter(w => keywordData.set.has(w.toLowerCase())).length;
-    const remainingWords = words.filter(w => !keywordData.set.has(w.toLowerCase()));
-    let matchCount = exactMatches;
-    console.log("Exact matches:", exactMatches);
+    // Nettoyer et filtrer les mots (enlever les mots très courts, la ponctuation, etc.)
+    const cleanWords = words
+      .map(w => w.toLowerCase().replace(/[^\w]/g, ''))
+      .filter(w => w.length > 2); // Ignorer les mots trop courts
+
+    const exactMatches = cleanWords.filter(w => keywordData.set.has(w)).length;
+    const remainingWords = cleanWords.filter(w => !keywordData.set.has(w));
+
+    // Score de base pour les correspondances exactes (bonus important)
+    let totalScore = exactMatches * 5.0;
+
+    console.log("Exact matches:", exactMatches, "- Score from exact matches:", exactMatches * 5.0);
+
     if (remainingWords.length > 0) {
-      matchCount += await this.semanticMatch(remainingWords, keywordData);
+      const semanticScore = await this.semanticMatch(remainingWords, keywordData);
+      totalScore += semanticScore;
+      console.log("Semantic score:", semanticScore);
     }
-    console.log(`Total matches: ${matchCount}`);
-    return matchCount;
+
+    console.log(`Total score: ${totalScore}`);
+    return totalScore;
   }
 
   private async getProfileData(did: string, agent: Agent) {
@@ -395,6 +427,84 @@ export class TargetAudienceService {
       return clusteredProfiles;
     } catch (err) {
       console.log(err);
+    }
+  }
+
+  /**
+   * Score la pertinence d'un profil basé sur sa description et éventuellement ses posts
+   * Retourne un score de 0 à 100 (pourcentage de pertinence)
+   */
+  public async scoreProfileRelevance(
+    profile: ProfileView,
+    keywords: string[],
+    agent?: Agent,
+    includePostAnalysis: boolean = false
+  ): Promise<number> {
+    await TargetAudienceService.modelPromise;
+
+    try {
+      const keywordData = await this.prepareKeywords(keywords);
+      let totalScore = 0;
+      let maxPossibleScore = 0;
+
+      // 1. Analyse de la bio/description (poids: 60%)
+      if (profile.description) {
+        const bioWords = profile.description.split(/\s+/);
+        const bioScore = await this.countMatches(bioWords, keywordData);
+        // Ajuster la normalisation pour être plus permissive
+        const normalizedBioScore = Math.min(bioScore / 5, 6); // Réduire le diviseur de 10 à 5
+        totalScore += normalizedBioScore;
+        console.log(`Bio score for ${profile.handle}: ${normalizedBioScore}/6 (raw: ${bioScore})`);
+      }
+      maxPossibleScore += 6;
+
+      // 2. Analyse du handle/nom (poids: 20%)
+      const handleWords = [
+        profile.handle.replace(/[^\w]/g, ' '),
+        profile.displayName || ''
+      ].join(' ').split(/\s+/);
+
+      const handleScore = await this.countMatches(handleWords, keywordData);
+      // Réduire le diviseur pour être plus permissif
+      const normalizedHandleScore = Math.min(handleScore / 3, 2); // Réduire de 5 à 3
+      totalScore += normalizedHandleScore;
+      maxPossibleScore += 2;
+      console.log(`Handle score for ${profile.handle}: ${normalizedHandleScore}/2 (raw: ${handleScore})`);
+
+      // 3. Analyse des posts récents (optionnel, poids: 20%)
+      if (includePostAnalysis && agent) {
+        try {
+          const posts = await agent.getAuthorFeed({ actor: profile.did, limit: 10 });
+          if (posts.data.feed.length > 0) {
+            const postTexts = posts.data.feed
+              .map((post: any) => (post.post?.record as any)?.text || '')
+              .filter(text => text.length > 0)
+              .slice(0, 5); // Analyser seulement les 5 derniers posts avec texte
+
+            if (postTexts.length > 0) {
+              const allPostWords = postTexts.join(' ').split(/\s+/);
+              const postScore = await this.countMatches(allPostWords, keywordData);
+              // Réduire le diviseur pour les posts aussi
+              const normalizedPostScore = Math.min(postScore / 10, 2); // Réduire de 15 à 10
+              totalScore += normalizedPostScore;
+              console.log(`Post score for ${profile.handle}: ${normalizedPostScore}/2 (raw: ${postScore})`);
+            }
+          }
+        } catch (error) {
+          console.log(`Could not analyze posts for ${profile.handle}:`, error.message);
+        }
+      }
+      maxPossibleScore += 2;
+
+      // Convertir en pourcentage
+      const finalScore = Math.round((totalScore / maxPossibleScore) * 100);
+      console.log(`Final relevance score for ${profile.handle}: ${finalScore}% (${totalScore}/${maxPossibleScore})`);
+
+      return finalScore;
+
+    } catch (error) {
+      console.error(`Error scoring profile ${profile.handle}:`, error);
+      return 0;
     }
   }
 

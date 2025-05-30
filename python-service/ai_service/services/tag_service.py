@@ -56,7 +56,7 @@ class TagService:
                            account_handle: str, 
                            followers: List[ProfileView], 
                            database: Database, 
-                           max_concurrent: int = 15) -> List[Dict[str, Any]]:
+                           max_concurrent) -> List[Dict[str, Any]]:
         """
         Génère des tags pour regrouper les followers d'un compte
         

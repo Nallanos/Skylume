@@ -25,15 +25,3 @@ cron.schedule('0 1 * * *', async () => {
         console.error('Erreur lors de l\'enregistrement du nombre d\'abonnés:', error)
     }
 })
-
-// Synchronisation quotidienne des posts pour les analytics (tous les jours à 2h du matin)
-cron.schedule('0 2 * * *', async () => {
-    try {
-        const { default: SyncPostsCommand } = await import('../commands/sync_posts.js')
-        const command = await app.container.make(SyncPostsCommand)
-        await command.exec()
-        console.log('Synchronisation des posts terminée avec succès.')
-    } catch (error) {
-        console.error('Erreur lors de la synchronisation des posts:', error)
-    }
-})
