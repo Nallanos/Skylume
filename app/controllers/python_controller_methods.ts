@@ -4,13 +4,15 @@ import Account from '#models/account'
 import AnalysisAudience from '#models/analysis_audience'
 import { AiSchedulerService } from '#services/ai_scheduler_service'
 import FollowerBatchService from '#services/follower_batch_service'
+import FollowerAnalysisService from '#services/follower_analysis_service'
 import { DateTime } from 'luxon'
 
 @inject()
 export default class PythonControllerMethods {
     constructor(
         protected aiSchedulerService: AiSchedulerService,
-        protected followerBatchService: FollowerBatchService
+        protected followerBatchService: FollowerBatchService,
+        protected followerAnalysisService: FollowerAnalysisService
     ) { }
 
     /**
@@ -241,6 +243,14 @@ export default class PythonControllerMethods {
 
             if (!nextBatch || nextBatch.followers.length === 0) {
                 // Plus de followers à analyser - terminer l'analyse
+                console.log(`Analyse terminée pour ${analysis.id}, création des clusters...`)
+
+                // Récupérer le compte pour créer les clusters
+                const account = await Account.findOrFail(analysis.accountId)
+
+                // Agréger tous les résultats des batches pour créer les clusters
+                await this.createClustersFromBatchResults(analysis, account)
+
                 await analysis.markAsCompleted({
                     totalBatches: (analysis.result?.batches || []).length,
                     totalAnalyzed: analyzedCount,
@@ -406,6 +416,54 @@ export default class PythonControllerMethods {
         } catch (error) {
             console.error(`Erreur lors de la récupération des followers pour ${accountHandle}:`, error)
             return []
+        }
+    }
+
+    /**
+     * Crée les clusters et superclusters dans la base de données à partir des résultats agrégés
+     */
+    private async createClustersFromBatchResults(analysis: AnalysisAudience, account: Account): Promise<void> {
+        try {
+            const batches = analysis.result?.batches || []
+            if (batches.length === 0) {
+                console.log(`Aucun batch de résultats trouvé pour l'analyse ${analysis.id}`)
+                return
+            }
+
+            // Agréger tous les clusters de tous les batches
+            const allClusters: any[] = []
+            for (const batch of batches) {
+                if (batch.clustersData && Array.isArray(batch.clustersData)) {
+                    allClusters.push(...batch.clustersData)
+                }
+            }
+
+            if (allClusters.length === 0) {
+                console.log(`Aucun cluster trouvé dans les résultats de l'analyse ${analysis.id}`)
+                return
+            }
+
+            console.log(`Création de ${allClusters.length} clusters pour le compte ${account.handle}`)
+
+            // Utiliser FollowerAnalysisService pour créer les clusters
+            // Mais d'abord, nous devons adapter les données au format attendu
+            const clustersData = allClusters.map(cluster => ({
+                tag: cluster.tag || 'Unknown',
+                handles: cluster.handles || [],
+                keywords: cluster.keywords || [],
+                embedding: cluster.embedding || [],
+                size: cluster.size || 0,
+                cohesion: cluster.cohesion || 0
+            }))
+
+            // Créer les clusters via le service
+            await this.followerAnalysisService.createClustersFromData(account, clustersData)
+
+            console.log(`Clusters créés avec succès pour l'analyse ${analysis.id}`)
+
+        } catch (error) {
+            console.error(`Erreur lors de la création des clusters pour l'analyse ${analysis.id}:`, error)
+            // Ne pas faire échouer l'analyse si la création des clusters échoue
         }
     }
 }
