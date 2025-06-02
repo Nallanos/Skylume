@@ -466,4 +466,60 @@ export default class PythonControllerMethods {
             // Ne pas faire échouer l'analyse si la création des clusters échoue
         }
     }
+
+    /**
+     * Récupère les données d'un compte pour le service Python
+     * Cette méthode est utilisée par le service Python pour obtenir les credentials d'un compte
+     */
+    public async getAccount({ params, response }: HttpContext) {
+        try {
+            const { handle } = params
+            
+            if (!handle) {
+                return response.status(400).json({
+                    status: 'error',
+                    message: 'Handle du compte requis'
+                })
+            }
+
+            // Récupérer le compte avec ses données sensibles
+            const account = await Account.findByOrFail('handle', handle)
+            
+            // Retourner uniquement les données nécessaires pour le service Python
+            return response.json({
+                status: 'success',
+                account: {
+                    id: account.id,
+                    handle: account.handle,
+                    app_password: account.appPassword
+                }
+            })
+
+        } catch (error) {
+            console.error(`Erreur lors de la récupération du compte ${params.handle}:`, error)
+            
+            if (error.code === 'E_ROW_NOT_FOUND') {
+                return response.status(404).json({
+                    status: 'error',
+                    message: 'Compte non trouvé'
+                })
+            }
+            
+            return response.status(500).json({
+                status: 'error',
+                message: `Erreur serveur: ${error instanceof Error ? error.message : String(error)}`
+            })
+        }
+    }
+
+    /**
+     * Endpoint de santé pour vérifier la connectivité avec l'API AdonisJS
+     */
+    public async health({ response }: HttpContext) {
+        return response.json({
+            status: 'success',
+            message: 'AdonisJS API is healthy',
+            timestamp: new Date().toISOString()
+        })
+    }
 }

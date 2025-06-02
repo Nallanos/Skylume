@@ -7,7 +7,6 @@ import logging
 import asyncio
 from typing import List, Dict, Any
 from atproto_client.models.app.bsky.actor.defs import ProfileView
-from ai_service.database.database import Database
 from ai_service.services.tag_service import TagService
 from ai_service.models.transformer_embedder import TransformerEmbedder
 from ai_service.services.clustering.hdbscan_clusterer import HDBSCANClusterer
@@ -50,7 +49,7 @@ def _get_tag_service() -> TagService:
     
     return _tag_service
 
-async def generate_tags(account_handle: str, followers: List[ProfileView], database: Database, max_concurrent: int = 1) -> List[Dict[str, Any]]:
+async def generate_tags(account_handle: str, followers: List[ProfileView], max_concurrent: int = 1) -> List[Dict[str, Any]]:
     """
     Génère des tags pour regrouper les followers d'un compte.
     Cette fonction est le point d'entrée principal du module.
@@ -58,7 +57,6 @@ async def generate_tags(account_handle: str, followers: List[ProfileView], datab
     Args:
         account_handle: Le handle du compte
         followers: Liste des followers à analyser
-        database: Connexion à la base de données
         max_concurrent: Nombre maximal de requêtes concurrentes
         
     Returns:
@@ -66,7 +64,7 @@ async def generate_tags(account_handle: str, followers: List[ProfileView], datab
     """
     try:
         tag_service = _get_tag_service()
-        return await tag_service.generate_tags(account_handle, followers, database, max_concurrent)
+        return await tag_service.generate_tags(account_handle, followers, max_concurrent)
     except Exception as e:
         logger.critical(f"Erreur critique dans generate_tags: {e}", exc_info=True)
         return []
