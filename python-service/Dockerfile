@@ -40,7 +40,7 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 COPY . .
 
 # S'assurer que les scripts sont exécutables
-RUN chmod +x start_worker.sh check_api_connectivity.sh
+RUN chmod +x start_worker.sh start_worker_unified.sh start_bulk_worker.sh check_api_connectivity.sh
 
-# Lancer le worker Python avec le script de démarrage
-CMD ["./start_worker.sh"]
+# Lancer le worker Python avec le script de démarrage unifié
+CMD ["./start_worker_unified.sh"]

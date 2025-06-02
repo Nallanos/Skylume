@@ -1,7 +1,10 @@
 #!/usr/bin/env bash
 # Script de démarrage unifié du worker Python
 # Ce script initialise l'environnement et démarre le worker d'analyse
-# Usage: ./start_worker.sh [--skip-check] [--verbose]
+# Usage: 
+#  ./start_worker_unified.sh [--skip-check] [--verbose]
+#  ./start_worker.sh [--skip-check] [--verbose]  # Pour compatibilité
+#  ./start_bulk_worker.sh [--skip-check] [--verbose]  # Pour compatibilité
 
 set -e
 
@@ -26,6 +29,7 @@ for arg in "$@"; do
 done
 
 echo "🚀 Démarrage du worker Python de Bluesky Copilot"
+echo "📂 Script exécuté: $(basename "$0") (via $(basename "$(readlink /proc/$$/exe)"))"
 
 # Variables d'environnement par défaut si non définies
 export ADONISJS_API_URL="${ADONISJS_API_URL:-http://localhost:8081}"
