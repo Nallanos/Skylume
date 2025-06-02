@@ -85,6 +85,63 @@ export default class FollowerAnalysisService {
     }
 
     /**
+     * Crée des clusters et superclusters à partir de données déjà traitées
+     * Cette méthode est utilisée par le système de batch pour créer les clusters
+     * à partir des résultats agrégés de plusieurs batches
+     */
+    public async createClustersFromData(account: Account, clustersData: ClusterData[]) {
+        console.log("Creating clusters from data:", clustersData.length, "clusters")
+        const superClusters = await SuperCluster.query()
+            .where('accountHandle', account.handle)
+
+        for (const clusterData of clustersData) {
+            let foundSimilarSuperCluster = false
+
+            // Recherche d'un superCluster similaire existant
+            for (const superClusterData of superClusters) {
+                const cosineSimilarityTF = this.cosineSimilarityTF(clusterData.embedding, superClusterData.embeddings)
+                console.log("Comparing:", superClusterData.tag, clusterData.tag)
+                if (cosineSimilarityTF > 0.65) {
+
+                    // Si un superCluster similaire existe, on crée un nouveau cluster qui lui est associé
+                    await Cluster.create({
+                        tag: clusterData.tag,
+                        size: clusterData.size,
+                        superClusterId: superClusterData.id,
+                        handles: clusterData.handles,
+                        embeddings: clusterData.embedding,
+                        accountHandle: account.handle
+                    })
+                    foundSimilarSuperCluster = true
+                    break
+                }
+            }
+
+            // Si aucun superCluster similaire n'a été trouvé, on en crée un nouveau
+            if (!foundSimilarSuperCluster) {
+                console.log("Creating new superCluster for tag:", clusterData.tag)
+                const newSuperCluster = await SuperCluster.create({
+                    tag: clusterData.tag,
+                    size: clusterData.size,
+                    embeddings: clusterData.embedding,
+                    handles: clusterData.handles,
+                    accountHandle: account.handle
+                })
+
+                // On crée également un cluster associé à ce nouveau superCluster
+                await Cluster.create({
+                    tag: clusterData.tag,
+                    size: clusterData.size,
+                    superClusterId: newSuperCluster.id,
+                    handles: clusterData.handles,
+                    embeddings: clusterData.embedding,
+                    accountHandle: account.handle
+                })
+            }
+        }
+    }
+
+    /**
      * Calcule la similarité cosinus entre deux vecteurs
      * Implémentation simple et efficace sans dépendances externes
      */

@@ -215,6 +215,30 @@ export default class FollowerAnalysisController {
                 .where('accountHandle', account.handle)
         ])
 
+        // Sérialiser les données pour le frontend
+        const serializedClusters = clusters.map(cluster => ({
+            id: cluster.id,
+            tag: cluster.tag,
+            handles: cluster.handles || [],
+            size: cluster.size,
+            accountHandle: cluster.accountHandle,
+            superClusterId: cluster.superClusterId,
+            embeddings: cluster.embeddings || [],
+            superCluster: cluster.superCluster ? {
+                id: cluster.superCluster.id,
+                tag: cluster.superCluster.tag
+            } : undefined
+        }))
+
+        const serializedSuperClusters = superClusters.map(superCluster => ({
+            id: superCluster.id,
+            tag: superCluster.tag,
+            handles: superCluster.handles || [],
+            size: superCluster.size,
+            accountHandle: superCluster.accountHandle,
+            embeddings: superCluster.embeddings || []
+        }))
+
         // Préparer les données d'analyse pour le frontend
         const analysisStatus = currentAnalysis ? {
             id: currentAnalysis.id,
@@ -228,8 +252,8 @@ export default class FollowerAnalysisController {
         return inertia.render('AudienceAnalysis', {
             account,
             analysisStatus,
-            clusters,
-            superClusters
+            clusters: serializedClusters,
+            superClusters: serializedSuperClusters
         })
     }
 
