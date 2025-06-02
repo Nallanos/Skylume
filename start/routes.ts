@@ -168,8 +168,10 @@ router.post('/api/accounts/:id/follower-analysis/stop', [follower_analysis_contr
 router.get('/api/accounts/:id/follower-analysis/status', [follower_analysis_controller, 'getAnalysisStatus']).use(middleware.auth())
 router.get('/api/accounts/:id/follower-analysis/stream', [follower_analysis_controller, 'streamAnalysisStatus']).use(middleware.auth())
 
-// Routes internes pour le worker Python
-router.get('/internal/python/next-bulk-job', [python_controller_methods, 'getNextBulkAnalysisJob'])
-router.get('/internal/python/next-recurring-job', [python_controller_methods, 'getNextRecurringAnalysisJob'])
-router.post('/internal/python/complete-job', [python_controller_methods, 'processBatchProgress'])
-router.post('/internal/python/update-progress', [python_controller_methods, 'updateAnalysisProgress'])
+// Routes internes pour le worker Python (protégées par clé API)
+router.get('/internal/python/next-bulk-job', [python_controller_methods, 'getNextBulkAnalysisJob']).use(middleware.api_auth())
+router.get('/internal/python/next-recurring-job', [python_controller_methods, 'getNextRecurringAnalysisJob']).use(middleware.api_auth())
+router.post('/internal/python/complete-job', [python_controller_methods, 'processBatchProgress']).use(middleware.api_auth())
+router.post('/internal/python/update-progress', [python_controller_methods, 'updateAnalysisProgress']).use(middleware.api_auth())
+router.get('/internal/python/accounts/:handle', [python_controller_methods, 'getAccount']).use(middleware.api_auth())
+router.get('/internal/python/health', [python_controller_methods, 'health']).use(middleware.api_auth())

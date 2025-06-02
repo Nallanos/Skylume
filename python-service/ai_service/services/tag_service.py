@@ -4,7 +4,7 @@ import logging
 from collections import defaultdict
 from typing import List, Dict, Any, Tuple, Optional
 
-from ai_service.database.database import Database
+from ai_service.clients.adonis_api_client import AdonisApiClient
 from ai_service.models.interfaces.embedding_model import EmbeddingModel
 from ai_service.models.interfaces.clustering_model import ClusteringModel
 from ai_service.models.interfaces.tag_generator import TagGenerator
@@ -49,21 +49,22 @@ class TagService:
         self.text_cleaner = text_cleaner or TextCleaner()
         self.visualizer = UMAPVisualizer(output_dir=visualizer_output_dir)
         
+        # Client API pour communiquer avec AdonisJS
+        self.api_client = AdonisApiClient()
+        
         # Logger pour le suivi
         self.logger = logging.getLogger(self.__class__.__name__)
         
     async def generate_tags(self, 
                            account_handle: str, 
                            followers: List[ProfileView], 
-                           database: Database, 
-                           max_concurrent) -> List[Dict[str, Any]]:
+                           max_concurrent: int = 1) -> List[Dict[str, Any]]:
         """
         Génère des tags pour regrouper les followers d'un compte
         
         Args:
             account_handle: Le handle du compte
             followers: Liste des followers à analyser
-            database: Connexion à la base de données
             max_concurrent: Nombre maximal de requêtes concurrentes
             
         Returns:
@@ -72,7 +73,7 @@ class TagService:
         try:
             # Configuration
             semaphore = asyncio.Semaphore(max_concurrent)
-            account_service = await self._create_account_service(database, account_handle)
+            account_service = await self._create_account_service(account_handle)
             
             # Récupération des données
             self.logger.info(f"Démarrage de generate_tags pour {account_handle} avec {len(followers)} followers")
@@ -107,22 +108,22 @@ class TagService:
             self.logger.critical(f"Erreur critique dans generate_tags: {e}", exc_info=True)
             return []
     
-    async def _create_account_service(self, database: Database, account_handle: str) -> AccountService:
+    async def _create_account_service(self, account_handle: str) -> AccountService:
         """
         Crée et configure un service de compte Bluesky
         """
         client = Client()
         account_service = AccountService(client)
         
-        # Récupérer les données du compte
+        # Récupérer les données du compte via l'API AdonisJS
         self.logger.info("Récupération des données du compte")
-        account = await database.fetch("SELECT * FROM accounts WHERE handle=$1", account_handle)
-        print(account)
+        account = await self.api_client.get_account(account_handle)
+        
         if not account:
             raise ValueError(f"Compte non trouvé: {account_handle}")
         
         # Login
-        account_service.login(account[0]["handle"], account[0]["app_password"])
+        account_service.login(account["handle"], account["app_password"])
         return account_service
     
     async def _fetch_follower_data(self, followers: List[ProfileView], 

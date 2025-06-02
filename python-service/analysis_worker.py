@@ -10,8 +10,12 @@ import time
 import httpx
 import os
 from typing import Dict, Any, Optional
+from dotenv import load_dotenv
 from ai_service.services.tagger import generate_tags
-from ai_service.database.connection import get_database
+from ai_service.clients.adonis_api_client import AdonisApiClient
+
+# Charger les variables d'environnement
+load_dotenv()
 
 # Configuration du logging
 logging.basicConfig(
@@ -23,19 +27,18 @@ logger = logging.getLogger(__name__)
 class BulkAnalysisWorker:
     """Worker pour traiter les analyses en bulk et récurrentes des followers"""
     
-    def __init__(self, api_base_url: str = "http://localhost:8081"):
-        self.api_base_url = api_base_url.rstrip('/')
-        self.polling_interval = 10
+    def __init__(self):
+        # Configuration depuis les variables d'environnement
+        self.api_base_url = os.getenv('ADONISJS_API_URL', 'http://localhost:8081')
+        self.polling_interval = int(os.getenv('POLLING_INTERVAL', '10'))
         self.max_retries = 3
         self.running = False
+        self.api_client = AdonisApiClient()
         
     async def start(self):
         """Démarre le worker en mode polling"""
         logger.info("Démarrage du worker d'analyse en bulk")
         self.running = True
-        
-        # Initialiser la connexion à la base de données
-        database = await get_database()
         
         try:
             while self.running:
@@ -49,7 +52,7 @@ class BulkAnalysisWorker:
                     
                     if job:
                         logger.info(f"Job récupéré: {job.get('jobId', 'N/A')} pour le compte {job['accountHandle']} (type: {job.get('analysisType', 'unknown')})")
-                        await self._process_job(job, database)
+                        await self._process_job(job)
                     else:
                         # Aucun job disponible, attendre avant le prochain polling
                         logger.debug("Aucun job disponible, attente...")
@@ -123,7 +126,7 @@ class BulkAnalysisWorker:
             logger.error(f"Erreur lors de la récupération du job récurrent: {e}")
             return None
             
-    async def _process_job(self, job: Dict[str, Any], database) -> None:
+    async def _process_job(self, job: Dict[str, Any]) -> None:
         """Traite un job d'analyse"""
         job_id = job['jobId']
         analysis_id = job.get('analysisId')  # Peut être None pour les jobs récurrents
@@ -139,7 +142,7 @@ class BulkAnalysisWorker:
                 await self._update_progress(analysis_id, 0, len(followers), 0)
             
             # Appeler la fonction generate_tags
-            results = await generate_tags(account_handle, followers, database)
+            results = await generate_tags(account_handle, followers)
             
             # Mettre à jour le progrès : analyse terminée (seulement pour les analyses en bulk)
             if analysis_id:
@@ -216,11 +219,7 @@ class BulkAnalysisWorker:
 
 async def main():
     """Fonction principale pour démarrer le worker"""
-    # Récupérer l'URL de l'API depuis les variables d'environnement
-    # Correction: utiliser le bon port par défaut (8081 au lieu de 3333)
-    api_url = os.getenv('ADONISJS_API_URL', 'http://localhost:8081')
-    
-    worker = BulkAnalysisWorker(api_url)
+    worker = BulkAnalysisWorker()
     
     try:
         await worker.start()
