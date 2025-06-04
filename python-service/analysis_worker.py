@@ -7,7 +7,6 @@ Ce worker fait du polling HTTP vers l'API AdonisJS pour récupérer les jobs à 
 import asyncio
 import logging
 import time
-import httpx
 import os
 from typing import Dict, Any, Optional
 from dotenv import load_dotenv
@@ -29,7 +28,6 @@ class BulkAnalysisWorker:
     
     def __init__(self):
         # Configuration depuis les variables d'environnement
-        self.api_base_url = os.getenv('ADONISJS_API_URL', 'http://localhost:8081')
         self.polling_interval = int(os.getenv('POLLING_INTERVAL', '10'))
         self.max_retries = 3
         self.running = False
@@ -44,11 +42,11 @@ class BulkAnalysisWorker:
             while self.running:
                 try:
                     # Essayer d'abord de récupérer un job en bulk (priorité plus élevée)
-                    job = await self._get_next_bulk_job()
+                    job = await self.api_client.get_next_bulk_job()
                     
                     if not job:
                         # Si pas de job en bulk, essayer un job récurrent
-                        job = await self._get_next_recurring_job()
+                        job = await self.api_client.get_next_recurring_job()
                     
                     if job:
                         logger.info(f"Job récupéré: {job.get('jobId', 'N/A')} pour le compte {job['accountHandle']} (type: {job.get('analysisType', 'unknown')})")
@@ -71,61 +69,8 @@ class BulkAnalysisWorker:
         """Arrête le worker proprement"""
         logger.info("Arrêt du worker d'analyse en bulk")
         self.running = False
+        await self.api_client.close()
         
-    async def _get_next_bulk_job(self) -> Optional[Dict[str, Any]]:
-        """Récupère le prochain job en bulk depuis l'API AdonisJS"""
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.get(f"{self.api_base_url}/internal/python/next-bulk-job")
-                
-                if response.status_code == 204:
-                    # Aucun job disponible
-                    return None
-                elif response.status_code == 200:
-                    data = response.json()
-                    if data['status'] == 'success':
-                        return data['data']
-                    else:
-                        logger.warning(f"Réponse API inattendue pour job bulk: {data}")
-                        return None
-                else:
-                    logger.error(f"Erreur API lors de la récupération du job bulk: {response.status_code}")
-                    return None
-                    
-        except httpx.TimeoutException:
-            logger.warning("Timeout lors de la récupération du job bulk")
-            return None
-        except Exception as e:
-            logger.error(f"Erreur lors de la récupération du job bulk: {e}")
-            return None
-
-    async def _get_next_recurring_job(self) -> Optional[Dict[str, Any]]:
-        """Récupère le prochain job récurrent depuis l'API AdonisJS"""
-        try:
-            async with httpx.AsyncClient(timeout=30.0) as client:
-                response = await client.get(f"{self.api_base_url}/internal/python/next-recurring-job")
-                
-                if response.status_code == 204:
-                    # Aucun job disponible
-                    return None
-                elif response.status_code == 200:
-                    data = response.json()
-                    if data['status'] == 'success':
-                        return data['data']
-                    else:
-                        logger.warning(f"Réponse API inattendue pour job récurrent: {data}")
-                        return None
-                else:
-                    logger.error(f"Erreur API lors de la récupération du job récurrent: {response.status_code}")
-                    return None
-                    
-        except httpx.TimeoutException:
-            logger.warning("Timeout lors de la récupération du job récurrent")
-            return None
-        except Exception as e:
-            logger.error(f"Erreur lors de la récupération du job récurrent: {e}")
-            return None
-            
     async def _process_job(self, job: Dict[str, Any]) -> None:
         """Traite un job d'analyse"""
         job_id = job['jobId']
@@ -139,19 +84,19 @@ class BulkAnalysisWorker:
             
             # Mettre à jour le progrès seulement pour les analyses en bulk (qui ont un ID d'analyse)
             if analysis_id:
-                await self._update_progress(analysis_id, 0, len(followers), 0)
+                await self.api_client.update_analysis_progress(str(analysis_id), 0, "starting", "Démarrage de l'analyse")
             
             # Appeler la fonction generate_tags
             results = await generate_tags(account_handle, followers)
             
             # Mettre à jour le progrès : analyse terminée (seulement pour les analyses en bulk)
             if analysis_id:
-                await self._update_progress(analysis_id, len(followers), len(followers), 100)
+                await self.api_client.update_analysis_progress(str(analysis_id), 100, "completed", "Analyse terminée")
             
             # Finaliser le job selon le type
             if analysis_type == 'bulk':
                 # Marquer le job comme terminé avec succès pour les analyses en bulk
-                await self._complete_job(job_id, analysis_id, True, {
+                await self.api_client.complete_analysis_job(job_id, str(analysis_id) if analysis_id else None, {
                     'clusters': results,
                     'totalAnalyzed': len(followers),
                     'accountHandle': account_handle,
@@ -168,54 +113,7 @@ class BulkAnalysisWorker:
             
             # Marquer le job comme échoué seulement pour les analyses en bulk
             if analysis_type == 'bulk' and analysis_id:
-                await self._complete_job(job_id, analysis_id, False, error=str(e))
-            
-    async def _update_progress(self, analysis_id: int, analyzed: int, total: int, percentage: float) -> None:
-        """Met à jour le progrès d'une analyse"""
-        try:
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.post(
-                    f"{self.api_base_url}/internal/python/update-progress",
-                    json={
-                        'analysisId': analysis_id,
-                        'analyzed': analyzed,
-                        'total': total,
-                        'percentage': percentage
-                    }
-                )
-                
-                if response.status_code != 200:
-                    logger.warning(f"Erreur lors de la mise à jour du progrès: {response.status_code}")
-                    
-        except Exception as e:
-            logger.error(f"Erreur lors de la mise à jour du progrès: {e}")
-            
-    async def _complete_job(self, job_id: str, analysis_id: int, success: bool, results: Dict[str, Any] = None, error: str = None) -> None:
-        """Marque un job comme terminé"""
-        try:
-            payload = {
-                'jobId': job_id,
-                'analysisId': analysis_id,
-                'success': success
-            }
-            
-            if success and results:
-                payload['results'] = results
-            elif not success and error:
-                payload['error'] = error
-                
-            async with httpx.AsyncClient(timeout=10.0) as client:
-                response = await client.post(
-                    f"{self.api_base_url}/internal/python/complete-job",
-                    json=payload
-                )
-                
-                if response.status_code != 200:
-                    logger.error(f"Erreur lors de la finalisation du job: {response.status_code}")
-                    
-        except Exception as e:
-            logger.error(f"Erreur lors de la finalisation du job: {e}")
-
+                await self.api_client.report_job_error(job_id, str(analysis_id), str(e))
 
 async def main():
     """Fonction principale pour démarrer le worker"""

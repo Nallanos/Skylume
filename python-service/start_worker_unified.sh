@@ -31,6 +31,14 @@ done
 echo "🚀 Démarrage du worker Python de Bluesky Copilot"
 echo "📂 Script exécuté: $(basename "$0") (via $(basename "$(readlink /proc/$$/exe)"))"
 
+# Chargement des variables d'environnement depuis .env si le fichier existe
+if [ -f "$SCRIPT_DIR/.env" ]; then
+  echo "📄 Chargement des variables d'environnement depuis .env"
+  set -a  # Export automatique des variables
+  source "$SCRIPT_DIR/.env"
+  set +a  # Désactiver l'export automatique
+fi
+
 # Variables d'environnement par défaut si non définies
 export ADONISJS_API_URL="${ADONISJS_API_URL:-http://localhost:8081}"
 echo "API URL: $ADONISJS_API_URL"
