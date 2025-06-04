@@ -507,7 +507,7 @@ export default class AccountService {
     public async getFollowers(account: Account, did: string, cursor?: string) {
         try {
             console.log("in get followers old cursor: ", cursor)
-            const res = await this.agent.getFollowers({ actor: did, cursor: cursor });
+            const res = await this.agent.getFollowers({ actor: did, cursor: cursor, limit: 100 });
             console.log(`getting follower new cursor: ${res.data.cursor}`)
             await this.updateAccountRateLimit(account);
             return res.data;

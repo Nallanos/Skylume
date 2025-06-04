@@ -35,15 +35,14 @@ class AdonisApiClient:
             raise ValueError("INTERNAL_API_KEY environment variable is required")
         
         self.headers = {
-            'X-API-Key': self.api_key,
+            'x-api-key': self.api_key,
             'Content-Type': 'application/json',
             'User-Agent': 'Python-AI-Service/1.0'
         }
         
-        # Configuration du client HTTP avec timeout et retry
+        # Configuration du client HTTP avec timeout et retry (sans headers globaux)
         self.client = httpx.AsyncClient(
             base_url=self.base_url,
-            headers=self.headers,
             timeout=30.0,
             limits=httpx.Limits(max_keepalive_connections=5, max_connections=10)
         )
@@ -53,15 +52,26 @@ class AdonisApiClient:
     async def get_next_bulk_job(self) -> Optional[Dict[str, Any]]:
         """Récupère le prochain job d'analyse en bulk depuis AdonisJS"""
         try:
-            response = await self.client.get('/internal/python/next-bulk-job')
+            response = await self.client.get('/internal/python/next-bulk-job', headers=self.headers)
             response.raise_for_status()
             
+            # Gérer les réponses 204 (No Content) qui n'ont pas de body JSON
+            if response.status_code == 204:
+                logger.debug("Aucun job en bulk disponible")
+                return None
+                
             data = response.json()
-            if data.get('hasJob'):
-                logger.info(f"Retrieved bulk job: {data.get('job', {}).get('id')}")
-                return data.get('job')
+            # Vérifier la structure de réponse AdonisJS: { status: 'success', data: {...} }
+            if data.get('status') == 'success' and data.get('data'):
+                job_data = data.get('data')
+                logger.info(f"Job en bulk récupéré: {job_data.get('jobId', 'N/A')}")
+                return job_data
             
-            logger.debug("No bulk jobs available")
+            # Gérer les cas d'erreur avec status != 'success'
+            if data.get('status') == 'error':
+                logger.error(f"Erreur retournée par l'API: {data.get('message', 'Erreur inconnue')}")
+                return None
+            
             return None
             
         except httpx.HTTPStatusError as e:
@@ -74,15 +84,26 @@ class AdonisApiClient:
     async def get_next_recurring_job(self) -> Optional[Dict[str, Any]]:
         """Récupère le prochain job d'analyse récurrente depuis AdonisJS"""
         try:
-            response = await self.client.get('/internal/python/next-recurring-job')
+            response = await self.client.get('/internal/python/next-recurring-job', headers=self.headers)
             response.raise_for_status()
             
+            # Gérer les réponses 204 (No Content) qui n'ont pas de body JSON
+            if response.status_code == 204:
+                logger.debug("Aucun job récurrent disponible")
+                return None
+                
             data = response.json()
-            if data.get('hasJob'):
-                logger.info(f"Retrieved recurring job: {data.get('job', {}).get('id')}")
-                return data.get('job')
+            # Vérifier la structure de réponse AdonisJS: { status: 'success', data: {...} }
+            if data.get('status') == 'success' and data.get('data'):
+                job_data = data.get('data')
+                logger.info(f"Job récurrent récupéré: {job_data.get('jobId', 'N/A')}")
+                return job_data
             
-            logger.debug("No recurring jobs available")
+            # Gérer les cas d'erreur avec status != 'success'
+            if data.get('status') == 'error':
+                logger.error(f"Erreur retournée par l'API: {data.get('message', 'Erreur inconnue')}")
+                return None
+            
             return None
             
         except httpx.HTTPStatusError as e:
@@ -92,20 +113,20 @@ class AdonisApiClient:
             logger.error(f"Error getting recurring job: {e}")
             raise
     
-    async def update_analysis_progress(self, job_id: str, progress: int, status: str, message: str = "") -> bool:
+    async def update_analysis_progress(self, analysis_id: str, progress: int, status: str, message: str = "") -> bool:
         """Met à jour le progrès d'une analyse"""
         try:
             payload = {
-                'jobId': job_id,
-                'progress': progress,
-                'status': status,
-                'message': message
+                'analysisId': analysis_id,
+                'analyzed': progress,
+                'total': 100,
+                'percentage': progress
             }
             
-            response = await self.client.post('/internal/python/update-progress', json=payload)
+            response = await self.client.post('/internal/python/update-progress', json=payload, headers=self.headers)
             response.raise_for_status()
             
-            logger.info(f"Updated progress for job {job_id}: {progress}% - {status}")
+            logger.info(f"Updated progress for analysis {analysis_id}: {progress}% - {status}")
             return True
             
         except httpx.HTTPStatusError as e:
@@ -115,16 +136,20 @@ class AdonisApiClient:
             logger.error(f"Error updating progress: {e}")
             return False
     
-    async def complete_analysis_job(self, job_id: str, results: Dict[str, Any]) -> bool:
+    async def complete_analysis_job(self, job_id: str, analysis_id: Optional[str], results: Dict[str, Any]) -> bool:
         """Marque un job d'analyse comme terminé et envoie les résultats"""
         try:
             payload = {
                 'jobId': job_id,
-                'results': results,
-                'status': 'completed'
+                'success': True,
+                'results': results
             }
             
-            response = await self.client.post('/internal/python/complete-job', json=payload)
+            # Ajouter analysisId seulement si fourni (analyses en bulk)
+            if analysis_id is not None:
+                payload['analysisId'] = analysis_id
+            
+            response = await self.client.post('/internal/python/complete-job', json=payload, headers=self.headers)
             response.raise_for_status()
             
             logger.info(f"Completed job {job_id} successfully")
@@ -137,16 +162,20 @@ class AdonisApiClient:
             logger.error(f"Error completing job: {e}")
             return False
     
-    async def report_job_error(self, job_id: str, error_message: str) -> bool:
+    async def report_job_error(self, job_id: str, analysis_id: Optional[str], error_message: str) -> bool:
         """Signale une erreur pour un job d'analyse"""
         try:
             payload = {
                 'jobId': job_id,
-                'status': 'failed',
+                'success': False,
                 'error': error_message
             }
             
-            response = await self.client.post('/internal/python/complete-job', json=payload)
+            # Ajouter analysisId seulement si fourni (analyses en bulk)
+            if analysis_id is not None:
+                payload['analysisId'] = analysis_id
+            
+            response = await self.client.post('/internal/python/complete-job', json=payload, headers=self.headers)
             response.raise_for_status()
             
             logger.info(f"Reported error for job {job_id}: {error_message}")
@@ -162,8 +191,9 @@ class AdonisApiClient:
     async def health_check(self) -> bool:
         """Vérifie la connectivité avec l'API AdonisJS"""
         try:
-            response = await self.client.get('/internal/python/health')
+            response = await self.client.get('/internal/python/health', headers=self.headers)
             response.raise_for_status()
+            logger.info("Health check successful")
             return True
         except Exception as e:
             logger.error(f"Health check failed: {e}")
@@ -172,7 +202,7 @@ class AdonisApiClient:
     async def get_account(self, account_handle: str) -> Optional[Dict[str, Any]]:
         """Récupère les données d'un compte depuis AdonisJS"""
         try:
-            response = await self.client.get(f'/internal/python/accounts/{account_handle}')
+            response = await self.client.get(f'/internal/python/accounts/{account_handle}', headers=self.headers)
             response.raise_for_status()
             
             data = response.json()
