@@ -1,5 +1,6 @@
 import type { HttpContext } from '@adonisjs/core/http'
 import Account from '#models/account'
+import AnalysisAudience from '#models/analysis_audience'
 import PostHistory from '#models/post_history'
 import FollowersHistory from '#models/followers_history'
 import { DateTime } from 'luxon'
@@ -226,8 +227,12 @@ export default class AnalyticsController {
                 .andWhere('userId', user.id)
                 .firstOrFail()
 
+            // Récupérer l'analyse d'audience la plus récente
+            const currentAnalysis = await AnalysisAudience.query()
+                .where('account_id', accountId)
+                .orderBy('created_at', 'desc')
+                .first()
 
-            console.log(selectedAccount.id)
             const [clusters, superClusters] = await Promise.all([
                 Cluster.query()
                     .where('accountHandle', selectedAccount.handle)
@@ -239,15 +244,51 @@ export default class AnalyticsController {
             console.log("Clusters:", clusters)
             console.log("superClusters: ", superClusters)
 
+
+            // Sérialiser les données pour le frontend
+            const serializedClusters = clusters.map(cluster => ({
+                id: cluster.id,
+                tag: cluster.tag,
+                handles: cluster.handles || [],
+                size: cluster.size,
+                accountHandle: cluster.accountHandle,
+                superClusterId: cluster.superClusterId,
+                embeddings: cluster.embeddings || [],
+                superCluster: cluster.superCluster ? {
+                    id: cluster.superCluster.id,
+                    tag: cluster.superCluster.tag
+                } : null
+            }))
+
+            const serializedSuperClusters = superClusters.map(superCluster => ({
+                id: superCluster.id,
+                tag: superCluster.tag,
+                handles: superCluster.handles || [],
+                size: superCluster.size,
+                accountHandle: superCluster.accountHandle,
+                embeddings: superCluster.embeddings || []
+            }))
+
+            // Préparer les données d'analyse pour le frontend
+            const analysisStatus = currentAnalysis ? {
+                id: currentAnalysis.id,
+                status: currentAnalysis.status,
+                progress: currentAnalysis.progress,
+                startedAt: currentAnalysis.startedAt,
+                completedAt: currentAnalysis.completedAt,
+                errorMessage: currentAnalysis.errorMessage
+            } : null
+
             // Si l'analyse est complétée, charger les clusters et super clusters
-            if (superClusters.length > 0) {
+            if (serializedSuperClusters.length > 0 || serializedClusters.length > 0) {
                 console.log('Analyse d\'audience déjà commencée, chargement des données...')
 
-                console.log(superClusters)
+                console.log(serializedSuperClusters)
                 return inertia.render('AudienceAnalysis', {
                     account: selectedAccount,
-                    clusters,
-                    superClusters
+                    clusters: serializedClusters,
+                    superClusters: serializedSuperClusters,
+                    analysisStatus
                 })
             } else {
                 // Si l'analyse n'est pas encore complétée, afficher la page avec les données de base
@@ -255,7 +296,8 @@ export default class AnalyticsController {
                 return inertia.render('AudienceAnalysis', {
                     account: selectedAccount,
                     clusters: [],
-                    superClusters: []
+                    superClusters: [],
+                    analysisStatus
                 })
             }
         } catch (error) {
@@ -264,6 +306,88 @@ export default class AnalyticsController {
         }
     }
 
+    /**
+     * Met à jour les données de la page d'analyse d'audience sans rechargement complet
+     * Utilisé pour le refresh en temps réel via Inertia.js
+     */
+    public async refreshAnalysisStatus({ params, response, auth, inertia }: HttpContext) {
+        const user = await auth.authenticate()
+        if (!user) {
+            return response.status(401).json({ message: 'Non autorisé' })
+        }
+
+        const accountId = params.id
+
+        try {
+            // Trouver le compte spécifique
+            const selectedAccount = await Account.query()
+                .where('id', accountId)
+                .andWhere('userId', user.id)
+                .firstOrFail()
+
+            // Récupérer l'analyse d'audience la plus récente
+            const currentAnalysis = await AnalysisAudience.query()
+                .where('account_id', accountId)
+                .orderBy('created_at', 'desc')
+                .first()
+
+            const [clusters, superClusters] = await Promise.all([
+                Cluster.query()
+                    .where('accountHandle', selectedAccount.handle)
+                    .preload('superCluster'),
+                SuperCluster.query()
+                    .where('accountHandle', selectedAccount.handle)
+            ])
+
+            // Sérialiser les données pour le frontend
+            const serializedClusters = clusters.map(cluster => ({
+                id: cluster.id,
+                tag: cluster.tag,
+                handles: cluster.handles || [],
+                size: cluster.size,
+                accountHandle: cluster.accountHandle,
+                superClusterId: cluster.superClusterId,
+                embeddings: cluster.embeddings || [],
+                superCluster: cluster.superCluster ? {
+                    id: cluster.superCluster.id,
+                    tag: cluster.superCluster.tag
+                } : undefined
+            }))
+
+            const serializedSuperClusters = superClusters.map(superCluster => ({
+                id: superCluster.id,
+                tag: superCluster.tag,
+                handles: superCluster.handles || [],
+                size: superCluster.size,
+                accountHandle: superCluster.accountHandle,
+                embeddings: superCluster.embeddings || []
+            }))
+
+            // Préparer les données d'analyse pour le frontend
+            const analysisStatus = currentAnalysis ? {
+                id: currentAnalysis.id,
+                status: currentAnalysis.status,
+                progress: currentAnalysis.progress,
+                startedAt: currentAnalysis.startedAt,
+                completedAt: currentAnalysis.completedAt,
+                errorMessage: currentAnalysis.errorMessage
+            } : null
+
+            // Retourner uniquement les données mises à jour avec inertia.render()
+            return inertia.render('AudienceAnalysis', {
+                account: selectedAccount,
+                clusters: serializedClusters,
+                superClusters: serializedSuperClusters,
+                analysisStatus
+            })
+        } catch (error) {
+            console.error('Erreur lors du refresh du statut de l\'analyse:', error)
+            return response.status(500).json({
+                status: 'error',
+                message: 'Erreur lors de la mise à jour du statut'
+            })
+        }
+    }
 
     /**
      * Enregistre l'état actuel des followers pour un compte
@@ -381,4 +505,6 @@ export default class AnalyticsController {
             return response.redirect().back()
         }
     }
+
+
 }

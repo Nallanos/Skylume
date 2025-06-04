@@ -57,8 +57,10 @@ const scheduling_controller = () => import('#controllers/schedulings_controller'
 const account_controller = () => import('#controllers/account_controller')
 const stripe_controller = () => import("#controllers/stripes_controller")
 const feed_controller = () => import('#controllers/feeds_controller')
-const dm_campaign_controller = () => import('#controllers/dm_campaigns_controller')
 const analytics_controller = () => import('#controllers/analytics_controller')
+const follower_analysis_controller = () => import('#controllers/follower_analysis_controller')
+const python_controller_methods = () => import('#controllers/python_controller_methods')
+
 
 router.post("/login", [session_controller, 'login'])
 
@@ -158,3 +160,18 @@ router.get('/schedule', async ({ auth, inertia }) => {
 // Routes Analytics
 router.get('/analytics/:id', [analytics_controller, 'basicAnalytics']).use(middleware.auth())
 router.get('/analytics/:id/audience', [analytics_controller, 'audienceAnalysisPage']).use(middleware.auth())
+router.get('/analytics/:id/audience/refresh', [follower_analysis_controller, 'getAnalysisStatus']).use(middleware.auth())
+
+// Routes d'analyse des followers
+router.post('/api/accounts/:id/follower-analysis/start', [follower_analysis_controller, 'startAnalysis']).use(middleware.auth())
+router.post('/api/accounts/:id/follower-analysis/stop', [follower_analysis_controller, 'stopAnalysis']).use(middleware.auth())
+router.get('/api/accounts/:id/follower-analysis/status', [follower_analysis_controller, 'getAnalysisStatus']).use(middleware.auth())
+router.get('/api/accounts/:id/follower-analysis/stream', [follower_analysis_controller, 'streamAnalysisStatus']).use(middleware.auth())
+
+// Routes internes pour le worker Python (protégées par clé API)
+router.get('/internal/python/next-bulk-job', [python_controller_methods, 'getNextBulkAnalysisJob']).use(middleware.api_auth())
+router.get('/internal/python/next-recurring-job', [python_controller_methods, 'getNextRecurringAnalysisJob']).use(middleware.api_auth())
+router.post('/internal/python/complete-job', [python_controller_methods, 'processBatchProgress']).use(middleware.api_auth())
+router.post('/internal/python/update-progress', [python_controller_methods, 'updateAnalysisProgress']).use(middleware.api_auth())
+router.get('/internal/python/accounts/:handle', [python_controller_methods, 'getAccount']).use(middleware.api_auth())
+router.get('/internal/python/health', [python_controller_methods, 'health']).use(middleware.api_auth())

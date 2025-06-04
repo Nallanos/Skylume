@@ -4,7 +4,7 @@ import handle from '../jobs/schedule_job.js'
 import env from '#start/env'
 import crypto from 'crypto'
 import { inject } from '@adonisjs/core'
-import type { Account_manager } from '#services/account_manager'
+import type AccountManager  from '#services/account_manager'
 import Account from '#models/account'
 
 
@@ -12,7 +12,7 @@ import Account from '#models/account'
 export class SchedulingQueueManager {
     public queueName = 'schedulers'
 
-    constructor(protected account_manager: Account_manager) { }
+    constructor(protected account_manager: AccountManager) { }
 
     public queue = new Queue(this.queueName, {
         connection: {

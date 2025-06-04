@@ -1,6 +1,8 @@
 import { BaseModel, belongsTo, column, hasMany } from '@adonisjs/lucid/orm'
 import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import Account from './account.js'
+import Cluster from './cluster.js'
+
 export default class SuperCluster extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
@@ -45,6 +47,6 @@ export default class SuperCluster extends BaseModel {
   @belongsTo(() => Account)
   declare account: BelongsTo<typeof Account>
 
-  @hasMany(() => SuperCluster)
-  declare SuperCluster: HasMany<typeof SuperCluster>
+  @hasMany(() => Cluster)
+  declare clusters: HasMany<typeof Cluster>
 }

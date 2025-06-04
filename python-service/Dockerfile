@@ -39,5 +39,8 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 # Copier le code source
 COPY . .
 
-# Lancer le service avec Poetry
-CMD ["poetry", "run", "uvicorn", "ai_service.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# S'assurer que les scripts sont exécutables
+RUN chmod +x start_worker.sh start_worker_unified.sh start_bulk_worker.sh check_api_connectivity.sh
+
+# Lancer le worker Python avec le script de démarrage unifié
+CMD ["./start_worker_unified.sh"]

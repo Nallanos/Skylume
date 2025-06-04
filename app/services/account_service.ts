@@ -194,6 +194,7 @@ export default class AccountService {
         return this.agent.did
     }
 
+
     public async getMessages(
         account: Account,
         convoId: string,
@@ -335,18 +336,19 @@ export default class AccountService {
         throw new Error("Échec après 3 tentatives")
     }
 
-    public async followUser(account: Account, did: string): Promise<void> {
+    public async followUser(account: Account, did: string): Promise<boolean> {
         try {
             console.log("in follow user")
-            if (await this.updateAccountRateLimit(account) == "skip") return;
+            if (await this.updateAccountRateLimit(account) == "skip") return false;
             if (!account.at_session) throw new Error("session is not defined")
             const relationships = await this.agent.app.bsky.graph.getRelationships({ actor: account.at_session.did, others: [did] });
             if (relationships.data.relationships[0].following) {
                 console.log("Already following user");
-                return
+                return false
             }
             await this.agent.follow(did);
             console.log("followed user", did);
+            return true
         } catch (err) {
             await this.updateAccountRateLimit(account, err);
             throw err;
@@ -505,7 +507,7 @@ export default class AccountService {
     public async getFollowers(account: Account, did: string, cursor?: string) {
         try {
             console.log("in get followers old cursor: ", cursor)
-            const res = await this.agent.getFollowers({ actor: did, cursor: cursor });
+            const res = await this.agent.getFollowers({ actor: did, cursor: cursor, limit: 100 });
             console.log(`getting follower new cursor: ${res.data.cursor}`)
             await this.updateAccountRateLimit(account);
             return res.data;
@@ -524,4 +526,17 @@ export default class AccountService {
             throw err;
         }
     }
+
+    public async getProfile(actor: string) {
+        try {
+            const res = await this.agent.getProfile({ actor: actor });
+            if (!res) {
+                throw new Error("getProfile response is undefined")
+            }
+            return res.data;
+        } catch (err) {
+            throw err;
+        }
+    }
+
 }
