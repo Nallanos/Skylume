@@ -25,3 +25,8 @@ yarn-error.log
 .DS_Store
 docker-compose.yaml
 letsencrypt/acme.json
+
+# Machine Learning models cache
+python-service/.model_cache/
+*.model
+*.bin
