@@ -3,15 +3,36 @@ Module principal pour la génération de tags pour les followers Bluesky.
 Ce fichier sert de point d'entrée et délègue le travail à des classes spécialisées.
 """
 
+import os
+import warnings
 import logging
 import asyncio
 from typing import List, Dict, Any
+
+# Configuration des variables d'environnement pour les modèles
+os.environ.setdefault('TRANSFORMERS_OFFLINE', '0')
+if 'HF_HOME' in os.environ and 'TRANSFORMERS_CACHE' not in os.environ:
+    os.environ['TRANSFORMERS_CACHE'] = os.environ['HF_HOME']
+
+# Suppression des avertissements de dépréciation
+warnings.filterwarnings('ignore', category=FutureWarning, message='.*TRANSFORMERS_CACHE.*')
+warnings.filterwarnings('ignore', category=FutureWarning, module='transformers.utils.hub')
+
+print("📥 Import de ProfileView...")
 from atproto_client.models.app.bsky.actor.defs import ProfileView
+print("✅ ProfileView importé")
+
+print("📥 Import du TagService...")
 from ai_service.services.tag_service import TagService
+print("✅ TagService importé")
+
+print("📥 Import des autres composants...")
 from ai_service.models.transformer_embedder import TransformerEmbedder
 from ai_service.services.clustering.hdbscan_clusterer import HDBSCANClusterer
 from ai_service.services.taggers.keybert_tagger import KeyBERTTagger
 from ai_service.utils.text_cleaner import TextCleaner
+from ai_service.clients.adonis_api_client import AdonisApiClient
+print("✅ Tous les composants importés")
 
 # Configuration du logger
 logging.basicConfig(
@@ -33,6 +54,7 @@ def _get_tag_service() -> TagService:
     global _tag_service
     if _tag_service is None:
         # Créer les composants
+        api_client = AdonisApiClient()
         embedding_model = TransformerEmbedder("sentence-transformers/all-mpnet-base-v2")
         clusterer = HDBSCANClusterer()
         tag_generator = KeyBERTTagger(embedding_model=embedding_model)
@@ -40,6 +62,7 @@ def _get_tag_service() -> TagService:
         
         # Créer le service de tags
         _tag_service = TagService(
+            api_client=api_client,
             embedding_model=embedding_model,
             clusterer=clusterer,
             tag_generator=tag_generator,

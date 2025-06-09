@@ -64,13 +64,13 @@
     "@adonisjs/auth": "^9.2.3",
     "@adonisjs/core": "^6.14.1",
     "@adonisjs/cors": "^2.2.1",
-    "@adonisjs/inertia": "^1.2.2",
+    "@adonisjs/inertia": "^3.1.1",
     "@adonisjs/lucid": "^21.3.0",
     "@adonisjs/redis": "^9.1.0",
     "@adonisjs/session": "^7.5.0",
     "@adonisjs/shield": "^8.1.1",
     "@adonisjs/static": "^1.1.1",
-    "@adonisjs/vite": "^3.0.0",
+    "@adonisjs/vite": "^4.0.0",
     "@atproto/api": "^0.13.12",
     "@floating-ui/dom": "^1.6.13",
     "@inertiajs/svelte": "^1.2.0",
@@ -123,7 +123,7 @@
     "tailwindcss": "^3.4.14",
     "typescript": "^5.6.3",
     "uuid": "^10.0.0",
-    "vite": "^5.4.8"
+    "vite": "^6.3.5"
   },
   "hotHook": {
     "boundaries": [
@@ -142,6 +142,9 @@
     "overrides": {
       "strtok3": "8.0.1"
     }
+  },
+  "npmrc": {
+    "legacy-peer-deps": "true"
   },
   "prettier": "@adonisjs/prettier-config"
 }

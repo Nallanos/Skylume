@@ -61,16 +61,21 @@ export class TestDataFactory {
    * Create a test analysis for an account
    */
   static async createTestAnalysis(accountId: string, overrides: Partial<{
+    accountHandle: string
     status: AnalysisStatus
     progress: AnalysisProgress
     result: any
     errorMessage: string
   }> = {}) {
+    // Get the account to retrieve its handle if not provided
+    const account = await Account.findOrFail(accountId)
+
     // Prepare the progress object - the model will JSON.stringify it automatically
     const progressData = overrides.progress || { analyzed: 0, total: 100, percentage: 0 }
 
     return await AnalysisAudience.create({
       accountId: accountId,
+      accountHandle: overrides.accountHandle || account.handle,
       status: overrides.status || 'pending',
       queueJobId: null,
       progress: progressData,

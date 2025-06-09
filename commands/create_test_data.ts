@@ -6,7 +6,7 @@ export default class CreateTestData extends BaseCommand {
   static commandName = 'create:test-data'
   static description = 'Create test data for audience analysis workflow (replaces create_test_data.mjs)'
 
-  @args.string({ description: 'Type of test data: complete, user, account, or analysis', required: false })
+  @args.string({ description: 'Type of test data: complete, user, account, analysis, or real', required: false })
   declare type: string
 
   static options: CommandOptions = {
@@ -32,9 +32,12 @@ export default class CreateTestData extends BaseCommand {
         case 'analysis':
           await this.createAnalysisOnly()
           break
+        case 'real':
+          await this.createRealAccountAnalysis()
+          break
         default:
           this.logger.error(`❌ Unknown data type: ${dataType}`)
-          this.logger.info('Available types: complete, user, account, analysis')
+          this.logger.info('Available types: complete, user, account, analysis, real')
           return
       }
 
@@ -47,7 +50,7 @@ export default class CreateTestData extends BaseCommand {
   }
 
   private async createCompleteTestData() {
-    const { user, account, analysis, userId, accountId, analysisId } = 
+    const { user, account, analysis, userId, accountId, analysisId } =
       await TestDataFactory.createCompleteTestData()
 
     this.logger.info(`✅ Created test user: ${userId} (${user.email})`)
@@ -87,5 +90,42 @@ Use this data with the test commands:
     const account = await TestDataFactory.createTestAccount(user.id)
     const analysis = await TestDataFactory.createTestAnalysis(account.id)
     this.logger.success(`✅ Created test analysis: ${analysis.id} for account ${account.id}`)
+  }
+
+  private async createRealAccountAnalysis() {
+    const Account = (await import('#models/account')).default
+    const AnalysisAudience = (await import('#models/analysis_audience')).default
+
+    this.logger.info('🔍 Looking for allanbe.bsky.social account...')
+
+    // Find the existing account
+    const account = await Account.query()
+      .where('handle', 'allanbe.bsky.social')
+      .first()
+
+    if (!account) {
+      this.logger.error('❌ Account allanbe.bsky.social not found in database')
+      this.logger.info('💡 Make sure the account exists first, or create it manually')
+      return
+    }
+
+    this.logger.success(`✅ Found account: ${account.id} (${account.handle})`)
+
+    // Create an analysis for this account
+    this.logger.info('📊 Creating analysis...')
+    const analysis = await AnalysisAudience.create({
+      accountId: account.id,
+      accountHandle: account.handle,
+      status: 'pending',
+      queueJobId: null,
+      progress: { analyzed: 0, total: 100, percentage: 0 },
+      result: null,
+      errorMessage: null,
+      startedAt: null,
+      completedAt: null
+    })
+
+    this.logger.success(`✅ Created analysis: ${analysis.id} for account ${account.handle}`)
+    this.logger.info(`📊 You can now test with analysis ID: ${analysis.id}`)
   }
 }

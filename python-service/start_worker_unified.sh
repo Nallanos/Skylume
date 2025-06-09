@@ -49,16 +49,94 @@ if [ -z "$INTERNAL_API_KEY" ]; then
   exit 1
 fi
 
-# Vérification que Python est disponible
-if ! command -v python &> /dev/null && ! command -v python3 &> /dev/null; then
-    echo "❌ Erreur: ni python ni python3 ne sont installés"
+# Vérification que Poetry est disponible
+if ! command -v poetry &> /dev/null; then
+    echo "❌ Erreur: Poetry n'est pas installé"
+    echo "   Installez Poetry avec: curl -sSL https://install.python-poetry.org | python3 -"
     exit 1
 fi
 
-# Commande Python (utiliser python3 si disponible, sinon python)
-PYTHON_CMD="python"
-if command -v python3 &> /dev/null; then
-    PYTHON_CMD="python3"
+# Vérification que pyproject.toml existe
+if [ ! -f "$SCRIPT_DIR/pyproject.toml" ]; then
+    echo "❌ Erreur: fichier pyproject.toml non trouvé dans $SCRIPT_DIR"
+    exit 1
+fi
+
+# Installation des dépendances si nécessaire
+echo "📦 Vérification et installation des dépendances Poetry..."
+cd "$SCRIPT_DIR"
+poetry install
+
+# Commande Python via Poetry
+PYTHON_CMD="poetry run python"
+
+# Optimisation de cache pour les modèles ML
+export HF_HOME="$SCRIPT_DIR/.model_cache"
+export TRANSFORMERS_CACHE="$SCRIPT_DIR/.model_cache"
+export HF_DATASETS_CACHE="$SCRIPT_DIR/.model_cache"
+mkdir -p "$HF_HOME"
+
+# Pré-chargement des modèles ML (évite les délais lors de la première requête)
+echo "🤖 Initialisation des modèles ML (peut prendre 60-90s lors du premier démarrage)..."
+
+# Set timeout for model download to prevent hanging
+timeout 180 $PYTHON_CMD -c "
+import sys
+import time
+import os
+from pathlib import Path
+
+print('📦 Vérification et téléchargement des dépendances ML...')
+
+# Suppress deprecation warnings
+import warnings
+warnings.filterwarnings('ignore', category=FutureWarning)
+
+start_time = time.time()
+
+try:
+    print('  ⬇️  Téléchargement du modèle de transformation de phrases...')
+    
+    # Force use of HF_HOME instead of deprecated TRANSFORMERS_CACHE
+    os.environ['TRANSFORMERS_OFFLINE'] = '0'
+    
+    from sentence_transformers import SentenceTransformer
+    
+    # Use a specific timeout for model download
+    print('     Connexion au serveur Hugging Face...')
+    model = SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
+    print(f'  ✅ Modèle transformer prêt ({model.get_sentence_embedding_dimension()} dimensions)')
+    
+    print('  ⬇️  Téléchargement des données NLTK...')
+    import nltk
+    nltk.download('stopwords', quiet=True)
+    nltk.download('punkt', quiet=True)
+    print('  ✅ Données NLTK prêtes')
+    
+    print('  ⬇️  Chargement des composants scikit-learn...')
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.cluster import HDBSCAN
+    print('  ✅ scikit-learn prêt')
+    
+    elapsed = time.time() - start_time
+    print(f'🎉 Toutes les dépendances ML sont prêtes en {elapsed:.1f}s')
+    
+except Exception as e:
+    print(f'❌ Erreur lors de la configuration ML: {e}')
+    print('Le worker tentera de télécharger lors de l\'exécution')
+    sys.exit(1)
+"
+
+MODEL_INIT_EXIT_CODE=$?
+
+if [ $MODEL_INIT_EXIT_CODE -eq 124 ]; then
+    echo "⏰ Timeout lors du téléchargement des modèles (3 minutes)"
+    echo "🔄 Continuons sans pré-chargement - les modèles seront téléchargés lors de la première utilisation"
+elif [ $MODEL_INIT_EXIT_CODE -ne 0 ]; then
+    echo "❌ La configuration des dépendances ML a échoué (code: $MODEL_INIT_EXIT_CODE)"
+    echo "🔄 Continuons sans pré-chargement - les modèles seront téléchargés lors de la première utilisation"
+else
+    echo "✅ Modèles ML pré-chargés et mis en cache"
 fi
 
 # Vérification de la connectivité avec AdonisJS si non ignorée

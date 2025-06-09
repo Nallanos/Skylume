@@ -17,8 +17,14 @@ export default defineConfig({
   resolve: {
     alias: {
       '~/': `${getDirname(import.meta.url)}/inertia/`,
-      '@': `${getDirname(import.meta.url)}/inertia/lib`
+      '@': `${getDirname(import.meta.url)}/inertia/lib`,
+      '@inertiajs/svelte': `${getDirname(import.meta.url)}/node_modules/@inertiajs/svelte/dist/index.js`
     },
+  },
 
+  ssr: {
+    resolve: {
+      conditions: ['svelte', 'import', 'module', 'default'],
+    },
   },
 })

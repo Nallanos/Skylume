@@ -9,12 +9,15 @@ import logging
 import time
 import os
 from typing import Dict, Any, Optional
+
+print("🔄 Initialisation du worker d'analyse...")
+print("📦 Chargement des modules de base...")
+
 from dotenv import load_dotenv
-from ai_service.services.tagger import generate_tags
-from ai_service.clients.adonis_api_client import AdonisApiClient
 
 # Charger les variables d'environnement
 load_dotenv()
+print("✅ Variables d'environnement chargées")
 
 # Configuration du logging
 logging.basicConfig(
@@ -23,15 +26,46 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
+print("📥 Importation des services AI...")
+try:
+    from ai_service.services.tagger import generate_tags
+    print("✅ Module generate_tags importé avec succès")
+except Exception as e:
+    print(f"❌ Erreur lors de l'import de generate_tags: {e}")
+    raise
+
+print("📥 Importation du client API...")
+try:
+    from ai_service.clients.adonis_api_client import AdonisApiClient
+    print("✅ Client API importé avec succès")
+except Exception as e:
+    print(f"❌ Erreur lors de l'import du client API: {e}")
+    raise
+
+print("✅ Tous les imports terminés")
+
 class BulkAnalysisWorker:
     """Worker pour traiter les analyses en bulk et récurrentes des followers"""
     
     def __init__(self):
+        print("🔧 Initialisation de BulkAnalysisWorker...")
+        
         # Configuration depuis les variables d'environnement
         self.polling_interval = int(os.getenv('POLLING_INTERVAL', '10'))
         self.max_retries = 3
         self.running = False
-        self.api_client = AdonisApiClient()
+        
+        print(f"⚙️ Configuration: polling_interval={self.polling_interval}s, max_retries={self.max_retries}")
+        
+        print("🌐 Initialisation du client API...")
+        try:
+            self.api_client = AdonisApiClient()
+            print("✅ Client API initialisé avec succès")
+        except Exception as e:
+            print(f"❌ Erreur lors de l'initialisation du client API: {e}")
+            raise
+        
+        print("✅ BulkAnalysisWorker initialisé avec succès")
         
     async def start(self):
         """Démarre le worker en mode polling"""
@@ -86,8 +120,19 @@ class BulkAnalysisWorker:
             if analysis_id:
                 await self.api_client.update_analysis_progress(str(analysis_id), 0, "starting", "Démarrage de l'analyse")
             
-            # Appeler la fonction generate_tags
-            results = await generate_tags(account_handle, followers)
+            # Appeler la fonction generate_tags avec gestion d'erreur robuste
+            try:
+                results = await generate_tags(account_handle, followers)
+            except KeyboardInterrupt:
+                logger.info("Interruption clavier détectée pendant le traitement")
+                raise
+            except SystemExit:
+                logger.error("SystemExit détecté pendant le traitement")
+                raise
+            except Exception as tag_error:
+                logger.error(f"Erreur dans generate_tags: {tag_error}", exc_info=True)
+                # Retourner une liste vide plutôt que de faire échouer tout le job
+                results = []
             
             # Mettre à jour le progrès : analyse terminée (seulement pour les analyses en bulk)
             if analysis_id:
@@ -97,7 +142,7 @@ class BulkAnalysisWorker:
             if analysis_type == 'bulk':
                 # Marquer le job comme terminé avec succès pour les analyses en bulk
                 await self.api_client.complete_analysis_job(job_id, str(analysis_id) if analysis_id else None, {
-                    'clusters': results,
+                    'clustersData': results,  # Changed from 'clusters' to 'clustersData'
                     'totalAnalyzed': len(followers),
                     'accountHandle': account_handle,
                     'processedAt': time.time()
@@ -108,26 +153,49 @@ class BulkAnalysisWorker:
             
             logger.info(f"Job {job_id} terminé avec succès (type: {analysis_type})")
             
+        except (KeyboardInterrupt, SystemExit):
+            logger.info("Arrêt du traitement du job suite à un signal d'arrêt")
+            raise
         except Exception as e:
             logger.error(f"Erreur lors du traitement du job {job_id}: {e}", exc_info=True)
             
             # Marquer le job comme échoué seulement pour les analyses en bulk
             if analysis_type == 'bulk' and analysis_id:
-                await self.api_client.report_job_error(job_id, str(analysis_id), str(e))
+                try:
+                    await self.api_client.report_job_error(job_id, str(analysis_id), str(e))
+                except Exception as report_error:
+                    logger.error(f"Erreur lors du signalement d'erreur: {report_error}")
 
 async def main():
-    """Fonction principale pour démarrer le worker"""
-    worker = BulkAnalysisWorker()
+    """Point d'entrée principal du worker"""
+    print("🚀 Démarrage de la fonction main()...")
+    print("🏗️ Création de l'instance BulkAnalysisWorker...")
     
     try:
+        worker = BulkAnalysisWorker()
+        print("✅ Worker créé avec succès")
+        
+        print("▶️ Démarrage du worker...")
         await worker.start()
     except KeyboardInterrupt:
+        print("⏹️ Arrêt du worker via signal d'interruption")
         logger.info("Arrêt du worker via signal d'interruption")
     except Exception as e:
+        print(f"💥 Erreur fatale dans le worker: {e}")
         logger.error(f"Erreur fatale dans le worker: {e}", exc_info=True)
+        raise
     finally:
-        await worker.stop()
+        print("🧹 Nettoyage final...")
+        if 'worker' in locals():
+            await worker.stop()
+        print("✅ Nettoyage terminé")
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    print("🎬 Lancement du worker d'analyse...")
+    print("📋 Configuration de l'environnement async...")
+    try:
+        asyncio.run(main())
+    except Exception as e:
+        print(f"💥 Erreur fatale lors du lancement: {e}")
+        raise

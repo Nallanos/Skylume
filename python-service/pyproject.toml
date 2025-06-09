@@ -15,12 +15,11 @@ scikit-learn = ">=1.6.1,<2.0.0"
 numpy = ">=2.2.4,<3.0.0"
 python-dotenv = ">=1.1.0,<2.0.0"
 hdbscan = ">=0.8.40,<0.9.0"
-umap = ">=0.1.1,<0.2.0"
-matplotlib = ">=3.10.1,<4.0.0"
-umap-learn = ">=0.5.7,<0.6.0"
 spacy = ">=3.8.5,<4.0.0"
 httpx = "^0.25.0"
 atproto = "^0.0.54"
+psutil = "^7.0.0"
+nltk = "^3.8"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]

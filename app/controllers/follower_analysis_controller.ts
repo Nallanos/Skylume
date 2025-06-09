@@ -421,4 +421,70 @@ export default class FollowerAnalysisController {
         // par les notifications SSE directement depuis le modèle AnalysisAudience
         // via la méthode notifySSEClients() appelée dans markAsStarted(), updateProgress(), etc.
     }
+
+    /**
+     * Récupère les clusters d'un compte spécifique (pour tests et vérification)
+     */
+    public async getClusters({ request, response }: HttpContext) {
+        try {
+            const accountHandle = request.input('accountHandle')
+
+            if (!accountHandle) {
+                return response.status(400).json({
+                    status: 'error',
+                    message: 'accountHandle parameter is required'
+                })
+            }
+
+            // Récupérer les clusters pour ce compte
+            const clusters = await Cluster.query()
+                .where('accountHandle', accountHandle)
+                .preload('superCluster')
+
+            const superClusters = await SuperCluster.query()
+                .where('accountHandle', accountHandle)
+
+            // Formater les données pour la réponse
+            const formattedClusters = clusters.map(cluster => ({
+                id: cluster.id,
+                tag: cluster.tag,
+                handles: cluster.handles || [],
+                size: cluster.size,
+                accountHandle: cluster.accountHandle,
+                superClusterId: cluster.superClusterId,
+                embeddings: cluster.embeddings || [],
+                superCluster: cluster.superCluster ? {
+                    id: cluster.superCluster.id,
+                    tag: cluster.superCluster.tag
+                } : null
+            }))
+
+            const formattedSuperClusters = superClusters.map(superCluster => ({
+                id: superCluster.id,
+                tag: superCluster.tag,
+                handles: superCluster.handles || [],
+                size: superCluster.size,
+                accountHandle: superCluster.accountHandle,
+                embeddings: superCluster.embeddings || []
+            }))
+
+            return response.json({
+                status: 'success',
+                data: {
+                    clusters: formattedClusters,
+                    superClusters: formattedSuperClusters,
+                    accountHandle: accountHandle,
+                    totalClusters: formattedClusters.length,
+                    totalSuperClusters: formattedSuperClusters.length
+                }
+            })
+
+        } catch (error) {
+            console.error('Error retrieving clusters:', error)
+            return response.status(500).json({
+                status: 'error',
+                message: `Error retrieving clusters: ${error.message}`
+            })
+        }
+    }
 }

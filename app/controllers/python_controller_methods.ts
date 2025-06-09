@@ -146,6 +146,7 @@ export default class PythonControllerMethods {
                 'jobId', 'analysisId', 'success', 'results', 'error'
             ])
 
+
             if (!jobId) {
                 return response.status(400).json({
                     status: 'error',
@@ -155,6 +156,11 @@ export default class PythonControllerMethods {
 
             // Si pas d'analysisId, c'est une analyse récurrente (on fait juste du logging)
             if (!analysisId) {
+                if (!results || !results.clustersData || results.clustersData.length === 0) {
+                    console.warn(`Analyse récurrente ${jobId}: Aucun résultat ou clusters vides`)
+                } else {
+                    console.log(`Analyse récurrente ${jobId}: ${results.clustersData.length} clusters traités`)
+                }
                 console.log(`Analyse récurrente terminée pour le job ${jobId}`)
                 await this.aiSchedulerService.updateBulkJobStatus(jobId, 'completed')
                 return response.json({
@@ -173,6 +179,7 @@ export default class PythonControllerMethods {
             }
 
             if (!success) {
+                console.error(`Batch ${jobId} échoué pour l'analyse ${analysisId}: ${error}`)
                 // Marquer le job comme échoué
                 await this.aiSchedulerService.updateBulkJobStatus(jobId, 'failed', error)
                 await analysis.markAsFailed(error || 'Erreur lors du traitement du batch')
@@ -185,6 +192,15 @@ export default class PythonControllerMethods {
 
             // Batch traité avec succès - marquer le job comme terminé
             await this.aiSchedulerService.updateBulkJobStatus(jobId, 'completed')
+
+            // Log des résultats reçus pour debugging
+            if (!results) {
+                console.warn(`Batch ${jobId}: Aucun résultat reçu du worker Python`)
+            } else if (!results.clustersData || results.clustersData.length === 0) {
+                console.warn(`Batch ${jobId}: Résultats reçus mais aucun cluster généré (totalAnalyzed: ${results.totalAnalyzed || 0})`)
+            } else {
+                console.log(`Batch ${jobId}: ${results.clustersData.length} clusters reçus, ${results.totalAnalyzed || 0} followers analysés`)
+            }
 
             // Mettre à jour le progrès
             const currentProgress = analysis.progress || { analyzed: 0, total: 0, percentage: 0 }
@@ -236,6 +252,26 @@ export default class PythonControllerMethods {
                 currentResults.batches.push(results)
                 analysis.result = currentResults
                 await analysis.save()
+
+                // CRÉATION INCRÉMENTALE DES CLUSTERS - Interface plus responsive
+                if (results.clustersData && results.clustersData.length > 0) {
+                    try {
+                        console.log(`Création incrémentale de ${results.clustersData.length} clusters pour l'analyse ${analysis.id}`)
+                        const account = await Account.findOrFail(analysis.accountId)
+
+                        // Créer les clusters immédiatement pour ce batch
+                        await this.createClustersFromSingleBatch(analysis, account, results)
+
+                        console.log(`${results.clustersData.length} clusters créés avec succès pour le batch ${jobId}`)
+                    } catch (error) {
+                        console.error(`Erreur lors de la création incrémentale des clusters pour le batch ${jobId}:`, error)
+                        // Ne pas bloquer le processus en cas d'erreur de cluster
+                    }
+                } else {
+                    console.warn(`Batch ${jobId}: Aucun cluster à créer pour ce batch`)
+                }
+            } else {
+                console.warn(`Batch ${jobId}: Aucun résultat à stocker pour ce batch`)
             }
 
             // Récupérer le prochain batch de followers
@@ -468,13 +504,44 @@ export default class PythonControllerMethods {
     }
 
     /**
+     * Crée les clusters et superclusters dans la base de données à partir d'un seul batch
+     * Cette méthode permet une création incrémentale pour une interface plus responsive
+     */
+    private async createClustersFromSingleBatch(analysis: AnalysisAudience, account: Account, batchResults: any): Promise<void> {
+        try {
+            if (!batchResults.clustersData || !Array.isArray(batchResults.clustersData)) {
+                console.log(`Aucune donnée de cluster dans le batch pour l'analyse ${analysis.id}`)
+                return
+            }
+
+            const clustersData = batchResults.clustersData.map((cluster: any) => ({
+                tag: cluster.tag || 'Unknown',
+                handles: cluster.handles || [],
+                keywords: cluster.keywords || [],
+                embedding: cluster.embedding || [],
+                size: cluster.size || 0,
+                cohesion: cluster.cohesion || 0
+            }))
+
+            // Créer les clusters immédiatement via le service
+            await this.followerAnalysisService.createClustersFromData(account, clustersData)
+
+            console.log(`Création incrémentale réussie: ${clustersData.length} clusters créés pour l'analyse ${analysis.id}`)
+
+        } catch (error) {
+            console.error(`Erreur lors de la création incrémentale des clusters pour l'analyse ${analysis.id}:`, error)
+            // Ne pas faire échouer l'analyse si la création des clusters échoue
+        }
+    }
+
+    /**
      * Récupère les données d'un compte pour le service Python
      * Cette méthode est utilisée par le service Python pour obtenir les credentials d'un compte
      */
     public async getAccount({ params, response }: HttpContext) {
         try {
             const { handle } = params
-            
+
             if (!handle) {
                 return response.status(400).json({
                     status: 'error',
@@ -484,7 +551,7 @@ export default class PythonControllerMethods {
 
             // Récupérer le compte avec ses données sensibles
             const account = await Account.findByOrFail('handle', handle)
-            
+
             // Retourner uniquement les données nécessaires pour le service Python
             return response.json({
                 status: 'success',
@@ -497,14 +564,14 @@ export default class PythonControllerMethods {
 
         } catch (error) {
             console.error(`Erreur lors de la récupération du compte ${params.handle}:`, error)
-            
+
             if (error.code === 'E_ROW_NOT_FOUND') {
                 return response.status(404).json({
                     status: 'error',
                     message: 'Compte non trouvé'
                 })
             }
-            
+
             return response.status(500).json({
                 status: 'error',
                 message: `Erreur serveur: ${error instanceof Error ? error.message : String(error)}`

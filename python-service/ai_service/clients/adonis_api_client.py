@@ -17,9 +17,13 @@ class AdonisApiClient:
     """Client HTTP sécurisé pour communiquer avec l'API AdonisJS"""
     
     def __init__(self):
+        print("🌐 Initialisation d'AdonisApiClient...")
+        
         # Détection automatique du mode Docker vs développement local
         self.base_url = os.getenv('ADONISJS_API_URL')
         self.api_key = os.getenv('INTERNAL_API_KEY')
+        print(f"🔧 Base URL: {self.base_url}")
+        print(f"🔑 API Key présente: {'Oui' if self.api_key else 'Non'}")
         
         # Fallback intelligent en fonction de l'environnement
         if not self.base_url:
@@ -27,27 +31,37 @@ class AdonisApiClient:
             if os.path.exists('/.dockerenv'):
                 self.base_url = 'http://adonis-app:8081'
                 logger.info("Environnement Docker détecté, utilisation de l'URL: http://adonis-app:8081")
+                print("🐳 Environnement Docker détecté")
             else:
                 self.base_url = 'http://localhost:8081'
+                print("💻 Environnement local détecté")
                 logger.info("Environnement local détecté, utilisation de l'URL: http://localhost:8081")
         
+        print("🔑 Validation de la clé API...")
         if not self.api_key:
+            print("❌ Clé API manquante!")
             raise ValueError("INTERNAL_API_KEY environment variable is required")
+        print("✅ Clé API validée")
         
+        print("📋 Configuration des headers...")
         self.headers = {
             'x-api-key': self.api_key,
             'Content-Type': 'application/json',
             'User-Agent': 'Python-AI-Service/1.0'
         }
+        print("✅ Headers configurés")
         
+        print("🌐 Création du client HTTP...")
         # Configuration du client HTTP avec timeout et retry (sans headers globaux)
         self.client = httpx.AsyncClient(
             base_url=self.base_url,
             timeout=30.0,
             limits=httpx.Limits(max_keepalive_connections=5, max_connections=10)
         )
+        print("✅ Client HTTP créé")
         
         logger.info(f"AdonisApiClient initialized with base URL: {self.base_url}")
+        print(f"✅ AdonisApiClient initialisé avec succès ({self.base_url})")
     
     async def get_next_bulk_job(self) -> Optional[Dict[str, Any]]:
         """Récupère le prochain job d'analyse en bulk depuis AdonisJS"""

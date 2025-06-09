@@ -1,7 +1,14 @@
+import os
+import warnings
 from sentence_transformers import SentenceTransformer, util
 from typing import List, Union, Dict, Any
 import numpy as np
 from ai_service.models.interfaces.embedding_model import EmbeddingModel
+
+# Configuration des variables d'environnement et suppression des avertissements
+os.environ.setdefault('TRANSFORMERS_OFFLINE', '0')
+warnings.filterwarnings('ignore', category=FutureWarning, message='.*TRANSFORMERS_CACHE.*')
+warnings.filterwarnings('ignore', category=FutureWarning, module='transformers.utils.hub')
 
 class TransformerEmbedder(EmbeddingModel):
     """

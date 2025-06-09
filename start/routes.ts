@@ -167,6 +167,7 @@ router.post('/api/accounts/:id/follower-analysis/start', [follower_analysis_cont
 router.post('/api/accounts/:id/follower-analysis/stop', [follower_analysis_controller, 'stopAnalysis']).use(middleware.auth())
 router.get('/api/accounts/:id/follower-analysis/status', [follower_analysis_controller, 'getAnalysisStatus']).use(middleware.auth())
 router.get('/api/accounts/:id/follower-analysis/stream', [follower_analysis_controller, 'streamAnalysisStatus']).use(middleware.auth())
+router.get('/api/clusters', [follower_analysis_controller, 'getClusters'])
 
 // Routes internes pour le worker Python (protégées par clé API)
 router.get('/internal/python/next-bulk-job', [python_controller_methods, 'getNextBulkAnalysisJob']).use(middleware.api_auth())
