@@ -31,6 +31,34 @@ export default class HttpExceptionHandler extends ExceptionHandler {
    * response to the client
    */
   async handle(error: unknown, ctx: HttpContext) {
+    const { request, response, logger } = ctx
+
+    // Handle JSON parsing errors specifically for Python endpoints
+    if (request.url().includes('/internal/python') && error instanceof Error) {
+      // Check for JSON parsing errors
+      if (error.message.includes('Unexpected token') ||
+        error.message.includes('JSON') ||
+        error.message.includes('parse')) {
+
+        logger.error('JSON parsing error on Python endpoint:', {
+          error: error.message,
+          stack: error.stack,
+          url: request.url(),
+          method: request.method(),
+          contentType: request.header('content-type'),
+          contentLength: request.header('content-length'),
+          bodyPreview: request.raw()?.substring(0, 500)
+        })
+
+        return response.status(400).json({
+          status: 'error',
+          message: 'Invalid JSON format in request body',
+          details: 'The request body could not be parsed as valid JSON',
+          error_type: 'json_parse_error'
+        })
+      }
+    }
+
     return super.handle(error, ctx)
   }
 

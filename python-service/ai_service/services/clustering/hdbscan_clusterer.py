@@ -9,7 +9,7 @@ class HDBSCANClusterer(ClusteringModel):
     Implémentation d'un modèle de clustering basé sur HDBSCAN
     """
     
-    def __init__(self, min_cluster_size: int = 3, min_samples: Optional[int] = None, 
+    def __init__(self, min_cluster_size: int = 5, min_samples: Optional[int] = None, 
                  metric: str = "euclidean", cluster_selection_method: str = 'eom'):
         """
         Initialise le clusterer HDBSCAN

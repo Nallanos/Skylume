@@ -140,11 +140,44 @@ export default class PythonControllerMethods {
      * Traite le progrès d'un batch d'analyse et gère la suite du processus
      * Cette méthode remplace completeAnalysisJob pour gérer les analyses par batches
      */
-    public async processBatchProgress({ request, response }: HttpContext) {
+    public async processBatchProgress({ request, response, logger }: HttpContext) {
         try {
-            const { jobId, analysisId, success, results, error } = request.only([
-                'jobId', 'analysisId', 'success', 'results', 'error'
-            ])
+            // Log request details for debugging
+            logger.info('Processing batch progress:', {
+                contentType: request.header('content-type'),
+                contentLength: request.header('content-length'),
+                method: request.method(),
+                url: request.url()
+            })
+
+            // Validate content type
+            const contentType = request.header('content-type')
+            if (!contentType || !contentType.includes('application/json')) {
+                logger.error('Invalid content type:', contentType)
+                return response.status(400).json({
+                    status: 'error',
+                    message: 'Content-Type must be application/json'
+                })
+            }
+
+            // Try to extract data with proper error handling
+            let requestData
+            try {
+                requestData = request.only([
+                    'jobId', 'analysisId', 'success', 'results', 'error'
+                ])
+            } catch (parseError) {
+                logger.error('Failed to parse request body:', {
+                    error: parseError.message,
+                    raw: request.raw()?.substring(0, 1000)
+                })
+                return response.status(400).json({
+                    status: 'error',
+                    message: 'Invalid JSON format in request body'
+                })
+            }
+
+            const { jobId, analysisId, success, results, error } = requestData
 
 
             if (!jobId) {
@@ -330,6 +363,19 @@ export default class PythonControllerMethods {
 
         } catch (error) {
             console.error("Erreur lors du traitement du progrès du batch:", error)
+
+            // Enhanced error logging for debugging
+            logger.error('Detailed error in processBatchProgress:', {
+                error: error.message,
+                stack: error.stack,
+                url: request.url(),
+                method: request.method(),
+                headers: request.headers(),
+                contentType: request.header('content-type'),
+                contentLength: request.header('content-length'),
+                rawBodyPreview: request.raw()?.substring(0, 1000)
+            })
+
             return response.status(500).json({
                 status: 'error',
                 message: `Une erreur est survenue: ${error instanceof Error ? error.message : String(error)}`
@@ -365,8 +411,15 @@ export default class PythonControllerMethods {
     /**
      * Met à jour le progrès d'une analyse en cours
      */
-    public async updateAnalysisProgress({ request, response }: HttpContext) {
+    public async updateAnalysisProgress({ request, response, logger }: HttpContext) {
         try {
+            // Log request details for debugging
+            logger.info('Updating analysis progress:', {
+                contentType: request.header('content-type'),
+                contentLength: request.header('content-length'),
+                url: request.url()
+            })
+
             const { analysisId, analyzed, percentage } = request.only([
                 'analysisId', 'analyzed', 'percentage'
             ])
@@ -416,6 +469,19 @@ export default class PythonControllerMethods {
 
         } catch (error) {
             console.error("Erreur lors de la mise à jour du progrès:", error)
+
+            // Enhanced error logging for debugging
+            logger.error('Detailed error in updateAnalysisProgress:', {
+                error: error.message,
+                stack: error.stack,
+                url: request.url(),
+                method: request.method(),
+                headers: request.headers(),
+                contentType: request.header('content-type'),
+                contentLength: request.header('content-length'),
+                rawBodyPreview: request.raw()?.substring(0, 1000)
+            })
+
             return response.status(500).json({
                 status: 'error',
                 message: `Une erreur est survenue: ${error instanceof Error ? error.message : String(error)}`
@@ -487,7 +553,7 @@ export default class PythonControllerMethods {
                 tag: cluster.tag || 'Unknown',
                 handles: cluster.handles || [],
                 keywords: cluster.keywords || [],
-                embedding: cluster.embedding || [],
+                embedding: cluster.embeddings || cluster.embedding || [], // Fix: Python uses 'embeddings' (plural)
                 size: cluster.size || 0,
                 cohesion: cluster.cohesion || 0
             }))
@@ -518,7 +584,7 @@ export default class PythonControllerMethods {
                 tag: cluster.tag || 'Unknown',
                 handles: cluster.handles || [],
                 keywords: cluster.keywords || [],
-                embedding: cluster.embedding || [],
+                embedding: cluster.embeddings || cluster.embedding || [], // Fix: Python uses 'embeddings' (plural)
                 size: cluster.size || 0,
                 cohesion: cluster.cohesion || 0
             }))

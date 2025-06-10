@@ -26,7 +26,8 @@ server.use([
   () => import('@adonisjs/static/static_middleware'),
   () => import('@adonisjs/cors/cors_middleware'),
   () => import('@adonisjs/vite/vite_middleware'),
-  () => import('@adonisjs/inertia/inertia_middleware')
+  () => import('@adonisjs/inertia/inertia_middleware'),
+  () => import('#middleware/request_debug_middleware')
 ])
 
 /**
@@ -47,5 +48,6 @@ router.use([
 export const middleware = router.named({
   guest: () => import('#middleware/guest_middleware'),
   auth: () => import('#middleware/auth_middleware'),
-  api_auth: () => import('#middleware/api_auth_middleware')
+  api_auth: () => import('#middleware/api_auth_middleware'),
+  json_validation: () => import('#middleware/json_validation_middleware')
 })

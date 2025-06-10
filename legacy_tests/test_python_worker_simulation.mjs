@@ -7,29 +7,29 @@ const BASE_URL = 'http://localhost:8081'
 
 async function simulatePythonWorker() {
   console.log('🤖 Simulating Python Worker Workflow...\n')
-  
+
   try {
     // Step 1: Create test data first
     console.log('📊 Step 1: Setting up test data...')
     const { userId, accountId, analysisId } = await createTestData()
     console.log(`✅ Created Analysis ID: ${analysisId} for Account: ${accountId}\n`)
-    
+
     // Step 2: Simulate the FollowerAnalysisController starting an analysis
     // (This would normally be done via the web interface, but we'll simulate it by updating the database)
     console.log('🚀 Step 2: Simulating analysis start...')
     await updateAnalysisStatus(analysisId, 'pending', { analyzed: 0, total: 100, percentage: 0 })
     console.log('✅ Analysis marked as pending\n')
-    
+
     // Step 3: Simulate Python worker polling for jobs
     console.log('🔍 Step 3: Python worker polling for jobs...')
     await simulateWorkerPolling()
-    
+
     // Step 4: Simulate processing an analysis
     console.log('⚙️  Step 4: Simulating analysis processing...')
     await simulateAnalysisProcessing(analysisId)
-    
+
     console.log('\n🎉 Python worker simulation completed successfully!')
-    
+
   } catch (error) {
     console.error('❌ Simulation failed:', error.message)
     process.exit(1)
@@ -46,25 +46,25 @@ async function simulateWorkerPolling() {
   console.log('  - Polling for bulk jobs...')
   const bulkJobResponse = await fetch(`${BASE_URL}/internal/python/next-bulk-job`)
   const bulkJobText = await bulkJobResponse.text()
-  
+
   console.log(`    Bulk job endpoint: ${bulkJobResponse.status} ${bulkJobResponse.statusText}`)
   if (bulkJobText.trim()) {
     console.log(`    Response: ${bulkJobText}`)
   } else {
     console.log('    No bulk jobs available (empty response)')
   }
-  
+
   console.log('  - Polling for recurring jobs...')
   const recurringJobResponse = await fetch(`${BASE_URL}/internal/python/next-recurring-job`)
   const recurringJobText = await recurringJobResponse.text()
-  
+
   console.log(`    Recurring job endpoint: ${recurringJobResponse.status} ${recurringJobResponse.statusText}`)
   if (recurringJobText.trim()) {
     console.log(`    Response: ${recurringJobText}`)
   } else {
     console.log('    No recurring jobs available (empty response)')
   }
-  
+
   console.log('✅ Worker polling completed\n')
 }
 
@@ -76,25 +76,25 @@ async function simulateAnalysisProcessing(analysisId) {
     total: 100,
     percentage: 25
   })
-  
+
   console.log('  - Reporting progress: 50%...')
   await reportProgress(analysisId, {
     analyzed: 50,
     total: 100,
     percentage: 50
   })
-  
+
   console.log('  - Reporting progress: 75%...')
   await reportProgress(analysisId, {
     analyzed: 75,
     total: 100,
     percentage: 75
   })
-  
+
   // Step 2: Complete the job with realistic results
   console.log('  - Completing analysis with results...')
   await completeAnalysis(analysisId)
-  
+
   console.log('✅ Analysis processing simulation completed\n')
 }
 
@@ -111,7 +111,7 @@ async function reportProgress(analysisId, progress) {
       percentage: progress.percentage
     })
   })
-  
+
   const responseText = await response.text()
   console.log(`    Progress update: ${response.status} ${response.statusText}`)
   if (responseText.trim()) {
@@ -202,19 +202,33 @@ async function completeAnalysis(analysisId) {
   // Since we don't have a real jobId from the queue system, we'll simulate it
   const simulatedJobId = `job-${Date.now()}`
 
+  const payload = {
+    jobId: simulatedJobId,
+    analysisId: analysisId.toString(), // Send as string as expected by the API
+    success: true,
+    results: analysisResult
+  }
+
+  // Validate JSON before sending
+  let jsonString
+  try {
+    jsonString = JSON.stringify(payload)
+    JSON.parse(jsonString) // Validate it's parseable
+    console.log(`    Sending valid JSON payload (${jsonString.length} chars)`)
+  } catch (e) {
+    console.error('    ❌ Invalid JSON payload:', e.message)
+    return
+  }
+
   const response = await fetch(`${BASE_URL}/internal/python/complete-job`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
+      'x-api-key': process.env.INTERNAL_API_KEY || 'test-api-key'
     },
-    body: JSON.stringify({
-      jobId: simulatedJobId,
-      analysisId: analysisId.toString(), // Send as string as expected by the API
-      success: true,
-      results: analysisResult
-    })
+    body: jsonString
   })
-  
+
   const responseText = await response.text()
   console.log(`    Job completion: ${response.status} ${response.statusText}`)
   if (responseText.trim()) {

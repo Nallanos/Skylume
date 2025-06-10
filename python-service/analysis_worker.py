@@ -8,6 +8,8 @@ import asyncio
 import logging
 import time
 import os
+import signal
+import psutil  # Add for process monitoring
 from typing import Dict, Any, Optional
 
 print("🔄 Initialisation du worker d'analyse...")
@@ -55,7 +57,14 @@ class BulkAnalysisWorker:
         self.max_retries = 3
         self.running = False
         
+        # Process monitoring settings
+        self.memory_threshold_mb = 2048  # 2GB limit
+        self.cpu_threshold_percent = 80  # 80% CPU limit
+        self.last_activity_time = time.time()  # Track last activity for health monitoring
+        self.health_check_interval = 300  # 5 minutes between health checks
+        
         print(f"⚙️ Configuration: polling_interval={self.polling_interval}s, max_retries={self.max_retries}")
+        print(f"🛡️ Process limits: memory={self.memory_threshold_mb}MB, cpu={self.cpu_threshold_percent}%")
         
         print("🌐 Initialisation du client API...")
         try:
@@ -67,6 +76,53 @@ class BulkAnalysisWorker:
         
         print("✅ BulkAnalysisWorker initialisé avec succès")
         
+    def _check_system_resources(self) -> Dict[str, Any]:
+        """Monitor system resources to prevent overload"""
+        try:
+            process = psutil.Process()
+            memory_info = process.memory_info()
+            memory_mb = memory_info.rss / 1024 / 1024
+            cpu_percent = process.cpu_percent()
+            
+            return {
+                'memory_mb': memory_mb,
+                'cpu_percent': cpu_percent,
+                'memory_over_limit': memory_mb > self.memory_threshold_mb,
+                'cpu_over_limit': cpu_percent > self.cpu_threshold_percent
+            }
+        except Exception as e:
+            logger.warning(f"Failed to check system resources: {e}")
+            return {'memory_mb': 0, 'cpu_percent': 0, 'memory_over_limit': False, 'cpu_over_limit': False}
+    
+    def _handle_resource_pressure(self, stats: Dict[str, Any]):
+        """Handle high resource usage"""
+        if stats['memory_over_limit']:
+            logger.warning(f"🚨 High memory usage: {stats['memory_mb']:.1f}MB (limit: {self.memory_threshold_mb}MB)")
+            # Force garbage collection
+            import gc
+            gc.collect()
+            
+        if stats['cpu_over_limit']:
+            logger.warning(f"🚨 High CPU usage: {stats['cpu_percent']:.1f}% (limit: {self.cpu_threshold_percent}%)")
+            # Brief pause to reduce CPU load
+            time.sleep(2)
+            
+    def _update_activity_timestamp(self):
+        """Update last activity timestamp"""
+        self.last_activity_time = time.time()
+        
+    def _check_worker_health(self):
+        """Check if worker is healthy and responsive"""
+        current_time = time.time()
+        time_since_activity = current_time - self.last_activity_time
+        
+        if time_since_activity > self.health_check_interval:
+            logger.warning(f"⚠️ Worker inactive for {time_since_activity:.1f} seconds")
+            # Force activity update
+            self._update_activity_timestamp()
+            
+        return time_since_activity < self.health_check_interval * 2  # Allow 2x interval before considering unhealthy
+        
     async def start(self):
         """Démarre le worker en mode polling"""
         logger.info("Démarrage du worker d'analyse en bulk")
@@ -75,6 +131,20 @@ class BulkAnalysisWorker:
         try:
             while self.running:
                 try:
+                    # Periodic resource monitoring
+                    resource_stats = self._check_system_resources()
+                    if resource_stats['memory_over_limit'] or resource_stats['cpu_over_limit']:
+                        logger.warning(f"🚨 Resource pressure detected: Memory {resource_stats['memory_mb']:.1f}MB, CPU {resource_stats['cpu_percent']:.1f}%")
+                        self._handle_resource_pressure(resource_stats)
+                    
+                    # Health check
+                    if not self._check_worker_health():
+                        logger.error("❌ Worker health check failed - restarting...")
+                        break
+                    
+                    # Update activity timestamp
+                    self._update_activity_timestamp()
+                    
                     # Essayer d'abord de récupérer un job en bulk (priorité plus élevée)
                     job = await self.api_client.get_next_bulk_job()
                     
@@ -116,19 +186,67 @@ class BulkAnalysisWorker:
         try:
             logger.info(f"Début du traitement du job {job_id} pour {account_handle} (type: {analysis_type})")
             
+            # Check system resources before starting intensive work
+            resource_stats = self._check_system_resources()
+            logger.info(f"💾 Resource usage: Memory {resource_stats['memory_mb']:.1f}MB, CPU {resource_stats['cpu_percent']:.1f}%")
+            
+            # Handle resource pressure
+            self._handle_resource_pressure(resource_stats)
+            
             # Mettre à jour le progrès seulement pour les analyses en bulk (qui ont un ID d'analyse)
             if analysis_id:
                 await self.api_client.update_analysis_progress(str(analysis_id), 0, "starting", "Démarrage de l'analyse")
             
             # Appeler la fonction generate_tags avec gestion d'erreur robuste
             try:
+                # Monitor resources before intensive processing
+                pre_processing_stats = self._check_system_resources()
+                logger.info(f"💾 Pre-processing: Memory {pre_processing_stats['memory_mb']:.1f}MB, CPU {pre_processing_stats['cpu_percent']:.1f}%")
+                
+                # Set up timeout protection for the analysis
+                def analysis_timeout_handler(signum, frame):
+                    raise TimeoutError("Analysis processing timed out")
+                
+                # Set 30-minute timeout for the entire analysis
+                signal.signal(signal.SIGALRM, analysis_timeout_handler)
+                signal.alarm(1800)  # 30 minutes
+                
                 results = await generate_tags(account_handle, followers)
+                
+                # Clear timeout
+                signal.alarm(0)
+                
+                # Monitor resources after processing
+                post_processing_stats = self._check_system_resources()
+                logger.info(f"💾 Post-processing: Memory {post_processing_stats['memory_mb']:.1f}MB, CPU {post_processing_stats['cpu_percent']:.1f}%")
+                
+            except TimeoutError:
+                logger.error("⏰ Analysis timed out after 30 minutes")
+                results = []
             except KeyboardInterrupt:
                 logger.info("Interruption clavier détectée pendant le traitement")
                 raise
             except SystemExit:
                 logger.error("SystemExit détecté pendant le traitement")
                 raise
+            except MemoryError:
+                logger.error("❌ Mémoire insuffisante pour le traitement")
+                # Force garbage collection and retry with smaller dataset
+                import gc
+                gc.collect()
+                
+                # Try processing with reduced dataset size
+                if len(followers) > 100:
+                    logger.info(f"🔄 Tentative de récupération avec un échantillon réduit ({min(100, len(followers))} followers)")
+                    try:
+                        reduced_followers = followers[:100]  # Use first 100 followers
+                        results = await generate_tags(account_handle, reduced_followers)
+                        logger.info("✅ Récupération réussie avec échantillon réduit")
+                    except Exception as recovery_error:
+                        logger.error(f"❌ Échec de la récupération: {recovery_error}")
+                        results = []
+                else:
+                    results = []
             except Exception as tag_error:
                 logger.error(f"Erreur dans generate_tags: {tag_error}", exc_info=True)
                 # Retourner une liste vide plutôt que de faire échouer tout le job
@@ -170,6 +288,17 @@ async def main():
     """Point d'entrée principal du worker"""
     print("🚀 Démarrage de la fonction main()...")
     print("🏗️ Création de l'instance BulkAnalysisWorker...")
+    
+    # Set up signal handlers for graceful shutdown
+    def signal_handler(signum, frame):
+        print(f"🛑 Signal {signum} reçu - arrêt gracieux en cours...")
+        logger.info(f"Signal {signum} reçu - arrêt gracieux en cours...")
+        if 'worker' in locals() and hasattr(worker, 'running'):
+            worker.running = False
+    
+    # Register signal handlers
+    signal.signal(signal.SIGTERM, signal_handler)
+    signal.signal(signal.SIGINT, signal_handler)
     
     try:
         worker = BulkAnalysisWorker()

@@ -205,10 +205,6 @@
     },
     {} as Record<number, typeof clusters>
   )
-
-  console.log('Clusters:', clusters)
-  console.log('Super Clusters:', superClusters)
-  console.log('Grouped Clusters:', groupedClusters)
 </script>
 
 <div class="flex min-h-screen bg-background">

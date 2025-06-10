@@ -171,12 +171,21 @@ export default class FollowerAnalysisController {
                 await this.aiSchedulerService.cancelBulkAnalysisJob(analysis.queueJobId)
             }
 
+            // Supprimer tous les clusters et super clusters liés au compte
+            await Cluster.query()
+                .where('accountHandle', account.handle)
+                .delete()
+
+            await SuperCluster.query()
+                .where('accountHandle', account.handle)
+                .delete()
+
             // Marquer l'analyse comme arrêtée
             await analysis.markAsStopped()
 
             return response.json({
                 status: 'success',
-                message: `Analyse des followers arrêtée pour le compte ${account.handle}`,
+                message: `Analyse des followers arrêtée pour le compte ${account.handle}. Tous les clusters associés ont été supprimés.`,
                 analysisId: analysis.id
             })
         } catch (error) {

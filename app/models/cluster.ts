@@ -25,7 +25,7 @@ export default class Cluster extends BaseModel {
   declare handles: string[]
 
   @column()
-  declare superClusterId: number
+  declare superClusterId: number | null
 
   @column({
     prepare: (value: number[] | string) => typeof value === 'string' ? value : JSON.stringify(value),

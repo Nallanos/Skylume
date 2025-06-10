@@ -3,6 +3,8 @@ import time
 import re
 import math
 import hashlib
+import gc  # Add garbage collector for memory management
+import psutil  # Add process monitoring
 from typing import List, Dict, Any, Tuple, Optional
 from collections import defaultdict, Counter
 import numpy as np
@@ -34,6 +36,7 @@ from ai_service.utils.text_cleaner import TextCleaner
 from ai_service.models.transformer_embedder import TransformerEmbedder
 from ai_service.services.taggers.keybert_tagger import KeyBERTTagger
 from ai_service.services.clustering.hdbscan_clusterer import HDBSCANClusterer
+from ai_service.services.improved_tag_generator import ImprovedTagGenerator
 from bluesky.api import AccountService
 
 # Type definitions for ProfileView and other Bluesky types
@@ -145,6 +148,104 @@ class TagService:
         # Add missing attributes for 7-step pipeline
         self.clustering_model = self.clusterer  # Alias for consistency
         self.keybert_tagger = self.tag_generator  # Alias for semantic clustering
+        
+        # Initialize improved tag generator for better quality tags
+        self.improved_tag_generator = ImprovedTagGenerator(embedding_model=self.embedding_model)
+        
+        # Memory management settings
+        self.memory_threshold_mb = 2048  # 2GB memory threshold
+        self.gc_interval = 100  # Run garbage collection every 100 operations
+        self._operation_count = 0
+
+    def _check_memory_usage(self) -> Dict[str, float]:
+        """Monitor current memory usage"""
+        try:
+            process = psutil.Process()
+            memory_info = process.memory_info()
+            memory_mb = memory_info.rss / 1024 / 1024  # Convert to MB
+            
+            memory_stats = {
+                'current_mb': memory_mb,
+                'percent': process.memory_percent(),
+                'threshold_mb': self.memory_threshold_mb
+            }
+            
+            # Log warning if memory usage is high
+            if memory_mb > self.memory_threshold_mb:
+                self.logger.warning(f"🚨 High memory usage: {memory_mb:.1f}MB (>{self.memory_threshold_mb}MB threshold)")
+            
+            return memory_stats
+        except Exception as e:
+            self.logger.debug(f"Failed to check memory usage: {e}")
+            return {'current_mb': 0, 'percent': 0, 'threshold_mb': self.memory_threshold_mb}
+
+    def _manage_memory(self):
+        """Perform memory management if needed"""
+        try:
+            self._operation_count += 1
+            
+            # Check memory every gc_interval operations
+            if self._operation_count % self.gc_interval == 0:
+                memory_stats = self._check_memory_usage()
+                
+                # Force garbage collection if memory usage is high
+                if memory_stats['current_mb'] > self.memory_threshold_mb * 0.8:  # 80% of threshold
+                    self.logger.info(f"🧹 Running garbage collection (memory: {memory_stats['current_mb']:.1f}MB)")
+                    gc.collect()
+                    
+                    # Check memory again after GC
+                    new_memory = self._check_memory_usage()
+                    freed_mb = memory_stats['current_mb'] - new_memory['current_mb']
+                    if freed_mb > 0:
+                        self.logger.info(f"✅ Freed {freed_mb:.1f}MB of memory")
+                        
+        except Exception as e:
+            self.logger.debug(f"Memory management error: {e}")
+
+    def _check_memory_usage(self) -> Dict[str, float]:
+        """Monitor current memory usage"""
+        try:
+            process = psutil.Process()
+            memory_info = process.memory_info()
+            memory_mb = memory_info.rss / 1024 / 1024  # Convert to MB
+            
+            memory_stats = {
+                'current_mb': memory_mb,
+                'percent': process.memory_percent(),
+                'threshold_mb': self.memory_threshold_mb
+            }
+            
+            # Log warning if memory usage is high
+            if memory_mb > self.memory_threshold_mb:
+                self.logger.warning(f"🚨 High memory usage: {memory_mb:.1f}MB (>{self.memory_threshold_mb}MB threshold)")
+            
+            return memory_stats
+        except Exception as e:
+            self.logger.debug(f"Failed to check memory usage: {e}")
+            return {'current_mb': 0, 'percent': 0, 'threshold_mb': self.memory_threshold_mb}
+
+    def _manage_memory(self):
+        """Perform memory management if needed"""
+        try:
+            self._operation_count += 1
+            
+            # Check memory every gc_interval operations
+            if self._operation_count % self.gc_interval == 0:
+                memory_stats = self._check_memory_usage()
+                
+                # Force garbage collection if memory usage is high
+                if memory_stats['current_mb'] > self.memory_threshold_mb * 0.8:  # 80% of threshold
+                    self.logger.info(f"🧹 Running garbage collection (memory: {memory_stats['current_mb']:.1f}MB)")
+                    gc.collect()
+                    
+                    # Check memory again after GC
+                    new_memory = self._check_memory_usage()
+                    freed_mb = memory_stats['current_mb'] - new_memory['current_mb']
+                    if freed_mb > 0:
+                        self.logger.info(f"✅ Freed {freed_mb:.1f}MB of memory")
+                        
+        except Exception as e:
+            self.logger.debug(f"Memory management error: {e}")
     
     def _get_profile_field(self, profile, field: str, default=''):
         """Safely extract field from profile (dict or object)"""
@@ -171,8 +272,12 @@ class TagService:
         """Initialise le clusterer avec gestion d'erreur"""
         try:
             self.logger.info("📥 Chargement du clusterer...")
-            clusterer = HDBSCANClusterer(metric="cosine", cluster_selection_method="leaf")
-            self.logger.info("✅ Clusterer chargé avec succès")
+            clusterer = HDBSCANClusterer(
+                min_cluster_size=5,  # Increased from 3 to 5 for better clustering quality
+                metric="cosine", 
+                cluster_selection_method="leaf"
+            )
+            self.logger.info("✅ Clusterer chargé avec succès (min_cluster_size=5)")
             return clusterer
         except Exception as e:
             self.logger.error(f"❌ Échec du chargement du clusterer: {e}")
@@ -337,7 +442,7 @@ class TagService:
             
             # If only one keyword, use it directly with proper capitalization
             if len(keywords) == 1:
-                return self._format_tag(keywords[0])
+                return keywords[0].strip().title()
             
             # Calculate cluster centroid for semantic comparison
             cluster_centroid = self._calculate_cluster_centroid(cluster_embeddings)
@@ -373,75 +478,99 @@ class TagService:
             
         except Exception as e:
             self.logger.warning(f"Error in enhanced tag generation: {e}")
-            # Fallback to simple concatenation
-            return self._format_tag(" ".join(keywords[:2]))
+            # Fallback to simple keywords
+            return keywords[0].title() if keywords else "Community"
 
-    def _create_natural_tag(self, keywords: List[str]) -> str:
-        """Create a natural-sounding tag from keywords"""
+    def _create_natural_tag(self, keywords: List[str], cluster_embeddings: Optional[List[List[float]]] = None) -> str:
+        """Create a natural-sounding tag using ImprovedTagGenerator with hybrid KeyBERT + centroid approach"""
         try:
             if not keywords:
-                return "Unknown Group"
+                return "Community"
             
-            if len(keywords) == 1:
-                return self._format_tag(keywords[0])
+            # Delegate to ImprovedTagGenerator for clean, single keywords
+            if hasattr(self, 'improved_tag_generator') and self.improved_tag_generator:
+                # Convert keywords to the format expected by improved generator
+                keyword_tuples = [(kw, 1.0) for kw in keywords[:5]]  # Top 5 keywords
+                return self.improved_tag_generator.generate_tag_from_keywords(
+                    keyword_tuples, cluster_embeddings
+                )
             
-            # Common patterns for natural tag generation
-            if len(keywords) >= 2:
-                first, second = keywords[0], keywords[1]
-                
-                # Technology-related
-                if any(tech in first.lower() or tech in second.lower() 
-                       for tech in ['tech', 'code', 'dev', 'software', 'programming']):
-                    return f"Tech {self._format_tag(second)}" if 'tech' not in second.lower() else self._format_tag(f"{first} {second}")
-                
-                # Creative/Arts-related  
-                if any(art in first.lower() or art in second.lower()
-                       for art in ['art', 'design', 'creative', 'music', 'photo']):
-                    return f"Creative {self._format_tag(second)}" if 'creative' not in second.lower() else self._format_tag(f"{first} {second}")
-                
-                # Professional/Business
-                if any(biz in first.lower() or biz in second.lower()
-                       for biz in ['business', 'professional', 'marketing', 'finance']):
-                    return f"Professional {self._format_tag(second)}" if 'professional' not in second.lower() else self._format_tag(f"{first} {second}")
-                
-                # Default: combine naturally
-                return self._format_tag(f"{first} {second}")
-            
-            # Fallback for multiple keywords
-            return self._format_tag(" & ".join(keywords[:2]))
+            # Simple fallback if generator not available
+            return keywords[0].strip().title() if keywords else "Community"
             
         except Exception as e:
             self.logger.debug(f"Error creating natural tag: {e}")
-            return self._format_tag(keywords[0] if keywords else "Unknown")
+            return keywords[0].title() if keywords else "Unknown"
 
-    def _format_tag(self, tag: str) -> str:
-        """Format a tag with proper capitalization and cleanup"""
+    def _select_best_keyword_cluster(self, keyword_clusters: List[List[Tuple[str, float]]], 
+                                   cluster_embeddings: List[List[float]]) -> List[Tuple[str, float]]:
+        """
+        Select the most representative keyword cluster for the profile cluster.
+        This prevents duplicate clusters by choosing only the best semantic group.
+        
+        Args:
+            keyword_clusters: List of keyword clusters (each is a list of (keyword, score) tuples)
+            cluster_embeddings: Embeddings of profiles in the cluster
+            
+        Returns:
+            The best keyword cluster as list of (keyword, score) tuples
+        """
         try:
-            if not tag:
-                return "Unknown"
+            if not keyword_clusters:
+                return []
             
-            # Clean and normalize
-            tag = tag.strip().replace('_', ' ').replace('-', ' ')
+            if len(keyword_clusters) == 1:
+                return keyword_clusters[0]
             
-            # Title case with special handling
-            words = tag.split()
-            formatted_words = []
+            # Calculate profile centroid for comparison
+            if not cluster_embeddings:
+                return keyword_clusters[0]  # Fallback to first cluster
+                
+            cluster_centroid = self._calculate_cluster_centroid(cluster_embeddings)
+            if len(cluster_centroid) == 0:
+                return keyword_clusters[0]  # Fallback if centroid calculation fails
             
-            for word in words:
-                # Keep acronyms uppercase
-                if word.upper() in ['AI', 'ML', 'API', 'UI', 'UX', 'SEO', 'CEO', 'CTO']:
-                    formatted_words.append(word.upper())
-                else:
-                    formatted_words.append(word.capitalize())
+            best_cluster = None
+            best_score = -1
             
-            # Join back with underscores for tag format
-            formatted_tag = '_'.join(formatted_words)
+            # Score each keyword cluster by semantic similarity to profile cluster
+            for keyword_cluster in keyword_clusters:
+                if not keyword_cluster:
+                    continue
+                    
+                coherence_scores = []
+                for keyword, _ in keyword_cluster[:5]:  # Top 5 keywords for efficiency
+                    try:
+                        # Get keyword embedding
+                        keyword_embedding = self.embedding_model.encode([keyword])[0]
+                        keyword_embedding = np.array(keyword_embedding)
+                        
+                        # Normalize keyword embedding
+                        norm = np.linalg.norm(keyword_embedding)
+                        if norm > 0:
+                            keyword_embedding = keyword_embedding / norm
+                        
+                        # Calculate similarity to cluster centroid
+                        coherence = np.dot(keyword_embedding, cluster_centroid)
+                        coherence_scores.append(coherence)
+                        
+                    except Exception as e:
+                        self.logger.debug(f"Error calculating coherence for keyword '{keyword}': {e}")
+                        coherence_scores.append(0.0)
+                
+                # Average coherence score for this keyword cluster
+                avg_coherence = np.mean(coherence_scores) if coherence_scores else 0.0
+                
+                if avg_coherence > best_score:
+                    best_score = avg_coherence
+                    best_cluster = keyword_cluster
             
-            return formatted_tag
+            return best_cluster or keyword_clusters[0]
             
         except Exception as e:
-            self.logger.warning(f"Error formatting tag: {e}")
-            return tag.replace(' ', '_') if tag else "Unknown"
+            self.logger.warning(f"Error selecting best keyword cluster: {e}")
+            # Fallback to first cluster
+            return keyword_clusters[0] if keyword_clusters else []
 
     # ===== MAIN ORCHESTRATOR METHOD =====
     async def generate_tags(self, account_handle: str, followers: List[Any], max_concurrent: int = 1) -> List[Dict[str, Any]]:
@@ -471,6 +600,18 @@ class TagService:
             self.logger.info(f"🚀 Starting revolutionary 7-step semantic clustering for {account_handle}")
             self.logger.info(f"📊 Processing {len(followers)} followers through semantic pipeline")
             
+            # Check initial memory usage and set process limits
+            initial_memory = self._check_memory_usage()
+            self.logger.info(f"💾 Initial memory usage: {initial_memory['current_mb']:.1f}MB")
+            
+            # Set process priority to prevent system overload
+            try:
+                import os
+                os.nice(5)  # Lower priority to prevent system lock-up
+                self.logger.debug("Process priority lowered for stability")
+            except:
+                pass  # Ignore if not supported on system
+
             if not followers:
                 self.logger.warning("No followers provided for analysis")
                 return []
@@ -509,7 +650,56 @@ class TagService:
             
             # Generate embeddings for all profiles
             self.logger.info("🔄 Step 0: Generating profile embeddings...")
-            profile_embeddings = self.embedding_model.encode(profile_texts)
+            
+            # Memory management before intensive operation
+            self._manage_memory()
+            
+            try:
+                # Use timeout to prevent hanging on embedding generation
+                import signal
+                
+                def timeout_handler(signum, frame):
+                    raise TimeoutError("Embedding generation timed out")
+                
+                # Set 5-minute timeout for embedding generation
+                signal.signal(signal.SIGALRM, timeout_handler)
+                signal.alarm(300)  # 5 minutes
+                
+                profile_embeddings = self.embedding_model.encode(profile_texts)
+                
+                # Clear timeout
+                signal.alarm(0)
+                
+            except TimeoutError as e:
+                self.logger.error(f"❌ Embedding generation timed out: {e}")
+                return []
+            except Exception as e:
+                self.logger.error(f"❌ Error during embedding generation: {e}")
+                # Try to recover with smaller batch size
+                try:
+                    self.logger.info("🔄 Attempting recovery with smaller batch processing...")
+                    profile_embeddings = []
+                    batch_size = min(50, len(profile_texts))  # Process in smaller batches
+                    
+                    for i in range(0, len(profile_texts), batch_size):
+                        batch = profile_texts[i:i+batch_size]
+                        batch_embeddings = self.embedding_model.encode(batch)
+                        if isinstance(batch_embeddings, np.ndarray):
+                            profile_embeddings.extend(batch_embeddings.tolist())
+                        else:
+                            profile_embeddings.extend(batch_embeddings)
+                        
+                        # Memory management between batches
+                        self._manage_memory()
+                        
+                    self.logger.info(f"✅ Recovery successful: processed {len(profile_embeddings)} embeddings")
+                except Exception as recovery_error:
+                    self.logger.error(f"❌ Recovery failed: {recovery_error}")
+                    return []
+            
+            # Memory check after embeddings generation
+            memory_stats = self._check_memory_usage()
+            self.logger.info(f"💾 Memory after embeddings: {memory_stats['current_mb']:.1f}MB")
             
             if not profile_embeddings or len(profile_embeddings) == 0:
                 self.logger.error("Failed to generate profile embeddings")
@@ -523,7 +713,51 @@ class TagService:
             
             # STEP 1: Profile clustering using HDBSCAN with cosine metric
             self.logger.info("🔄 Step 1: Generating profile clusters (HDBSCAN + cosine)")
-            profile_clusters = self._generate_profile_clusters(profile_embeddings, valid_profiles)
+            
+            # Memory management before clustering
+            self._manage_memory()
+            
+            try:
+                # Use timeout for clustering to prevent hanging
+                import signal
+                
+                def clustering_timeout_handler(signum, frame):
+                    raise TimeoutError("Clustering operation timed out")
+                
+                # Set 10-minute timeout for clustering
+                signal.signal(signal.SIGALRM, clustering_timeout_handler)
+                signal.alarm(600)  # 10 minutes
+                
+                profile_clusters = self._generate_profile_clusters(profile_embeddings, valid_profiles)
+                
+                # Clear timeout
+                signal.alarm(0)
+                
+            except TimeoutError as e:
+                self.logger.error(f"❌ Clustering timed out: {e}")
+                return []
+            except Exception as e:
+                self.logger.error(f"❌ Error during clustering: {e}")
+                # Try with more conservative clustering parameters
+                try:
+                    self.logger.info("🔄 Attempting recovery with conservative clustering...")
+                    # Increase min_cluster_size to reduce computational load
+                    original_params = self.clusterer.get_parameters()
+                    self.clusterer.set_parameters(min_cluster_size=max(8, original_params['min_cluster_size']))
+                    
+                    profile_clusters = self._generate_profile_clusters(profile_embeddings, valid_profiles)
+                    
+                    # Restore original parameters
+                    self.clusterer.set_parameters(**original_params)
+                    
+                    self.logger.info(f"✅ Recovery successful with conservative parameters")
+                except Exception as recovery_error:
+                    self.logger.error(f"❌ Clustering recovery failed: {recovery_error}")
+                    return []
+            
+            # Memory check after clustering
+            memory_stats = self._check_memory_usage()
+            self.logger.info(f"💾 Memory after clustering: {memory_stats['current_mb']:.1f}MB")
             
             if not profile_clusters:
                 self.logger.warning("No profile clusters generated")
@@ -536,6 +770,9 @@ class TagService:
             
             for i, cluster_data in enumerate(profile_clusters):
                 try:
+                    # Memory management per cluster
+                    self._manage_memory()
+                    
                     cluster_profiles = cluster_data['profiles']
                     cluster_embeddings = cluster_data['embeddings']
                     
@@ -578,28 +815,32 @@ class TagService:
                         cluster_embeddings, keyword_clusters, threshold=0.6
                     )
                     
-                    # STEP 5: Natural tag generation for each semantic group
-                    preliminary_tags = []
-                    for keyword_cluster in validated_clusters:
+                    # STEP 5: Natural tag generation - Choose BEST keyword cluster to avoid duplicates
+                    if validated_clusters:
+                        # Select the most representative keyword cluster for this profile cluster
+                        best_keyword_cluster = self._select_best_keyword_cluster(
+                            validated_clusters, cluster_embeddings
+                        )
+                        
                         tag = self._generate_natural_tag_from_semantic_group(
-                            keyword_cluster, 
+                            best_keyword_cluster, 
                             profile_context=self._extract_profile_handles(cluster_profiles)
                         )
                         
-                        # Create cluster data structure
+                        # Create ONE cluster result per profile cluster
                         cluster_result = {
                             'tag': tag,
                             'profiles': cluster_profiles,
                             'embeddings': cluster_embeddings,
-                            'keywords': [kw for kw, _ in keyword_cluster[:5]],  # Top 5 keywords
+                            'keywords': [kw for kw, _ in best_keyword_cluster[:5]],  # Top 5 keywords
                             'size': len(cluster_profiles),
                             'cohesion': self._calculate_cluster_cohesion(cluster_embeddings),
                             'handles': self._extract_profile_handles(cluster_profiles)
                         }
-                        preliminary_tags.append(cluster_result)
+                        final_clusters.append(cluster_result)
                     
                     # If no validated clusters, create a single tag from the best keywords
-                    if not preliminary_tags and semantic_keywords:
+                    elif semantic_keywords:
                         tag = self._generate_natural_tag_from_semantic_group(
                             semantic_keywords[:3],  # Top 3 keywords
                             profile_context=self._extract_profile_handles(cluster_profiles)
@@ -614,9 +855,7 @@ class TagService:
                             'cohesion': self._calculate_cluster_cohesion(cluster_embeddings),
                             'handles': self._extract_profile_handles(cluster_profiles)
                         }
-                        preliminary_tags.append(cluster_result)
-                    
-                    final_clusters.extend(preliminary_tags)
+                        final_clusters.append(cluster_result)
                     
                 except Exception as e:
                     self.logger.error(f"Error processing cluster {i+1}: {e}")
@@ -638,6 +877,13 @@ class TagService:
             processing_time = time.time() - start_time
             total_profiles = sum(cluster['size'] for cluster in validated_clusters)
             
+            # Final memory cleanup
+            final_memory = self._check_memory_usage()
+            self.logger.info(f"💾 Final memory usage: {final_memory['current_mb']:.1f}MB")
+            
+            # Force garbage collection at the end
+            gc.collect()
+            
             self.logger.info(f"🎉 Semantic clustering completed successfully!")
             self.logger.info(f"📊 Results: {len(validated_clusters)} clusters, {total_profiles} profiles, {processing_time:.2f}s")
             self.logger.info(f"🏷️  Generated tags: {[c['tag'] for c in validated_clusters]}")
@@ -646,6 +892,14 @@ class TagService:
             
         except Exception as e:
             self.logger.error(f"❌ Critical error in generate_tags: {e}", exc_info=True)
+            
+            # Emergency cleanup on error
+            try:
+                gc.collect()
+                self.logger.info("🧹 Emergency garbage collection completed")
+            except:
+                pass
+                
             return []
 
     # ===== STEP 1: PROFILE CLUSTERING (HDBSCAN + COSINE) =====
@@ -933,138 +1187,60 @@ class TagService:
     def _generate_natural_tag_from_semantic_group(self, keyword_cluster: List[Tuple[str, float]], 
                                                  profile_context: Optional[List[str]] = None) -> str:
         """
-        Step 5: Generate natural language tags from semantic keyword groups
+        Step 5: Generate natural language tags from semantic keyword groups using ImprovedTagGenerator
         """
         try:
             if not keyword_cluster:
-                return "General_Community"
+                return "Community"
             
-            # Extract keywords and detect concept type
-            keywords = [kw for kw, _ in keyword_cluster[:3]]  # Top 3 keywords
-            concept_type = self._detect_concept_type(keywords, profile_context)
+            # Use improved tag generator with hybrid KeyBERT + centroid approach
+            if hasattr(self, 'improved_tag_generator') and self.improved_tag_generator:
+                # Convert profile context to embeddings if available
+                cluster_embeddings = None
+                if profile_context and hasattr(self, 'embedding_model'):
+                    try:
+                        cluster_embeddings = self.embedding_model.encode(profile_context)
+                        if isinstance(cluster_embeddings, np.ndarray):
+                            cluster_embeddings = cluster_embeddings.tolist()
+                    except Exception as e:
+                        self.logger.debug(f"Error encoding profile context: {e}")
+                
+                # Generate tag using hybrid approach
+                tag = self.improved_tag_generator.generate_tag_from_keywords(
+                    keyword_cluster[:5], cluster_embeddings
+                )
+                return tag
             
-            # Generate natural tag based on concept type and keywords
-            if len(keywords) == 1:
-                return self._create_single_keyword_tag(keywords[0], concept_type)
-            elif len(keywords) == 2:
-                return self._create_dual_keyword_tag(keywords[0], keywords[1], concept_type)
-            else:
-                return self._create_multi_keyword_tag(keywords, concept_type)
+            # Simple fallback if ImprovedTagGenerator not available
+            keywords = [kw for kw, _ in keyword_cluster[:3]]
+            return keywords[0].title() if keywords else "Community"
                 
         except Exception as e:
             self.logger.warning(f"Error generating natural tag: {e}")
-            return "Mixed_Community"
+            return "Community"
 
-    def _detect_concept_type(self, keywords: List[str], context: Optional[List[str]] = None) -> str:
-        """
-        Detect the conceptual type of keywords for better tag generation
-        """
-        keyword_text = " ".join(keywords).lower()
-        context_text = " ".join(context or []).lower()
-        combined_text = f"{keyword_text} {context_text}"
-        
-        # Professional/Tech concepts
-        if any(term in combined_text for term in [
-            'developer', 'engineer', 'programmer', 'code', 'tech', 'software', 
-            'data', 'ai', 'ml', 'api', 'framework', 'programming'
-        ]):
-            return 'professional'
-        
-        # Creative concepts
-        elif any(term in combined_text for term in [
-            'art', 'design', 'creative', 'music', 'photo', 'video', 'visual', 
-            'graphic', 'artist', 'creator', 'aesthetic'
-        ]):
-            return 'creative'
-        
-        # Business concepts
-        elif any(term in combined_text for term in [
-            'business', 'entrepreneur', 'startup', 'marketing', 'finance', 
-            'strategy', 'growth', 'sales', 'founder', 'ceo'
-        ]):
-            return 'business'
-        
-        # Academic/Learning concepts
-        elif any(term in combined_text for term in [
-            'research', 'education', 'learning', 'academic', 'study', 
-            'science', 'university', 'student', 'professor'
-        ]):
-            return 'academic'
-        
-        # Lifestyle/Personal concepts
-        elif any(term in combined_text for term in [
-            'fitness', 'health', 'travel', 'food', 'lifestyle', 'personal', 
-            'hobby', 'sport', 'wellness', 'culture'
-        ]):
-            return 'lifestyle'
-        
-        return 'general'
-
-    def _create_single_keyword_tag(self, keyword: str, concept_type: str) -> str:
-        """Create a natural tag from a single keyword"""
-        keyword = keyword.title()
-        
-        if concept_type == 'professional':
-            return f"{keyword}_Professionals"
-        elif concept_type == 'creative':
-            return f"{keyword}_Creators"
-        elif concept_type == 'business':
-            return f"{keyword}_Entrepreneurs"
-        elif concept_type == 'academic':
-            return f"{keyword}_Researchers"
-        elif concept_type == 'lifestyle':
-            return f"{keyword}_Enthusiasts"
-        else:
-            return f"{keyword}_Community"
-
-    def _create_dual_keyword_tag(self, kw1: str, kw2: str, concept_type: str) -> str:
-        """Create a natural tag from two keywords"""
-        kw1, kw2 = kw1.title(), kw2.title()
-        
-        if concept_type == 'professional':
-            return f"{kw1}_{kw2}_Experts"
-        elif concept_type == 'creative':
-            return f"{kw1}_{kw2}_Artists"
-        elif concept_type == 'business':
-            return f"{kw1}_{kw2}_Leaders"
-        else:
-            return f"{kw1}_{kw2}_Group"
-
-    def _create_multi_keyword_tag(self, keywords: List[str], concept_type: str) -> str:
-        """Create a natural tag from multiple keywords"""
-        # Use the two most significant keywords
-        primary = keywords[0].title()
-        secondary = keywords[1].title()
-        
-        if concept_type == 'professional':
-            return f"{primary}_{secondary}_Network"
-        elif concept_type == 'creative':
-            return f"{primary}_{secondary}_Collective"
-        elif concept_type == 'business':
-            return f"{primary}_{secondary}_Alliance"
-        else:
-            return f"{primary}_{secondary}_Circle"
+    # Removed _detect_concept_type - using ImprovedTagGenerator instead
+    # Removed _create_single_keyword_tag - using ImprovedTagGenerator instead  
+    # Removed _create_dual_keyword_tag - using ImprovedTagGenerator instead
+    # Removed _create_multi_keyword_tag - using ImprovedTagGenerator instead
 
     # ===== STEP 6: MULTI-SCALE OPTIMIZATION =====
     def _optimize_tags_multi_scale(self, preliminary_tags: List[Dict[str, Any]], 
                                  all_profile_embeddings: List[List[float]]) -> List[Dict[str, Any]]:
         """
-        Step 6: Multi-scale optimization of tags considering cluster relationships
+        Step 6: Simplified optimization - just sort by quality and size
         """
         try:
             if len(preliminary_tags) <= 1:
                 return preliminary_tags
             
-            # Calculate inter-cluster distances
-            cluster_distances = self._calculate_inter_cluster_distances(preliminary_tags)
+            # Simple sorting by size and coherence - no rigid transformations
+            preliminary_tags.sort(key=lambda x: (
+                x.get('size', 0),
+                x.get('cohesion', 0)
+            ), reverse=True)
             
-            # Optimize tag uniqueness
-            optimized_tags = self._ensure_tag_uniqueness(preliminary_tags, cluster_distances)
-            
-            # Apply hierarchical optimization
-            final_tags = self._apply_hierarchical_optimization(optimized_tags, all_profile_embeddings)
-            
-            return final_tags
+            return preliminary_tags
             
         except Exception as e:
             self.logger.warning(f"Error in multi-scale optimization: {e}")
@@ -1099,47 +1275,9 @@ class TagService:
         
         return distances
 
-    def _ensure_tag_uniqueness(self, clusters: List[Dict[str, Any]], 
-                             distances: Dict[tuple, float]) -> List[Dict[str, Any]]:
-        """Ensure tag uniqueness by modifying similar cluster names"""
-        MIN_DISTANCE_THRESHOLD = 0.3
-        
-        for (i, j), distance in distances.items():
-            if distance < MIN_DISTANCE_THRESHOLD:
-                # Clusters are too similar, modify their tags
-                cluster1, cluster2 = clusters[i], clusters[j]
-                
-                # Add distinguishing suffixes based on cluster properties
-                if cluster1['size'] > cluster2['size']:
-                    cluster1['tag'] = f"{cluster1['tag']}_Primary"
-                    cluster2['tag'] = f"{cluster2['tag']}_Secondary"
-                else:
-                    cluster1['tag'] = f"{cluster1['tag']}_Alpha"
-                    cluster2['tag'] = f"{cluster2['tag']}_Beta"
-        
-        return clusters
+    # Removed _ensure_tag_uniqueness - using ImprovedTagGenerator instead
 
-    def _apply_hierarchical_optimization(self, clusters: List[Dict[str, Any]], 
-                                       all_embeddings: List[List[float]]) -> List[Dict[str, Any]]:
-        """Apply hierarchical structure optimization"""
-        # Sort clusters by size and coherence
-        clusters.sort(key=lambda c: (c['size'], c['cohesion']), reverse=True)
-        
-        # Apply size-based categorization
-        total_profiles = sum(c['size'] for c in clusters)
-        
-        for i, cluster in enumerate(clusters):
-            relative_size = cluster['size'] / total_profiles if total_profiles > 0 else 0
-            
-            # Add size indicator for very large or very small clusters
-            if relative_size > 0.4:  # Dominant cluster
-                if not any(suffix in cluster['tag'] for suffix in ['_Primary', '_Main', '_Core']):
-                    cluster['tag'] = f"Core_{cluster['tag']}"
-            elif relative_size < 0.05:  # Niche cluster
-                if not any(suffix in cluster['tag'] for suffix in ['_Niche', '_Specialty', '_Micro']):
-                    cluster['tag'] = f"Niche_{cluster['tag']}"
-        
-        return clusters
+    # Removed _apply_hierarchical_optimization - using ImprovedTagGenerator instead
 
     # ===== STEP 7: FINAL RANKING AND VALIDATION =====
     def _rank_and_validate_final_tags(self, optimized_tags: List[Dict[str, Any]]) -> List[Dict[str, Any]]:

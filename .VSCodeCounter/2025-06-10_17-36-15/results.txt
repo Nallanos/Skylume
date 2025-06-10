@@ -1,0 +1,472 @@
+Date : 2025-06-10 17:36:15
+Directory : /workspaces/Bluesky-copilot
+Total : 354 files,  42964 codes, 3346 comments, 5503 blanks, all 51813 lines
+
+Languages
++--------------------+------------+------------+------------+------------+------------+
+| language           | files      | code       | comment    | blank      | total      |
++--------------------+------------+------------+------------+------------+------------+
+| JSON               |          3 |     15,132 |          0 |          3 |     15,135 |
+| TypeScript         |        150 |     10,360 |      2,074 |      2,205 |     14,639 |
+| Svelte             |        116 |      6,679 |          0 |        765 |      7,444 |
+| Python             |         41 |      3,875 |      1,123 |      1,121 |      6,119 |
+| toml               |          1 |      2,928 |          0 |        180 |      3,108 |
+| Markdown           |         16 |      2,500 |          0 |        884 |      3,384 |
+| JavaScript         |          8 |        742 |         47 |        131 |        920 |
+| PostCSS            |          2 |        327 |         15 |         96 |        438 |
+| Shell Script       |          5 |        167 |         39 |         53 |        259 |
+| JavaScript JSX     |          5 |        125 |         31 |         25 |        181 |
+| Edge Template      |          1 |         45 |          0 |         16 |         61 |
+| Docker             |          2 |         43 |         17 |         20 |         80 |
+| JSON with Comments |          3 |         39 |          0 |          3 |         42 |
+| Properties         |          1 |          2 |          0 |          1 |          3 |
++--------------------+------------+------------+------------+------------+------------+
+
+Directories
++-----------------------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| path                                                                                                                        | files      | code       | comment    | blank      | total      |
++-----------------------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+| .                                                                                                                           |        354 |     42,964 |      3,346 |      5,503 |     51,813 |
+| . (Files)                                                                                                                   |         20 |     15,759 |         90 |        203 |     16,052 |
+| .github                                                                                                                     |          1 |        182 |          0 |        100 |        282 |
+| .github/instructions                                                                                                        |          1 |        182 |          0 |        100 |        282 |
+| app                                                                                                                         |         51 |      5,014 |      1,106 |      1,130 |      7,250 |
+| app/bluesky                                                                                                                 |          4 |        345 |         83 |         80 |        508 |
+| app/controllers                                                                                                             |         11 |      1,804 |        523 |        389 |      2,716 |
+| app/exceptions                                                                                                              |          1 |         39 |         25 |         11 |         75 |
+| app/jobs                                                                                                                    |          1 |         26 |          0 |          8 |         34 |
+| app/middleware                                                                                                              |          7 |        198 |         51 |         32 |        281 |
+| app/models                                                                                                                  |         15 |        528 |         24 |        155 |        707 |
+| app/services                                                                                                                |         12 |      2,074 |        400 |        455 |      2,929 |
+| bin                                                                                                                         |          3 |         83 |         57 |         17 |        157 |
+| commands                                                                                                                    |         12 |      3,104 |        441 |        654 |      4,199 |
+| config                                                                                                                      |         13 |        279 |        146 |         65 |        490 |
+| database                                                                                                                    |         32 |        555 |         22 |        117 |        694 |
+| database/migrations                                                                                                         |         32 |        555 |         22 |        117 |        694 |
+| inertia                                                                                                                     |        145 |      7,592 |         43 |        953 |      8,588 |
+| inertia (Files)                                                                                                             |          3 |        115 |          4 |         30 |        149 |
+| inertia/app                                                                                                                 |          2 |         32 |          7 |         10 |         49 |
+| inertia/components                                                                                                          |          2 |        110 |          0 |         12 |        122 |
+| inertia/css                                                                                                                 |          1 |        234 |         13 |         70 |        317 |
+| inertia/lib                                                                                                                 |        111 |      3,274 |         18 |        499 |      3,791 |
+| inertia/lib (Files)                                                                                                         |          3 |         82 |          0 |         16 |         98 |
+| inertia/lib/components                                                                                                      |         15 |      1,465 |          0 |        143 |      1,608 |
+| inertia/lib/components (Files)                                                                                              |         14 |      1,421 |          0 |        138 |      1,559 |
+| inertia/lib/components/theme-toggle                                                                                         |          1 |         44 |          0 |          5 |         49 |
+| inertia/lib/shadcn-ui                                                                                                       |         93 |      1,727 |         18 |        340 |      2,085 |
+| inertia/lib/shadcn-ui/accordion                                                                                             |          4 |         71 |          1 |         14 |         86 |
+| inertia/lib/shadcn-ui/alert                                                                                                 |          4 |         69 |          1 |         18 |         88 |
+| inertia/lib/shadcn-ui/badge                                                                                                 |          2 |         35 |          0 |          6 |         41 |
+| inertia/lib/shadcn-ui/breadcrumb                                                                                            |          1 |          0 |          0 |          1 |          1 |
+| inertia/lib/shadcn-ui/button                                                                                                |          2 |         65 |          1 |          9 |         75 |
+| inertia/lib/shadcn-ui/calendar                                                                                              |         14 |        282 |          1 |         56 |        339 |
+| inertia/lib/shadcn-ui/card                                                                                                  |          7 |        105 |          1 |         28 |        134 |
+| inertia/lib/shadcn-ui/checkbox                                                                                              |          2 |         37 |          1 |          5 |         43 |
+| inertia/lib/shadcn-ui/collapsible                                                                                           |          1 |          0 |          0 |          1 |          1 |
+| inertia/lib/shadcn-ui/dialog                                                                                                |          8 |        140 |          1 |         30 |        171 |
+| inertia/lib/shadcn-ui/dropdown-menu                                                                                         |         11 |        262 |          1 |         43 |        306 |
+| inertia/lib/shadcn-ui/input                                                                                                 |          2 |         64 |          1 |          8 |         73 |
+| inertia/lib/shadcn-ui/label                                                                                                 |          2 |         23 |          1 |          6 |         30 |
+| inertia/lib/shadcn-ui/popover                                                                                               |          2 |         35 |          1 |          5 |         41 |
+| inertia/lib/shadcn-ui/radio-group                                                                                           |          3 |         48 |          1 |         11 |         60 |
+| inertia/lib/shadcn-ui/select                                                                                                |          6 |        147 |          1 |         25 |        173 |
+| inertia/lib/shadcn-ui/skeleton                                                                                              |          1 |          0 |          0 |          1 |          1 |
+| inertia/lib/shadcn-ui/switch                                                                                                |          2 |         30 |          1 |          6 |         37 |
+| inertia/lib/shadcn-ui/table                                                                                                 |          9 |        130 |          1 |         34 |        165 |
+| inertia/lib/shadcn-ui/tabs                                                                                                  |          5 |         75 |          1 |         15 |         91 |
+| inertia/lib/shadcn-ui/textarea                                                                                              |          2 |         58 |          1 |          9 |         68 |
+| inertia/lib/shadcn-ui/toast                                                                                                 |          1 |          0 |          0 |          1 |          1 |
+| inertia/lib/shadcn-ui/toggle                                                                                                |          2 |         51 |          1 |          8 |         60 |
+| inertia/pages                                                                                                               |         25 |      3,798 |          0 |        328 |      4,126 |
+| inertia/pages (Files)                                                                                                       |         23 |      3,783 |          0 |        325 |      4,108 |
+| inertia/pages/errors                                                                                                        |          2 |         15 |          0 |          3 |         18 |
+| inertia/stores                                                                                                              |          1 |         29 |          1 |          4 |         34 |
+| legacy_tests                                                                                                                |          7 |        742 |         47 |        130 |        919 |
+| python-service                                                                                                              |         51 |      7,278 |      1,174 |      1,498 |      9,950 |
+| python-service (Files)                                                                                                      |         27 |      5,153 |        380 |        903 |      6,436 |
+| python-service/ai_service                                                                                                   |         17 |      1,675 |        715 |        484 |      2,874 |
+| python-service/ai_service (Files)                                                                                           |          1 |          0 |          0 |          1 |          1 |
+| python-service/ai_service/api                                                                                               |          1 |         18 |          1 |          3 |         22 |
+| python-service/ai_service/clients                                                                                           |          2 |        174 |         26 |         45 |        245 |
+| python-service/ai_service/models                                                                                            |          6 |         70 |        124 |         25 |        219 |
+| python-service/ai_service/models (Files)                                                                                    |          3 |         36 |         46 |         14 |         96 |
+| python-service/ai_service/models/interfaces                                                                                 |          3 |         34 |         78 |         11 |        123 |
+| python-service/ai_service/services                                                                                          |          6 |      1,369 |        530 |        399 |      2,298 |
+| python-service/ai_service/services (Files)                                                                                  |          4 |      1,221 |        412 |        359 |      1,992 |
+| python-service/ai_service/services/clustering                                                                               |          1 |         54 |         53 |         13 |        120 |
+| python-service/ai_service/services/taggers                                                                                  |          1 |         94 |         65 |         27 |        186 |
+| python-service/ai_service/utils                                                                                             |          1 |         44 |         34 |         11 |         89 |
+| python-service/bluesky                                                                                                      |          2 |         78 |         13 |         14 |        105 |
+| python-service/tests                                                                                                        |          5 |        372 |         66 |         97 |        535 |
+| resources                                                                                                                   |          2 |         55 |          0 |         17 |         72 |
+| resources (Files)                                                                                                           |          1 |         10 |          0 |          1 |         11 |
+| resources/views                                                                                                             |          1 |         45 |          0 |         16 |         61 |
+| start                                                                                                                       |          5 |        207 |        107 |         49 |        363 |
+| tests                                                                                                                       |         12 |      2,114 |        113 |        570 |      2,797 |
+| tests (Files)                                                                                                               |          2 |         31 |         18 |          8 |         57 |
+| tests/factories                                                                                                             |          1 |         90 |         22 |         11 |        123 |
+| tests/functional                                                                                                            |          3 |        369 |         50 |         80 |        499 |
+| tests/instructions                                                                                                          |          4 |      1,458 |          0 |        425 |      1,883 |
+| tests/unit                                                                                                                  |          2 |        166 |         23 |         46 |        235 |
++-----------------------------------------------------------------------------------------------------------------------------+------------+------------+------------+------------+------------+
+
+Files
++-----------------------------------------------------------------------------------------------------------------------------+--------------------+------------+------------+------------+------------+
+| filename                                                                                                                    | language           | code       | comment    | blank      | total      |
++-----------------------------------------------------------------------------------------------------------------------------+--------------------+------------+------------+------------+------------+
+| /workspaces/Bluesky-copilot/.github/instructions/instruction.instructions.md                                                | Markdown           |        182 |          0 |        100 |        282 |
+| /workspaces/Bluesky-copilot/CLUSTER_SUPERCLUSTER_FIX_COMPLETE.md                                                            | Markdown           |        122 |          0 |         63 |        185 |
+| /workspaces/Bluesky-copilot/Dockerfile                                                                                      | Docker             |         22 |          5 |          6 |         33 |
+| /workspaces/Bluesky-copilot/README.md                                                                                       | Markdown           |         41 |          0 |         16 |         57 |
+| /workspaces/Bluesky-copilot/SSE_MIGRATION.md                                                                                | Markdown           |        159 |          0 |         55 |        214 |
+| /workspaces/Bluesky-copilot/TEST_REFACTORING_SUMMARY.md                                                                     | Markdown           |          0 |          0 |          1 |          1 |
+| /workspaces/Bluesky-copilot/ace.js                                                                                          | JavaScript JSX     |          2 |         23 |          3 |         28 |
+| /workspaces/Bluesky-copilot/adonisjs-redis-doc-resume.md                                                                    | Markdown           |         63 |          0 |         19 |         82 |
+| /workspaces/Bluesky-copilot/adonisrc.ts                                                                                     | TypeScript         |         56 |         50 |          7 |        113 |
+| /workspaces/Bluesky-copilot/app/bluesky/firehose_subscriber.ts                                                              | TypeScript         |        131 |         67 |         32 |        230 |
+| /workspaces/Bluesky-copilot/app/bluesky/scheduling_manager.ts                                                               | TypeScript         |         96 |         12 |          9 |        117 |
+| /workspaces/Bluesky-copilot/app/bluesky/skywareJetstreamInstruction.md                                                      | Markdown           |         86 |          0 |         33 |        119 |
+| /workspaces/Bluesky-copilot/app/bluesky/types.ts                                                                            | TypeScript         |         32 |          4 |          6 |         42 |
+| /workspaces/Bluesky-copilot/app/controllers/account_controller.ts                                                           | TypeScript         |        231 |         17 |         46 |        294 |
+| /workspaces/Bluesky-copilot/app/controllers/analytics_controller.ts                                                         | TypeScript         |        394 |         41 |         75 |        510 |
+| /workspaces/Bluesky-copilot/app/controllers/dm_campaigns_controller.ts                                                      | TypeScript         |          0 |        272 |         33 |        305 |
+| /workspaces/Bluesky-copilot/app/controllers/feeds_controller.ts                                                             | TypeScript         |         76 |          0 |         13 |         89 |
+| /workspaces/Bluesky-copilot/app/controllers/follower_analysis_controller.ts                                                 | TypeScript         |        357 |         77 |         66 |        500 |
+| /workspaces/Bluesky-copilot/app/controllers/internal_pythons_controller.ts                                                  | TypeScript         |         30 |          6 |          3 |         39 |
+| /workspaces/Bluesky-copilot/app/controllers/python_controller_methods.ts                                                    | TypeScript         |        469 |         94 |         96 |        659 |
+| /workspaces/Bluesky-copilot/app/controllers/schedulings_controller.ts                                                       | TypeScript         |         59 |          0 |         23 |         82 |
+| /workspaces/Bluesky-copilot/app/controllers/session_controller.ts                                                           | TypeScript         |         33 |          0 |          8 |         41 |
+| /workspaces/Bluesky-copilot/app/controllers/stripes_controller.ts                                                           | TypeScript         |         77 |          1 |         13 |         91 |
+| /workspaces/Bluesky-copilot/app/controllers/users_controller.ts                                                             | TypeScript         |         78 |         15 |         13 |        106 |
+| /workspaces/Bluesky-copilot/app/exceptions/handler.ts                                                                       | TypeScript         |         39 |         25 |         11 |         75 |
+| /workspaces/Bluesky-copilot/app/jobs/schedule_job.ts                                                                        | TypeScript         |         26 |          0 |          8 |         34 |
+| /workspaces/Bluesky-copilot/app/middleware/api_auth_middleware.ts                                                           | TypeScript         |         36 |          7 |          9 |         52 |
+| /workspaces/Bluesky-copilot/app/middleware/auth_middleware.ts                                                               | TypeScript         |         23 |          7 |          2 |         32 |
+| /workspaces/Bluesky-copilot/app/middleware/container_bindings_middleware.ts                                                 | TypeScript         |         10 |          7 |          3 |         20 |
+| /workspaces/Bluesky-copilot/app/middleware/guest_middleware.ts                                                              | TypeScript         |         18 |         10 |          3 |         31 |
+| /workspaces/Bluesky-copilot/app/middleware/json_validation_middleware.ts                                                    | TypeScript         |         52 |          8 |          9 |         69 |
+| /workspaces/Bluesky-copilot/app/middleware/request_debug_middleware.ts                                                      | TypeScript         |         48 |          6 |          4 |         58 |
+| /workspaces/Bluesky-copilot/app/middleware/silent_auth_middleware.ts                                                        | TypeScript         |         11 |          6 |          2 |         19 |
+| /workspaces/Bluesky-copilot/app/models/account.ts                                                                           | TypeScript         |         65 |          0 |         23 |         88 |
+| /workspaces/Bluesky-copilot/app/models/account_stat.ts                                                                      | TypeScript         |          5 |          0 |          1 |          6 |
+| /workspaces/Bluesky-copilot/app/models/analysis_audience.ts                                                                 | TypeScript         |        121 |         23 |         24 |        168 |
+| /workspaces/Bluesky-copilot/app/models/cluster.ts                                                                           | TypeScript         |         46 |          0 |          9 |         55 |
+| /workspaces/Bluesky-copilot/app/models/convo.ts                                                                             | TypeScript         |         13 |          0 |          4 |         17 |
+| /workspaces/Bluesky-copilot/app/models/dm_campaign.ts                                                                       | TypeScript         |         39 |          0 |         14 |         53 |
+| /workspaces/Bluesky-copilot/app/models/dm_campaign_convo.ts                                                                 | TypeScript         |         13 |          0 |          6 |         19 |
+| /workspaces/Bluesky-copilot/app/models/feed.ts                                                                              | TypeScript         |         13 |          0 |          5 |         18 |
+| /workspaces/Bluesky-copilot/app/models/follow.ts                                                                            | TypeScript         |         14 |          0 |          6 |         20 |
+| /workspaces/Bluesky-copilot/app/models/follower.ts                                                                          | TypeScript         |         13 |          0 |          4 |         17 |
+| /workspaces/Bluesky-copilot/app/models/followers_history.ts                                                                 | TypeScript         |         22 |          1 |          8 |         31 |
+| /workspaces/Bluesky-copilot/app/models/post_history.ts                                                                      | TypeScript         |         37 |          0 |         15 |         52 |
+| /workspaces/Bluesky-copilot/app/models/scheduling.ts                                                                        | TypeScript         |         24 |          0 |          9 |         33 |
+| /workspaces/Bluesky-copilot/app/models/superCluster.ts                                                                      | TypeScript         |         44 |          0 |          8 |         52 |
+| /workspaces/Bluesky-copilot/app/models/user.ts                                                                              | TypeScript         |         59 |          0 |         19 |         78 |
+| /workspaces/Bluesky-copilot/app/services/AI_services.ts                                                                     | TypeScript         |        390 |         45 |         92 |        527 |
+| /workspaces/Bluesky-copilot/app/services/account_manager.ts                                                                 | TypeScript         |         61 |          0 |         10 |         71 |
+| /workspaces/Bluesky-copilot/app/services/account_service.ts                                                                 | TypeScript         |        467 |         11 |         64 |        542 |
+| /workspaces/Bluesky-copilot/app/services/ai_scheduler_service.ts                                                            | TypeScript         |        243 |         85 |         50 |        378 |
+| /workspaces/Bluesky-copilot/app/services/bullmq-quick-reference.md                                                          | Markdown           |        102 |          0 |         41 |        143 |
+| /workspaces/Bluesky-copilot/app/services/cache_manager.ts                                                                   | TypeScript         |         50 |         30 |          9 |         89 |
+| /workspaces/Bluesky-copilot/app/services/feed_service.ts                                                                    | TypeScript         |         48 |          0 |          7 |         55 |
+| /workspaces/Bluesky-copilot/app/services/firehose_subscriber_service.ts                                                     | TypeScript         |        116 |         60 |         30 |        206 |
+| /workspaces/Bluesky-copilot/app/services/follower_analysis_service.ts                                                       | TypeScript         |        430 |        116 |        114 |        660 |
+| /workspaces/Bluesky-copilot/app/services/follower_batch_service.ts                                                          | TypeScript         |         52 |         23 |         14 |         89 |
+| /workspaces/Bluesky-copilot/app/services/session_service.ts                                                                 | TypeScript         |         19 |          0 |          4 |         23 |
+| /workspaces/Bluesky-copilot/app/services/sse_service.ts                                                                     | TypeScript         |         96 |         30 |         20 |        146 |
+| /workspaces/Bluesky-copilot/bin/console.ts                                                                                  | TypeScript         |         23 |         20 |          5 |         48 |
+| /workspaces/Bluesky-copilot/bin/server.ts                                                                                   | TypeScript         |         23 |         18 |          5 |         46 |
+| /workspaces/Bluesky-copilot/bin/test.ts                                                                                     | TypeScript         |         37 |         19 |          7 |         63 |
+| /workspaces/Bluesky-copilot/commands/create_test_data.ts                                                                    | TypeScript         |        108 |          2 |         21 |        131 |
+| /workspaces/Bluesky-copilot/commands/fix_followers_count.ts                                                                 | TypeScript         |         42 |          5 |         17 |         64 |
+| /workspaces/Bluesky-copilot/commands/follow.ts                                                                              | TypeScript         |        493 |        117 |        132 |        742 |
+| /workspaces/Bluesky-copilot/commands/follow_2.ts                                                                            | TypeScript         |        407 |         15 |         42 |        464 |
+| /workspaces/Bluesky-copilot/commands/follow_backup.ts                                                                       | TypeScript         |        976 |        132 |        174 |      1,282 |
+| /workspaces/Bluesky-copilot/commands/follow_restructured.ts                                                                 | TypeScript         |        493 |        115 |        132 |        740 |
+| /workspaces/Bluesky-copilot/commands/record_followers_count.ts                                                              | TypeScript         |         50 |          6 |         11 |         67 |
+| /workspaces/Bluesky-copilot/commands/scheduling.ts                                                                          | TypeScript         |         23 |          0 |          3 |         26 |
+| /workspaces/Bluesky-copilot/commands/test_api.ts                                                                            | TypeScript         |        120 |          7 |         36 |        163 |
+| /workspaces/Bluesky-copilot/commands/test_workflow.ts                                                                       | TypeScript         |        163 |         11 |         35 |        209 |
+| /workspaces/Bluesky-copilot/commands/unfollow.ts                                                                            | TypeScript         |         48 |          1 |          6 |         55 |
+| /workspaces/Bluesky-copilot/commands/unfollow_not_following.ts                                                              | TypeScript         |        181 |         30 |         45 |        256 |
+| /workspaces/Bluesky-copilot/components.json                                                                                 | JSON               |         14 |          0 |          1 |         15 |
+| /workspaces/Bluesky-copilot/config/app.ts                                                                                   | TypeScript         |         18 |         18 |          5 |         41 |
+| /workspaces/Bluesky-copilot/config/auth.ts                                                                                  | TypeScript         |         21 |          4 |          3 |         28 |
+| /workspaces/Bluesky-copilot/config/bodyparser.ts                                                                            | TypeScript         |         27 |         24 |          7 |         58 |
+| /workspaces/Bluesky-copilot/config/cors.ts                                                                                  | TypeScript         |         11 |          6 |          3 |         20 |
+| /workspaces/Bluesky-copilot/config/database.ts                                                                              | TypeScript         |         22 |          0 |          2 |         24 |
+| /workspaces/Bluesky-copilot/config/hash.ts                                                                                  | TypeScript         |         16 |          4 |          5 |         25 |
+| /workspaces/Bluesky-copilot/config/inertia.ts                                                                               | TypeScript         |         58 |         12 |          8 |         78 |
+| /workspaces/Bluesky-copilot/config/logger.ts                                                                                | TypeScript         |         23 |          8 |          6 |         37 |
+| /workspaces/Bluesky-copilot/config/redis.ts                                                                                 | TypeScript         |         20 |         10 |          2 |         32 |
+| /workspaces/Bluesky-copilot/config/session.ts                                                                               | TypeScript         |         19 |         21 |          8 |         48 |
+| /workspaces/Bluesky-copilot/config/shield.ts                                                                                | TypeScript         |         26 |         19 |          7 |         52 |
+| /workspaces/Bluesky-copilot/config/static.ts                                                                                | TypeScript         |          8 |          7 |          3 |         18 |
+| /workspaces/Bluesky-copilot/config/vite.ts                                                                                  | TypeScript         |         10 |         13 |          6 |         29 |
+| /workspaces/Bluesky-copilot/database/migrations/1729105298214_create_users_table.ts                                         | TypeScript         |         17 |          0 |          3 |         20 |
+| /workspaces/Bluesky-copilot/database/migrations/1729604119881_create_accounts_table.ts                                      | TypeScript         |         19 |          0 |          3 |         22 |
+| /workspaces/Bluesky-copilot/database/migrations/1730307942878_create_listeners_table.ts                                     | TypeScript         |         24 |          0 |          3 |         27 |
+| /workspaces/Bluesky-copilot/database/migrations/1736452269608_create_follows_table.ts                                       | TypeScript         |         17 |          0 |          4 |         21 |
+| /workspaces/Bluesky-copilot/database/migrations/1737283763946_create_convos_table.ts                                        | TypeScript         |         13 |          0 |          3 |         16 |
+| /workspaces/Bluesky-copilot/database/migrations/1737804308316_create_listeners_convos_table.ts                              | TypeScript         |         17 |          0 |          3 |         20 |
+| /workspaces/Bluesky-copilot/database/migrations/1739718359173_create_dm_campaigns_table.ts                                  | TypeScript         |         22 |          0 |          3 |         25 |
+| /workspaces/Bluesky-copilot/database/migrations/1739800235921_create_account_stats_table.ts                                 | TypeScript         |         15 |          0 |          3 |         18 |
+| /workspaces/Bluesky-copilot/database/migrations/1739801368915_create_dm_campaign_convos_table.ts                            | TypeScript         |         16 |          0 |          5 |         21 |
+| /workspaces/Bluesky-copilot/database/migrations/1739904242607_create_update_length_message_of_listeners_table.ts            | TypeScript         |         14 |          0 |          3 |         17 |
+| /workspaces/Bluesky-copilot/database/migrations/1740062907230_create_remove_user_column_marketing_consents_table.ts         | TypeScript         |         12 |          0 |          3 |         15 |
+| /workspaces/Bluesky-copilot/database/migrations/1740148718481_create_accounts_table.ts                                      | TypeScript         |         12 |          0 |          3 |         15 |
+| /workspaces/Bluesky-copilot/database/migrations/1741446967968_create_schedulings_table.ts                                   | TypeScript         |         18 |          0 |          3 |         21 |
+| /workspaces/Bluesky-copilot/database/migrations/1742132146955_create_add_user_plans_table.ts                                | TypeScript         |         16 |          0 |          3 |         19 |
+| /workspaces/Bluesky-copilot/database/migrations/1743277289133_create_followers_table.ts                                     | TypeScript         |         14 |          0 |          3 |         17 |
+| /workspaces/Bluesky-copilot/database/migrations/1743441589221_create_feeds_table.ts                                         | TypeScript         |         16 |          0 |          3 |         19 |
+| /workspaces/Bluesky-copilot/database/migrations/1744012154314_create_account_add_follower_cursors_table.ts                  | TypeScript         |         13 |          0 |          3 |         16 |
+| /workspaces/Bluesky-copilot/database/migrations/1744977063950_create_super_clusters_table.ts                                | TypeScript         |         17 |          0 |          3 |         20 |
+| /workspaces/Bluesky-copilot/database/migrations/1744977634365_create_clusters_table.ts                                      | TypeScript         |         18 |          0 |          4 |         22 |
+| /workspaces/Bluesky-copilot/database/migrations/1745514063511_create_delete_listeners_table.ts                              | TypeScript         |         32 |          0 |          4 |         36 |
+| /workspaces/Bluesky-copilot/database/migrations/1746043593239_create_add_stats_to_accounts_table.ts                         | TypeScript         |         18 |          0 |          3 |         21 |
+| /workspaces/Bluesky-copilot/database/migrations/1746107960832_create_followers_histories_table.ts                           | TypeScript         |         18 |          4 |          8 |         30 |
+| /workspaces/Bluesky-copilot/database/migrations/1746110387568_create_create_post_histories_table.ts                         | TypeScript         |         25 |          1 |          6 |         32 |
+| /workspaces/Bluesky-copilot/database/migrations/1746127000000_create_followers_histories_table.ts                           | TypeScript         |         12 |          0 |          3 |         15 |
+| /workspaces/Bluesky-copilot/database/migrations/1746886270006_create_add_cascade_delete_to_followers_histories_table.ts     | TypeScript         |         16 |          2 |          3 |         21 |
+| /workspaces/Bluesky-copilot/database/migrations/1746886321376_create_add_cascade_delete_to_post_histories_table.ts          | TypeScript         |         20 |          6 |          5 |         31 |
+| /workspaces/Bluesky-copilot/database/migrations/1747583212597_create_add_column_numbers_of_followers_to_analyzes_table.ts   | TypeScript         |         12 |          0 |          3 |         15 |
+| /workspaces/Bluesky-copilot/database/migrations/1748095609738_create_create_analysis_audiences_table.ts                     | TypeScript         |         25 |          0 |          4 |         29 |
+| /workspaces/Bluesky-copilot/database/migrations/1748189706415_create_add_followers_cursor_to_analysis_audiences_table.ts    | TypeScript         |         14 |          0 |          3 |         17 |
+| /workspaces/Bluesky-copilot/database/migrations/1748515181436_create_add_account_handle_to_analysis_audiences_table.ts      | TypeScript         |         14 |          0 |          3 |         17 |
+| /workspaces/Bluesky-copilot/database/migrations/1748515927043_create_populate_account_handle_in_analysis_audiences_table.ts | TypeScript         |         21 |          3 |          4 |         28 |
+| /workspaces/Bluesky-copilot/database/migrations/1749490286298_create_make_super_cluster_id_nullables_table.ts               | TypeScript         |         18 |          6 |          7 |         31 |
+| /workspaces/Bluesky-copilot/debug_db.mjs                                                                                    | JavaScript         |          0 |          0 |          1 |          1 |
+| /workspaces/Bluesky-copilot/eslint.config.js                                                                                | JavaScript JSX     |          2 |          0 |          1 |          3 |
+| /workspaces/Bluesky-copilot/inertia/app.css                                                                                 | PostCSS            |         93 |          2 |         26 |        121 |
+| /workspaces/Bluesky-copilot/inertia/app/app.ts                                                                              | TypeScript         |         22 |          7 |          8 |         37 |
+| /workspaces/Bluesky-copilot/inertia/app/ssr.ts                                                                              | TypeScript         |         10 |          0 |          2 |         12 |
+| /workspaces/Bluesky-copilot/inertia/components/ContentSuggestion.svelte                                                     | Svelte             |         56 |          0 |          6 |         62 |
+| /workspaces/Bluesky-copilot/inertia/components/InsightBox.svelte                                                            | Svelte             |         54 |          0 |          6 |         60 |
+| /workspaces/Bluesky-copilot/inertia/css/app.css                                                                             | PostCSS            |        234 |         13 |         70 |        317 |
+| /workspaces/Bluesky-copilot/inertia/lib/components/AccountCard.svelte                                                       | Svelte             |        162 |          0 |         11 |        173 |
+| /workspaces/Bluesky-copilot/inertia/lib/components/AddAccount.svelte                                                        | Svelte             |        120 |          0 |          8 |        128 |
+| /workspaces/Bluesky-copilot/inertia/lib/components/Cluster.svelte                                                           | Svelte             |         70 |          0 |          8 |         78 |
+| /workspaces/Bluesky-copilot/inertia/lib/components/EngagementAnalysis.svelte                                                | Svelte             |         91 |          0 |          5 |         96 |
+| /workspaces/Bluesky-copilot/inertia/lib/components/FollowersChart.svelte                                                    | Svelte             |         86 |          0 |          8 |         94 |
+| /workspaces/Bluesky-copilot/inertia/lib/components/Layout.svelte                                                            | Svelte             |         29 |          0 |          6 |         35 |
+| /workspaces/Bluesky-copilot/inertia/lib/components/LoadingSpinner.svelte                                                    | Svelte             |         21 |          0 |          5 |         26 |
+| /workspaces/Bluesky-copilot/inertia/lib/components/PostsTable.svelte                                                        | Svelte             |         73 |          0 |          5 |         78 |
+| /workspaces/Bluesky-copilot/inertia/lib/components/PublicationCalendar.svelte                                               | Svelte             |        262 |          0 |         43 |        305 |
+| /workspaces/Bluesky-copilot/inertia/lib/components/Sidebar.svelte                                                           | Svelte             |        233 |          0 |         16 |        249 |
+| /workspaces/Bluesky-copilot/inertia/lib/components/ThemeToggle.svelte                                                       | Svelte             |          0 |          0 |          1 |          1 |
+| /workspaces/Bluesky-copilot/inertia/lib/components/chart.svelte                                                             | Svelte             |        112 |          0 |          9 |        121 |
+| /workspaces/Bluesky-copilot/inertia/lib/components/layoutLandingPage.svelte                                                 | Svelte             |         91 |          0 |          8 |         99 |
+| /workspaces/Bluesky-copilot/inertia/lib/components/theme-toggle/theme-toggle.svelte                                         | Svelte             |         44 |          0 |          5 |         49 |
+| /workspaces/Bluesky-copilot/inertia/lib/components/user-auth-form.svelte                                                    | Svelte             |         71 |          0 |          5 |         76 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/accordion/accordion-content.svelte                                        | Svelte             |         22 |          0 |          4 |         26 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/accordion/accordion-item.svelte                                           | Svelte             |         11 |          0 |          4 |         15 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/accordion/accordion-trigger.svelte                                        | Svelte             |         23 |          0 |          4 |         27 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/accordion/index.ts                                                        | TypeScript         |         15 |          1 |          2 |         18 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/alert/alert-description.svelte                                            | Svelte             |         10 |          0 |          4 |         14 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/alert/alert-title.svelte                                                  | Svelte             |         18 |          0 |          4 |         22 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/alert/alert.svelte                                                        | Svelte             |         14 |          0 |          4 |         18 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/alert/index.ts                                                            | TypeScript         |         27 |          1 |          6 |         34 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/badge/badge.svelte                                                        | Svelte             |         16 |          0 |          3 |         19 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/badge/index.ts                                                            | TypeScript         |         19 |          0 |          3 |         22 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/breadcrumb/breadcrumb.svelte                                              | Svelte             |          0 |          0 |          1 |          1 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/button/button.svelte                                                      | Svelte             |         22 |          0 |          4 |         26 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/button/index.ts                                                           | TypeScript         |         43 |          1 |          5 |         49 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/calendar/calendar-cell.svelte                                             | Svelte             |         18 |          0 |          4 |         22 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/calendar/calendar-day.svelte                                              | Svelte             |         39 |          0 |          4 |         43 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/calendar/calendar-grid-body.svelte                                        | Svelte             |         10 |          0 |          4 |         14 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/calendar/calendar-grid-head.svelte                                        | Svelte             |         10 |          0 |          4 |         14 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/calendar/calendar-grid-row.svelte                                         | Svelte             |         10 |          0 |          4 |         14 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/calendar/calendar-grid.svelte                                             | Svelte             |         10 |          0 |          4 |         14 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/calendar/calendar-head-cell.svelte                                        | Svelte             |         13 |          0 |          4 |         17 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/calendar/calendar-header.svelte                                           | Svelte             |         13 |          0 |          4 |         17 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/calendar/calendar-heading.svelte                                          | Svelte             |         16 |          0 |          4 |         20 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/calendar/calendar-months.svelte                                           | Svelte             |         13 |          0 |          4 |         17 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/calendar/calendar-next-button.svelte                                      | Svelte             |         24 |          0 |          4 |         28 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/calendar/calendar-prev-button.svelte                                      | Svelte             |         24 |          0 |          4 |         28 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/calendar/calendar.svelte                                                  | Svelte             |         54 |          0 |          6 |         60 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/calendar/index.ts                                                         | TypeScript         |         28 |          1 |          2 |         31 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/card/card-content.svelte                                                  | Svelte             |         10 |          0 |          4 |         14 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/card/card-description.svelte                                              | Svelte             |         10 |          0 |          4 |         14 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/card/card-footer.svelte                                                   | Svelte             |         10 |          0 |          4 |         14 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/card/card-header.svelte                                                   | Svelte             |         10 |          0 |          4 |         14 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/card/card-title.svelte                                                    | Svelte             |         18 |          0 |          4 |         22 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/card/card.svelte                                                          | Svelte             |         26 |          0 |          5 |         31 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/card/index.ts                                                             | TypeScript         |         21 |          1 |          3 |         25 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/checkbox/checkbox.svelte                                                  | Svelte             |         32 |          0 |          4 |         36 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/checkbox/index.ts                                                         | TypeScript         |          5 |          1 |          1 |          7 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/collapsible/collapsible-content.svelte                                    | Svelte             |          0 |          0 |          1 |          1 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/dialog/dialog-content.svelte                                              | Svelte             |         33 |          0 |          4 |         37 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/dialog/dialog-description.svelte                                          | Svelte             |         13 |          0 |          4 |         17 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/dialog/dialog-footer.svelte                                               | Svelte             |         13 |          0 |          4 |         17 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/dialog/dialog-header.svelte                                               | Svelte             |         10 |          0 |          4 |         14 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/dialog/dialog-overlay.svelte                                              | Svelte             |         18 |          0 |          4 |         22 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/dialog/dialog-portal.svelte                                               | Svelte             |          7 |          0 |          2 |          9 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/dialog/dialog-title.svelte                                                | Svelte             |         13 |          0 |          4 |         17 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/dialog/index.ts                                                           | TypeScript         |         33 |          1 |          4 |         38 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/dropdown-menu/dropdown-menu-checkbox-item.svelte                          | Svelte             |         32 |          0 |          4 |         36 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/dropdown-menu/dropdown-menu-content.svelte                                | Svelte             |         24 |          0 |          4 |         28 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/dropdown-menu/dropdown-menu-item.svelte                                   | Svelte             |         28 |          0 |          4 |         32 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/dropdown-menu/dropdown-menu-label.svelte                                  | Svelte             |         16 |          0 |          4 |         20 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/dropdown-menu/dropdown-menu-radio-group.svelte                            | Svelte             |          8 |          0 |          4 |         12 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/dropdown-menu/dropdown-menu-radio-item.svelte                             | Svelte             |         32 |          0 |          4 |         36 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/dropdown-menu/dropdown-menu-separator.svelte                              | Svelte             |         11 |          0 |          4 |         15 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/dropdown-menu/dropdown-menu-shortcut.svelte                               | Svelte             |         10 |          0 |          4 |         14 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/dropdown-menu/dropdown-menu-sub-content.svelte                            | Svelte             |         27 |          0 |          4 |         31 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/dropdown-menu/dropdown-menu-sub-trigger.svelte                            | Svelte             |         29 |          0 |          4 |         33 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/dropdown-menu/index.ts                                                    | TypeScript         |         45 |          1 |          3 |         49 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/input/index.ts                                                            | TypeScript         |         26 |          1 |          3 |         30 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/input/input.svelte                                                        | Svelte             |         38 |          0 |          5 |         43 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/label/index.ts                                                            | TypeScript         |          5 |          1 |          2 |          8 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/label/label.svelte                                                        | Svelte             |         18 |          0 |          4 |         22 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/popover/index.ts                                                          | TypeScript         |         15 |          1 |          2 |         18 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/popover/popover-content.svelte                                            | Svelte             |         20 |          0 |          3 |         23 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/radio-group/index.ts                                                      | TypeScript         |         12 |          1 |          3 |         16 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/radio-group/radio-group-item.svelte                                       | Svelte             |         25 |          0 |          4 |         29 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/radio-group/radio-group.svelte                                            | Svelte             |         11 |          0 |          4 |         15 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/select/index.ts                                                           | TypeScript         |         30 |          1 |          4 |         35 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/select/select-content.svelte                                              | Svelte             |         35 |          0 |          5 |         40 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/select/select-item.svelte                                                 | Svelte             |         37 |          0 |          4 |         41 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/select/select-label.svelte                                                | Svelte             |         13 |          0 |          4 |         17 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/select/select-separator.svelte                                            | Svelte             |          8 |          0 |          4 |         12 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/select/select-trigger.svelte                                              | Svelte             |         24 |          0 |          4 |         28 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/skeleton/skeleton.svelte                                                  | Svelte             |          0 |          0 |          1 |          1 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/switch/index.ts                                                           | TypeScript         |          5 |          1 |          2 |          8 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/switch/switch.svelte                                                      | Svelte             |         25 |          0 |          4 |         29 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/table/index.ts                                                            | TypeScript         |         26 |          1 |          2 |         29 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/table/table-body.svelte                                                   | Svelte             |         10 |          0 |          4 |         14 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/table/table-caption.svelte                                                | Svelte             |         10 |          0 |          4 |         14 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/table/table-cell.svelte                                                   | Svelte             |         15 |          0 |          4 |         19 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/table/table-footer.svelte                                                 | Svelte             |         10 |          0 |          4 |         14 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/table/table-head.svelte                                                   | Svelte             |         16 |          0 |          4 |         20 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/table/table-header.svelte                                                 | Svelte             |         11 |          0 |          4 |         15 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/table/table-row.svelte                                                    | Svelte             |         20 |          0 |          4 |         24 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/table/table.svelte                                                        | Svelte             |         12 |          0 |          4 |         16 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/tabs/index.ts                                                             | TypeScript         |         15 |          1 |          3 |         19 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/tabs/tabs-content.svelte                                                  | Svelte             |         17 |          0 |          3 |         20 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/tabs/tabs-list.svelte                                                     | Svelte             |         15 |          0 |          3 |         18 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/tabs/tabs-trigger.svelte                                                  | Svelte             |         19 |          0 |          3 |         22 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/tabs/tabs.svelte                                                          | Svelte             |          9 |          0 |          3 |         12 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/textarea/index.ts                                                         | TypeScript         |         24 |          1 |          4 |         29 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/textarea/textarea.svelte                                                  | Svelte             |         34 |          0 |          5 |         39 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/toast/toast.svelte                                                        | Svelte             |          0 |          0 |          1 |          1 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/toggle/index.ts                                                           | TypeScript         |         27 |          1 |          4 |         32 |
+| /workspaces/Bluesky-copilot/inertia/lib/shadcn-ui/toggle/toggle.svelte                                                      | Svelte             |         24 |          0 |          4 |         28 |
+| /workspaces/Bluesky-copilot/inertia/lib/store.ts                                                                            | TypeScript         |          2 |          0 |          1 |          3 |
+| /workspaces/Bluesky-copilot/inertia/lib/type.ts                                                                             | TypeScript         |         27 |          0 |          6 |         33 |
+| /workspaces/Bluesky-copilot/inertia/lib/utils.ts                                                                            | TypeScript         |         53 |          0 |          9 |         62 |
+| /workspaces/Bluesky-copilot/inertia/pages/AccountDashboard.svelte                                                           | Svelte             |          2 |          0 |          2 |          4 |
+| /workspaces/Bluesky-copilot/inertia/pages/AccountDashboardLoadign.svelte                                                    | Svelte             |         14 |          0 |          4 |         18 |
+| /workspaces/Bluesky-copilot/inertia/pages/AddAccount.svelte                                                                 | Svelte             |         31 |          0 |          6 |         37 |
+| /workspaces/Bluesky-copilot/inertia/pages/AddCampaign.svelte                                                                | Svelte             |        197 |          0 |         22 |        219 |
+| /workspaces/Bluesky-copilot/inertia/pages/AddSchedule.svelte                                                                | Svelte             |        282 |          0 |         30 |        312 |
+| /workspaces/Bluesky-copilot/inertia/pages/AiPost.svelte                                                                     | Svelte             |         30 |          0 |          6 |         36 |
+| /workspaces/Bluesky-copilot/inertia/pages/Analytics.svelte                                                                  | Svelte             |         61 |          0 |         11 |         72 |
+| /workspaces/Bluesky-copilot/inertia/pages/AudienceAnalysis.svelte                                                           | Svelte             |        691 |          0 |         52 |        743 |
+| /workspaces/Bluesky-copilot/inertia/pages/DM_Campaigns.svelte                                                               | Svelte             |        256 |          0 |         13 |        269 |
+| /workspaces/Bluesky-copilot/inertia/pages/contact-us.svelte                                                                 | Svelte             |         12 |          0 |          1 |         13 |
+| /workspaces/Bluesky-copilot/inertia/pages/dashboard.svelte                                                                  | Svelte             |        155 |          0 |         11 |        166 |
+| /workspaces/Bluesky-copilot/inertia/pages/errors/not_found.svelte                                                           | Svelte             |          6 |          0 |          1 |          7 |
+| /workspaces/Bluesky-copilot/inertia/pages/errors/server_error.svelte                                                        | Svelte             |          9 |          0 |          2 |         11 |
+| /workspaces/Bluesky-copilot/inertia/pages/feed.svelte                                                                       | Svelte             |        178 |          0 |         12 |        190 |
+| /workspaces/Bluesky-copilot/inertia/pages/feedId.svelte                                                                     | Svelte             |        306 |          0 |         30 |        336 |
+| /workspaces/Bluesky-copilot/inertia/pages/home.svelte                                                                       | Svelte             |        573 |          0 |         30 |        603 |
+| /workspaces/Bluesky-copilot/inertia/pages/login.svelte                                                                      | Svelte             |         26 |          0 |          2 |         28 |
+| /workspaces/Bluesky-copilot/inertia/pages/philosophy.svelte                                                                 | Svelte             |         89 |          0 |         10 |         99 |
+| /workspaces/Bluesky-copilot/inertia/pages/planChange.svelte                                                                 | Svelte             |        142 |          0 |         10 |        152 |
+| /workspaces/Bluesky-copilot/inertia/pages/pricing.svelte                                                                    | Svelte             |        125 |          0 |         10 |        135 |
+| /workspaces/Bluesky-copilot/inertia/pages/privacy.svelte                                                                    | Svelte             |         98 |          0 |         11 |        109 |
+| /workspaces/Bluesky-copilot/inertia/pages/register.svelte                                                                   | Svelte             |          0 |          0 |          1 |          1 |
+| /workspaces/Bluesky-copilot/inertia/pages/schedule.svelte                                                                   | Svelte             |        422 |          0 |         40 |        462 |
+| /workspaces/Bluesky-copilot/inertia/pages/terms.svelte                                                                      | Svelte             |         87 |          0 |         10 |         97 |
+| /workspaces/Bluesky-copilot/inertia/pages/thank-you.svelte                                                                  | Svelte             |          6 |          0 |          1 |          7 |
+| /workspaces/Bluesky-copilot/inertia/stores/theme.ts                                                                         | TypeScript         |         29 |          1 |          4 |         34 |
+| /workspaces/Bluesky-copilot/inertia/tsconfig.json                                                                           | JSON with Comments |         15 |          0 |          1 |         16 |
+| /workspaces/Bluesky-copilot/inertia/vite-env.d.ts                                                                           | TypeScript         |          7 |          2 |          3 |         12 |
+| /workspaces/Bluesky-copilot/instructions.md                                                                                 | Markdown           |          0 |          0 |          1 |          1 |
+| /workspaces/Bluesky-copilot/legacy_tests/create_test_data.mjs                                                               | JavaScript         |         67 |          9 |         16 |         92 |
+| /workspaces/Bluesky-copilot/legacy_tests/debug_db.mjs                                                                       | JavaScript         |         40 |          1 |         12 |         53 |
+| /workspaces/Bluesky-copilot/legacy_tests/test_api_debug.mjs                                                                 | JavaScript         |         90 |          1 |         18 |        109 |
+| /workspaces/Bluesky-copilot/legacy_tests/test_python_endpoints.mjs                                                          | JavaScript         |        117 |         10 |         21 |        148 |
+| /workspaces/Bluesky-copilot/legacy_tests/test_python_worker_simulation.mjs                                                  | JavaScript         |        212 |         13 |         30 |        255 |
+| /workspaces/Bluesky-copilot/legacy_tests/test_simple.mjs                                                                    | JavaScript         |          3 |          0 |          1 |          4 |
+| /workspaces/Bluesky-copilot/legacy_tests/test_workflow.mjs                                                                  | JavaScript         |        213 |         13 |         32 |        258 |
+| /workspaces/Bluesky-copilot/package-lock.json                                                                               | JSON               |     14,968 |          0 |          1 |     14,969 |
+| /workspaces/Bluesky-copilot/package.json                                                                                    | JSON               |        150 |          0 |          1 |        151 |
+| /workspaces/Bluesky-copilot/postcss.config.js                                                                               | JavaScript JSX     |          6 |          0 |          1 |          7 |
+| /workspaces/Bluesky-copilot/python-service/CLUSTER_DUPLICATION_FIX_COMPLETE.md                                              | Markdown           |         54 |          0 |         25 |         79 |
+| /workspaces/Bluesky-copilot/python-service/Dockerfile                                                                       | Docker             |         21 |         12 |         14 |         47 |
+| /workspaces/Bluesky-copilot/python-service/STABILITY_IMPROVEMENTS.md                                                        | Markdown           |        127 |          0 |         56 |        183 |
+| /workspaces/Bluesky-copilot/python-service/UMAP_REMOVAL_REPORT.md                                                           | Markdown           |        106 |          0 |         49 |        155 |
+| /workspaces/Bluesky-copilot/python-service/ai_service/__init__.py                                                           | Python             |          0 |          0 |          1 |          1 |
+| /workspaces/Bluesky-copilot/python-service/ai_service/api/endpoints.py                                                      | Python             |         18 |          1 |          3 |         22 |
+| /workspaces/Bluesky-copilot/python-service/ai_service/clients/__init__.py                                                   | Python             |          2 |          1 |          2 |          5 |
+| /workspaces/Bluesky-copilot/python-service/ai_service/clients/adonis_api_client.py                                          | Python             |        172 |         25 |         43 |        240 |
+| /workspaces/Bluesky-copilot/python-service/ai_service/models/__init__.py                                                    | Python             |          0 |          0 |          1 |          1 |
+| /workspaces/Bluesky-copilot/python-service/ai_service/models/embedder.py                                                    | Python             |          4 |          0 |          2 |          6 |
+| /workspaces/Bluesky-copilot/python-service/ai_service/models/interfaces/clustering_model.py                                 | Python             |         16 |         32 |          5 |         53 |
+| /workspaces/Bluesky-copilot/python-service/ai_service/models/interfaces/embedding_model.py                                  | Python             |          9 |         23 |          3 |         35 |
+| /workspaces/Bluesky-copilot/python-service/ai_service/models/interfaces/tag_generator.py                                    | Python             |          9 |         23 |          3 |         35 |
+| /workspaces/Bluesky-copilot/python-service/ai_service/models/transformer_embedder.py                                        | Python             |         32 |         46 |         11 |         89 |
+| /workspaces/Bluesky-copilot/python-service/ai_service/services/__init__.py                                                  | Python             |          0 |          0 |          1 |          1 |
+| /workspaces/Bluesky-copilot/python-service/ai_service/services/clustering/hdbscan_clusterer.py                              | Python             |         54 |         53 |         13 |        120 |
+| /workspaces/Bluesky-copilot/python-service/ai_service/services/improved_tag_generator.py                                    | Python             |        110 |         58 |         41 |        209 |
+| /workspaces/Bluesky-copilot/python-service/ai_service/services/tag_service.py                                               | Python             |      1,057 |        326 |        304 |      1,687 |
+| /workspaces/Bluesky-copilot/python-service/ai_service/services/tagger.py                                                    | Python             |         54 |         28 |         13 |         95 |
+| /workspaces/Bluesky-copilot/python-service/ai_service/services/taggers/keybert_tagger.py                                    | Python             |         94 |         65 |         27 |        186 |
+| /workspaces/Bluesky-copilot/python-service/ai_service/utils/text_cleaner.py                                                 | Python             |         44 |         34 |         11 |         89 |
+| /workspaces/Bluesky-copilot/python-service/analysis_worker.py                                                               | Python             |        226 |         46 |         59 |        331 |
+| /workspaces/Bluesky-copilot/python-service/bluesky/__init__.py                                                              | Python             |          0 |          0 |          1 |          1 |
+| /workspaces/Bluesky-copilot/python-service/bluesky/api.py                                                                   | Python             |         78 |         13 |         13 |        104 |
+| /workspaces/Bluesky-copilot/python-service/check_api_connectivity.sh                                                        | Shell Script       |         27 |          5 |          7 |         39 |
+| /workspaces/Bluesky-copilot/python-service/debug_tag_generation.py                                                          | Python             |         63 |         17 |         19 |         99 |
+| /workspaces/Bluesky-copilot/python-service/poetry.lock                                                                      | toml               |      2,928 |          0 |        180 |      3,108 |
+| /workspaces/Bluesky-copilot/python-service/setup_db_migration.sh                                                            | Shell Script       |         31 |          6 |          7 |         44 |
+| /workspaces/Bluesky-copilot/python-service/start_bulk_worker.sh                                                             | Shell Script       |          1 |          2 |          4 |          7 |
+| /workspaces/Bluesky-copilot/python-service/start_worker.sh                                                                  | Shell Script       |          1 |          2 |          4 |          7 |
+| /workspaces/Bluesky-copilot/python-service/start_worker_unified.sh                                                          | Shell Script       |        107 |         24 |         31 |        162 |
+| /workspaces/Bluesky-copilot/python-service/test_cluster_duplication_fix.py                                                  | Python             |         56 |         19 |         22 |         97 |
+| /workspaces/Bluesky-copilot/python-service/test_cluster_logic_fix.py                                                        | Python             |         64 |         16 |         21 |        101 |
+| /workspaces/Bluesky-copilot/python-service/test_clustering_improvements.py                                                  | Python             |        196 |         30 |         56 |        282 |
+| /workspaces/Bluesky-copilot/python-service/test_final_cleanup.py                                                            | Python             |        103 |         17 |         35 |        155 |
+| /workspaces/Bluesky-copilot/python-service/test_final_results.py                                                            | Python             |         39 |          3 |         16 |         58 |
+| /workspaces/Bluesky-copilot/python-service/test_final_simplified.py                                                         | Python             |         81 |         14 |         25 |        120 |
+| /workspaces/Bluesky-copilot/python-service/test_hybrid_focused.py                                                           | Python             |        216 |         39 |         66 |        321 |
+| /workspaces/Bluesky-copilot/python-service/test_hybrid_tag_generation.py                                                    | Python             |        212 |         36 |         62 |        310 |
+| /workspaces/Bluesky-copilot/python-service/test_integration.py                                                              | Python             |         35 |         10 |         13 |         58 |
+| /workspaces/Bluesky-copilot/python-service/test_no_hierarchical.py                                                          | Python             |         81 |         11 |         18 |        110 |
+| /workspaces/Bluesky-copilot/python-service/test_simple_fix.py                                                               | Python             |         23 |          4 |          9 |         36 |
+| /workspaces/Bluesky-copilot/python-service/test_simplified_tag_generator.py                                                 | Python             |         75 |         13 |         19 |        107 |
+| /workspaces/Bluesky-copilot/python-service/test_stability_improvements.py                                                   | Python             |        123 |         19 |         41 |        183 |
+| /workspaces/Bluesky-copilot/python-service/test_worker_api.py                                                               | Python             |         45 |         17 |         16 |         78 |
+| /workspaces/Bluesky-copilot/python-service/tests/complete_workflow_test.py                                                  | Python             |         97 |         16 |         25 |        138 |
+| /workspaces/Bluesky-copilot/python-service/tests/final_workflow_test.py                                                     | Python             |        140 |         13 |         29 |        182 |
+| /workspaces/Bluesky-copilot/python-service/tests/simple_worker_test.py                                                      | Python             |         90 |         20 |         26 |        136 |
+| /workspaces/Bluesky-copilot/python-service/tests/test_with_numeric_id.py                                                    | Python             |          0 |          0 |          1 |          1 |
+| /workspaces/Bluesky-copilot/python-service/tests/test_worker_api.py                                                         | Python             |         45 |         17 |         16 |         78 |
+| /workspaces/Bluesky-copilot/python-service/worker_health_monitor.py                                                         | Python             |        112 |         18 |         29 |        159 |
+| /workspaces/Bluesky-copilot/redis.conf                                                                                      | Properties         |          2 |          0 |          1 |          3 |
+| /workspaces/Bluesky-copilot/resources/tsconfig.json                                                                         | JSON with Comments |         10 |          0 |          1 |         11 |
+| /workspaces/Bluesky-copilot/resources/views/inertia_layout.edge                                                             | Edge Template      |         45 |          0 |         16 |         61 |
+| /workspaces/Bluesky-copilot/start/ai_scheduler.ts                                                                           | TypeScript         |         20 |          9 |          5 |         34 |
+| /workspaces/Bluesky-copilot/start/env.ts                                                                                    | TypeScript         |         23 |         35 |         11 |         69 |
+| /workspaces/Bluesky-copilot/start/kernel.ts                                                                                 | TypeScript         |         23 |         26 |          5 |         54 |
+| /workspaces/Bluesky-copilot/start/routes.ts                                                                                 | TypeScript         |        118 |         35 |         25 |        178 |
+| /workspaces/Bluesky-copilot/start/scheduler.ts                                                                              | TypeScript         |         23 |          2 |          3 |         28 |
+| /workspaces/Bluesky-copilot/tailwind.config.js                                                                              | JavaScript JSX     |         66 |          1 |          3 |         70 |
+| /workspaces/Bluesky-copilot/test_local_ai_integration.js                                                                    | JavaScript JSX     |         49 |          7 |         17 |         73 |
+| /workspaces/Bluesky-copilot/tests/bootstrap.ts                                                                              | TypeScript         |         25 |         18 |          6 |         49 |
+| /workspaces/Bluesky-copilot/tests/factories/test_data_factory.ts                                                            | TypeScript         |         90 |         22 |         11 |        123 |
+| /workspaces/Bluesky-copilot/tests/functional/internal_python_api.spec.ts                                                    | TypeScript         |         54 |         15 |         17 |         86 |
+| /workspaces/Bluesky-copilot/tests/functional/python_worker_simulation.spec.ts                                               | TypeScript         |        126 |         15 |         29 |        170 |
+| /workspaces/Bluesky-copilot/tests/functional/workflow.spec.ts                                                               | TypeScript         |        189 |         20 |         34 |        243 |
+| /workspaces/Bluesky-copilot/tests/instructions/TESTING_COMPLETION_SUMMARY.md                                                | Markdown           |        117 |          0 |         39 |        156 |
+| /workspaces/Bluesky-copilot/tests/instructions/TEST_REFACTORING_SUMMARY.md                                                  | Markdown           |        195 |          0 |         76 |        271 |
+| /workspaces/Bluesky-copilot/tests/instructions/instructions.md                                                              | Markdown           |        573 |          0 |        155 |        728 |
+| /workspaces/Bluesky-copilot/tests/instructions/japa_tests_instructions.md                                                   | Markdown           |        573 |          0 |        155 |        728 |
+| /workspaces/Bluesky-copilot/tests/simple_test.spec.ts                                                                       | TypeScript         |          6 |          0 |          2 |          8 |
+| /workspaces/Bluesky-copilot/tests/unit/ai_scheduler_service.spec.ts                                                         | TypeScript         |        166 |         23 |         45 |        234 |
+| /workspaces/Bluesky-copilot/tests/unit/python_controller_methods.spec.ts                                                    | TypeScript         |          0 |          0 |          1 |          1 |
+| /workspaces/Bluesky-copilot/tsconfig.json                                                                                   | JSON with Comments |         14 |          0 |          1 |         15 |
+| /workspaces/Bluesky-copilot/vite.config.ts                                                                                  | TypeScript         |         23 |          4 |          4 |         31 |
+| Total                                                                                                                       |                    |     42,964 |      3,346 |      5,503 |     51,813 |
++-----------------------------------------------------------------------------------------------------------------------------+--------------------+------------+------------+------------+------------+
