@@ -9,7 +9,7 @@ class HDBSCANClusterer(ClusteringModel):
     Implémentation d'un modèle de clustering basé sur HDBSCAN
     """
     
-    def __init__(self, min_cluster_size: int = 5, min_samples: Optional[int] = None, 
+    def __init__(self, min_cluster_size: int = 4, min_samples: Optional[int] = None, 
                  metric: str = "euclidean", cluster_selection_method: str = 'eom'):
         """
         Initialise le clusterer HDBSCAN
@@ -110,11 +110,26 @@ class HDBSCANClusterer(ClusteringModel):
         Args:
             dataset_size: Nombre d'éléments dans le dataset
         """
-        # Ajuster min_cluster_size en fonction de la taille du dataset
-        # Règle heuristique: environ 2% de la taille du dataset, avec un minimum de 2
-        self.min_cluster_size = max(2, int(dataset_size * 0.02))
-        # Ajuster min_samples plus bas pour permettre des clusters moins denses
-        self.min_samples = max(1, int(self.min_cluster_size * 0.5))
-        # Pour les très petits ensembles de données, utiliser le mode "leaf"
-        if dataset_size < 50:
+        # FUNCTIONAL CHANGE: Hardcoded minimum cluster size to 4
+        # This is a business requirement - DO NOT CHANGE without approval
+        # Ensures clusters have meaningful size for audience analysis
+        if dataset_size < 8:
+            # Very small datasets: require minimum clusters of 4
+            self.min_cluster_size = 4
+            self.min_samples = 2
             self.cluster_selection_method = 'leaf'
+        elif dataset_size < 15:
+            # Small datasets: require minimum clusters of 4
+            self.min_cluster_size = 4
+            self.min_samples = 3
+            self.cluster_selection_method = 'leaf'
+        elif dataset_size < 50:
+            # Medium datasets: use conservative parameters, minimum 4
+            self.min_cluster_size = max(4, int(dataset_size * 0.15))
+            self.min_samples = max(2, int(self.min_cluster_size * 0.6))
+            self.cluster_selection_method = 'leaf'
+        else:
+            # Large datasets: use original heuristic, minimum 4
+            self.min_cluster_size = max(4, int(dataset_size * 0.02))
+            self.min_samples = max(2, int(self.min_cluster_size * 0.5))
+            self.cluster_selection_method = 'eom'

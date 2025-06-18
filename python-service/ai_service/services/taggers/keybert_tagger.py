@@ -1,4 +1,5 @@
 import numpy as np
+import logging
 from keybert import KeyBERT
 from typing import List, Dict, Any, Tuple, Union, Optional
 from ai_service.models.interfaces.tag_generator import TagGenerator
@@ -25,6 +26,7 @@ class KeyBERTTagger(TagGenerator):
         self.model = KeyBERT(model=model_name)
         self.embedding_model = embedding_model
         self.text_cleaner = text_cleaner or TextCleaner()
+        self.logger = logging.getLogger(self.__class__.__name__)
     
     def clean_text(self, text: str, aggressive: bool = False) -> str:
         """
@@ -64,25 +66,78 @@ class KeyBERTTagger(TagGenerator):
             # Fusion en un corpus unique pour l'analyse
             corpus = " ".join(cleaned_texts)
             
+            # Safety check: ensure corpus has enough content for keyword extraction
+            if len(corpus.split()) < 5:  # Very short corpus
+                self.logger.warning("Corpus too short for keyword extraction, returning fallback")
+                return [("content", 0.5)], [0.0] * 384  # Fallback with dummy embedding
+            
             # Double extraction pour améliorer la qualité
             # D'abord extraction standard avec MMR pour diversité
-            keywords_mmr = self.model.extract_keywords(
-                corpus,
-                keyphrase_ngram_range=(1, 3),
-                top_n=top_n,
-                nr_candidates=40,  # Augmentation des candidats
-                use_mmr=True,
-
-            )
+            try:
+                mmr_candidates = max(50, top_n * 2)  # Ensure candidates >= top_n and sufficient buffer
+                
+                # Only proceed if we have enough text content for candidates
+                if len(corpus.split()) >= mmr_candidates:
+                    keywords_mmr = self.model.extract_keywords(
+                        corpus,
+                        keyphrase_ngram_range=(1, 3),
+                        top_n=top_n,
+                        nr_candidates=mmr_candidates,
+                        use_mmr=True,
+                    )
+                else:
+                    # Use fewer candidates if content is limited
+                    limited_candidates = max(20, len(corpus.split()) // 2)
+                    limited_top_n = min(top_n, limited_candidates - 5)  # Leave some buffer
+                    
+                    if limited_top_n > 0 and limited_candidates > limited_top_n:
+                        keywords_mmr = self.model.extract_keywords(
+                            corpus,
+                            keyphrase_ngram_range=(1, 3),
+                            top_n=limited_top_n,
+                            nr_candidates=limited_candidates,
+                            use_mmr=True,
+                        )
+                    else:
+                        keywords_mmr = []
+                        
+            except Exception as e:
+                # Fallback: Try simple extraction without MMR
+                import logging
+                logging.debug(f"MMR extraction failed: {e}")
+                try:
+                    keywords_mmr = self.model.extract_keywords(
+                        corpus,
+                        keyphrase_ngram_range=(1, 2),
+                        top_n=min(top_n, 10),
+                        use_mmr=False,
+                    )
+                except:
+                    keywords_mmr = []
             
             # Puis extraction avec MaxSum pour les termes les plus représentatifs
-            keywords_maxsum = self.model.extract_keywords(
-                corpus,
-                keyphrase_ngram_range=(1, 2),
-                top_n=top_n // 2,
-                use_maxsum=True,
-                nr_candidates=20,
-            )
+            try:
+                maxsum_top_n = min(top_n // 2, 15)  # Ensure we don't request more than candidates
+                maxsum_candidates = max(30, top_n + 10)  # More buffer for candidates
+                
+                # Only proceed if we have enough text content for candidates
+                if len(corpus.split()) >= maxsum_candidates:
+                    keywords_maxsum = self.model.extract_keywords(
+                        corpus,
+                        keyphrase_ngram_range=(1, 2),
+                        top_n=maxsum_top_n,
+                        use_maxsum=True,
+                        nr_candidates=maxsum_candidates,
+                    )
+                else:
+                    # Skip MaxSum if not enough content
+                    keywords_maxsum = []
+                    
+            except Exception as e:
+                # Fallback: Skip MaxSum extraction if it fails
+                import logging
+                logging.debug(f"MaxSum extraction failed: {e}")
+                keywords_maxsum = []
             
             # Fusion des résultats avec suppression des doublons
             all_keywords = {}
