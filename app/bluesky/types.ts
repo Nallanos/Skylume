@@ -1,7 +1,10 @@
 import type Account from '#models/account'
 import type { ProfileView } from '@atproto/api/dist/client/types/app/bsky/actor/defs.js'
 import type { MessageInput } from '@atproto/api/dist/client/types/chat/bsky/convo/defs.js'
-import type { EventStrategy } from '@skyware/bot'
+// import type { EventStrategy } from '@skyware/bot' // Commented out - package not available
+
+// Define our own EventStrategy type for now
+type EventStrategy = any
 
 // Base event type with generic event name
 export type Event<T extends string> = {

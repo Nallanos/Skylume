@@ -10,5 +10,6 @@
     "typeRoots": ["./node_modules/@types", "./types"],
     "types": ["node"]
   },
+  "include": ["**/*.ts", "types/**/*.d.ts"],
   "exclude": ["./inertia/**/*", "node_modules", "build"]
 }

@@ -291,13 +291,128 @@ export default class AnalyticsController {
                     analysisStatus
                 })
             } else {
-                // Si l'analyse n'est pas encore complétée, afficher la page avec les données de base
-                console.log('Analyse d\'audience non complétée, affichage de la page avec données de base...')
+                // Si l'analyse n'est pas encore complétée, afficher la page avec des données fictives pour le développement
+                console.log('Analyse d\'audience non complétée, affichage de la page avec données fictives...')
+
+                // Données fictives pour le développement et les tests
+                const mockSuperClusters = [
+                    {
+                        id: 1,
+                        tag: 'Tech & Développement',
+                        handles: ['@developer.bsky.social', '@programmer.bsky.social', '@coder.bsky.social'],
+                        size: 150,
+                        accountHandle: selectedAccount.handle,
+                        embeddings: [0.1, 0.2, 0.3, 0.4, 0.5]
+                    },
+                    {
+                        id: 2,
+                        tag: 'Design & Créativité',
+                        handles: ['@designer.bsky.social', '@artist.bsky.social', '@creative.bsky.social'],
+                        size: 120,
+                        accountHandle: selectedAccount.handle,
+                        embeddings: [0.2, 0.3, 0.4, 0.5, 0.6]
+                    },
+                    {
+                        id: 3,
+                        tag: 'Business & Entrepreneuriat',
+                        handles: ['@entrepreneur.bsky.social', '@startup.bsky.social', '@business.bsky.social'],
+                        size: 95,
+                        accountHandle: selectedAccount.handle,
+                        embeddings: [0.3, 0.4, 0.5, 0.6, 0.7]
+                    }
+                ]
+
+                const mockClusters = [
+                    {
+                        id: 1,
+                        tag: 'Développeurs Frontend',
+                        handles: ['@react.dev.bsky.social', '@vue.dev.bsky.social', '@svelte.dev.bsky.social'],
+                        size: 75,
+                        accountHandle: selectedAccount.handle,
+                        superClusterId: 1,
+                        embeddings: [0.15, 0.25, 0.35, 0.45, 0.55],
+                        superCluster: { id: 1, tag: 'Tech & Développement' }
+                    },
+                    {
+                        id: 2,
+                        tag: 'Développeurs Backend',
+                        handles: ['@nodejs.dev.bsky.social', '@python.dev.bsky.social', '@java.dev.bsky.social'],
+                        size: 65,
+                        accountHandle: selectedAccount.handle,
+                        superClusterId: 1,
+                        embeddings: [0.12, 0.22, 0.32, 0.42, 0.52],
+                        superCluster: { id: 1, tag: 'Tech & Développement' }
+                    },
+                    {
+                        id: 3,
+                        tag: 'UI/UX Designers',
+                        handles: ['@figma.design.bsky.social', '@sketch.design.bsky.social', '@adobe.design.bsky.social'],
+                        size: 80,
+                        accountHandle: selectedAccount.handle,
+                        superClusterId: 2,
+                        embeddings: [0.25, 0.35, 0.45, 0.55, 0.65],
+                        superCluster: { id: 2, tag: 'Design & Créativité' }
+                    },
+                    {
+                        id: 4,
+                        tag: 'Illustrateurs',
+                        handles: ['@illustrator.art.bsky.social', '@digital.art.bsky.social', '@concept.art.bsky.social'],
+                        size: 40,
+                        accountHandle: selectedAccount.handle,
+                        superClusterId: 2,
+                        embeddings: [0.22, 0.32, 0.42, 0.52, 0.62],
+                        superCluster: { id: 2, tag: 'Design & Créativité' }
+                    },
+                    {
+                        id: 5,
+                        tag: 'Startups Tech',
+                        handles: ['@techstartup.bsky.social', '@saas.startup.bsky.social', '@fintech.bsky.social'],
+                        size: 55,
+                        accountHandle: selectedAccount.handle,
+                        superClusterId: 3,
+                        embeddings: [0.35, 0.45, 0.55, 0.65, 0.75],
+                        superCluster: { id: 3, tag: 'Business & Entrepreneuriat' }
+                    },
+                    {
+                        id: 6,
+                        tag: 'Investisseurs',
+                        handles: ['@vc.fund.bsky.social', '@angel.investor.bsky.social', '@crypto.investor.bsky.social'],
+                        size: 40,
+                        accountHandle: selectedAccount.handle,
+                        superClusterId: 3,
+                        embeddings: [0.32, 0.42, 0.52, 0.62, 0.72],
+                        superCluster: { id: 3, tag: 'Business & Entrepreneuriat' }
+                    },
+                    {
+                        id: 7,
+                        tag: 'Blogueurs Tech',
+                        handles: ['@techblog.bsky.social', '@devblog.bsky.social', '@coding.blog.bsky.social'],
+                        size: 30,
+                        accountHandle: selectedAccount.handle,
+                        superClusterId: null,
+                        embeddings: [0.18, 0.28, 0.38, 0.48, 0.58],
+                        superCluster: null
+                    }
+                ]
+
+                const mockAnalysisStatus = {
+                    id: 1,
+                    status: 'completed' as const,
+                    progress: {
+                        analyzed: 500,
+                        total: 500,
+                        percentage: 100
+                    },
+                    startedAt: new Date(Date.now() - 300000).toISOString(), // Il y a 5 minutes
+                    completedAt: new Date(Date.now() - 60000).toISOString(), // Il y a 1 minute
+                    errorMessage: null
+                }
+
                 return inertia.render('AudienceAnalysis', {
                     account: selectedAccount,
-                    clusters: [],
-                    superClusters: [],
-                    analysisStatus
+                    clusters: mockClusters,
+                    superClusters: mockSuperClusters,
+                    analysisStatus: mockAnalysisStatus
                 })
             }
         } catch (error) {

@@ -50,7 +50,7 @@ export default class CreateTestData extends BaseCommand {
   }
 
   private async createCompleteTestData() {
-    const { user, account, analysis, userId, accountId, analysisId } =
+    const { user, account, userId, accountId, analysisId } =
       await TestDataFactory.createCompleteTestData()
 
     this.logger.info(`✅ Created test user: ${userId} (${user.email})`)

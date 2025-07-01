@@ -49,8 +49,9 @@
       gtag("config", "G-54JK6C7LJ7");
     </script>
 
+    @viteReactRefresh()
     @inertiaHead()
-    @vite(['inertia/app/app.ts', `inertia/pages/${page.component}.svelte`])
+    @vite(['inertia/app/app.tsx', `inertia/pages/${page.component}.tsx`])
   </head>
 
   <body class="min-h-screen font-sans bg-background">

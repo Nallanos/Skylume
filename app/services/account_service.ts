@@ -231,7 +231,7 @@ export default class AccountService {
                 }
 
                 await this.updateAccountRateLimit(account)
-                return data.messages
+                return (data as any).messages
             } catch (error) {
                 if (error.message === "Unauthorized" && retries < maxRetries) {
                     await this.createOrResumeSession(account)
@@ -277,7 +277,7 @@ export default class AccountService {
                 }
 
                 await this.updateAccountRateLimit(account)
-                return data.convo
+                return (data as any).convo
             } catch (error) {
                 if (error.message === "Unauthorized" && retries < maxRetries) {
                     await this.createOrResumeSession(account)

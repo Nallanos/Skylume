@@ -4,12 +4,15 @@
     "baseUrl": ".",
     "allowArbitraryExtensions": true,
     "module": "ESNext",
-    "types": ["svelte"],
+    "types": ["react", "react-dom"],
+    "jsx": "react-jsx",
+    "jsxImportSource": "react",
+
     "paths": {
       "~/*": ["../*"],
       "@/*": ["./lib/*"]
     },
     "verbatimModuleSyntax": true
   },
-  "include": ["./**/*.ts", "./**/*.svelte", "../inertiajs-svelte.d.ts"]
+  "include": ["./**/*.ts", "./**/*.tsx", "../inertiajs-react.d.ts"]
 }

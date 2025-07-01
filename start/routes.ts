@@ -63,6 +63,10 @@ const python_controller_methods = () => import('#controllers/python_controller_m
 
 
 router.post("/login", [session_controller, 'login'])
+router.put("/logout", [session_controller, 'logout']).use(middleware.auth())
+
+// Routes pour le profil utilisateur
+router.on("/profile").renderInertia("profile").use(middleware.auth())
 
 router.delete("/delete", [session_controller, "deleteUser"]).use(middleware.auth())
 // router.post("/dm_campaign/toggle", [dm_campaign_controller, "toggleDmCampaignStatus"]).use(middleware.auth())
