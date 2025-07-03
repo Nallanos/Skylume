@@ -93,7 +93,7 @@ function AddAccount() {
                     onChange={(e) => setBksySocial(e.target.value)}
                     placeholder="yourhandle.bsky.social"
                     required
-                    className="flex items-center bg-transparent border-0 focus-visible:ring-0 focus-visible:ring-offset-0"
+                    className="flex items-center bg-transparent border-none focus-visible:ring-0 focus-visible:ring-offset-0"
                   />
                 </div>
               </div>

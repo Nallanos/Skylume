@@ -355,6 +355,30 @@ export default class AccountService {
         }
     }
 
+    public async unfollowUser(account: Account, did: string): Promise<boolean> {
+        try {
+            if (await this.updateAccountRateLimit(account) == "skip") return false;
+            if (!account.at_session) throw new Error("session is not defined")
+
+            const relationships = await this.agent.app.bsky.graph.getRelationships({
+                actor: account.at_session.did,
+                others: [did]
+            });
+
+            const relationship = relationships.data.relationships[0]
+            if (!relationship?.following) {
+                console.log("Not following user");
+                return false
+            }
+
+            await this.agent.deleteFollow(relationship.following as string);
+            return true
+        } catch (err) {
+            await this.updateAccountRateLimit(account, err);
+            throw err;
+        }
+    }
+
     public async getChatToken(account: Account) {
         let retries = 0
         const maxRetries = 3

@@ -1,6 +1,6 @@
 import { Head, usePage } from '@inertiajs/react'
 import Layout from '../components/Layout'
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
+import { Card, CardContent } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { MessageSquare, Users, TrendingUp, Plus } from 'lucide-react'
 
@@ -29,7 +29,7 @@ function DMCampaigns() {
               </p>
             </div>
 
-            <Button className="bg-blue-500 hover:bg-blue-600">
+            <Button variant="outline">
               <Plus className="h-4 w-4 mr-2" />
               Create Campaign
             </Button>
@@ -86,7 +86,7 @@ function DMCampaigns() {
                   Request Beta Access
                 </a>
               </Button>
-              <Button asChild>
+              <Button variant="cta" asChild>
                 <a href="/contact-us">Get Notified</a>
               </Button>
             </div>

@@ -59,11 +59,15 @@ const stripe_controller = () => import("#controllers/stripes_controller")
 const feed_controller = () => import('#controllers/feeds_controller')
 const analytics_controller = () => import('#controllers/analytics_controller')
 const follower_analysis_controller = () => import('#controllers/follower_analysis_controller')
+const follower_tracker_controller = () => import('#controllers/follower_tracker_controller')
 const python_controller_methods = () => import('#controllers/python_controller_methods')
 
 
 router.post("/login", [session_controller, 'login'])
 router.put("/logout", [session_controller, 'logout']).use(middleware.auth())
+
+// General Follower Tracker route - handles account selection
+router.get('/follower-tracker', [follower_tracker_controller, 'selectAccount']).use(middleware.auth())
 
 // Routes pour le profil utilisateur
 router.on("/profile").renderInertia("profile").use(middleware.auth())
@@ -166,12 +170,26 @@ router.get('/analytics/:id', [analytics_controller, 'basicAnalytics']).use(middl
 router.get('/analytics/:id/audience', [analytics_controller, 'audienceAnalysisPage']).use(middleware.auth())
 router.get('/analytics/:id/audience/refresh', [follower_analysis_controller, 'getAnalysisStatus']).use(middleware.auth())
 
+// Routes pour les détails de cluster
+router.get('/accounts/:id/clusters/cluster/:clusterId', [analytics_controller, 'clusterDetail']).use(middleware.auth())
+router.get('/accounts/:id/clusters/supercluster/:superClusterId', [analytics_controller, 'superClusterDetail']).use(middleware.auth())
+
 // Routes d'analyse des followers
 router.post('/api/accounts/:id/follower-analysis/start', [follower_analysis_controller, 'startAnalysis']).use(middleware.auth())
 router.post('/api/accounts/:id/follower-analysis/stop', [follower_analysis_controller, 'stopAnalysis']).use(middleware.auth())
 router.get('/api/accounts/:id/follower-analysis/status', [follower_analysis_controller, 'getAnalysisStatus']).use(middleware.auth())
 router.get('/api/accounts/:id/follower-analysis/stream', [follower_analysis_controller, 'streamAnalysisStatus']).use(middleware.auth())
 router.get('/api/clusters', [follower_analysis_controller, 'getClusters'])
+
+// Routes pour le suivi des followers
+router.get('/accounts/:id/follower-tracker', [follower_tracker_controller, 'index']).use(middleware.auth())
+router.post('/accounts/:id/follower-tracker/refresh-cache', [follower_tracker_controller, 'refreshCache']).use(middleware.auth())
+router.post('/accounts/:id/follower-tracker/batch-follow', [follower_tracker_controller, 'batchFollow']).use(middleware.auth())
+router.post('/accounts/:id/follower-tracker/batch-unfollow', [follower_tracker_controller, 'batchUnfollow']).use(middleware.auth())
+router.get('/accounts/:id/follower-tracker/progress/:action/:jobId', [follower_tracker_controller, 'getBatchProgress']).use(middleware.auth())
+router.get('/accounts/:id/follower-tracker/active-jobs', [follower_tracker_controller, 'getActiveJobs']).use(middleware.auth())
+router.delete('/accounts/:id/follower-tracker/cancel/:action/:jobId', [follower_tracker_controller, 'cancelBatchJob']).use(middleware.auth())
+router.post('/accounts/:id/follower-tracker/user-profile', [follower_tracker_controller, 'getUserProfile']).use(middleware.auth())
 
 // Routes internes pour le worker Python (protégées par clé API)
 router.get('/internal/python/next-bulk-job', [python_controller_methods, 'getNextBulkAnalysisJob']).use(middleware.api_auth())

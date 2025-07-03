@@ -26,9 +26,11 @@ interface PostData {
     likes: number
     reposts: number
     replies: number
+    views: number
     date: string | null
     url: string
     engagement_rate: number
+    weighted_engagement_rate: number
 }
 
 interface AnalyticsData {
@@ -58,7 +60,7 @@ export default class AnalyticsController {
         if (cachedData) {
             console.log('Utilisation des données en cache pour analytics')
             const { followers_history, posting_days, all_posts, account } = cachedData
-            return inertia.render('Analytics', {
+            return inertia.render('analytics', {
                 followers_history,
                 posting_days,
                 all_posts,
@@ -137,7 +139,7 @@ export default class AnalyticsController {
 
 
             PostHistory.query()
-                .select('text', 'likes', 'reposts', 'replies', 'postedAt', 'postUri')
+                .select('text', 'likes', 'reposts', 'replies', 'views', 'postedAt', 'postUri')
                 .where('account_id', selectedAccount.id)
                 .orderBy('postedAt', 'desc')
                 .limit(500)
@@ -171,12 +173,25 @@ export default class AnalyticsController {
         }))
 
 
-        const followersDivisor = Math.max(1, followersTotalCount)
         const baseUrl = `https://bsky.app/profile/${selectedAccount.handle}/post/`
 
-        const all_posts: PostData[] = allPosts.map(post => {
-            const totalEngagement = (post.likes || 0) + (post.reposts || 0) + (post.replies || 0)
-            const engagementRate = (totalEngagement / followersDivisor) * 100
+        const all_posts: PostData[] = await Promise.all(allPosts.map(async post => {
+            // Estimer le nombre de followers au moment du post
+            const followersAtPostTime = await this.getFollowersAtPostTime(
+                post.postedAt,
+                followers_history,
+                followersTotalCount
+            )
+
+            // Calculer les taux d'engagement (basique et pondéré)
+            const engagementRates = this.calculateEngagementRates(
+                post.likes || 0,
+                post.reposts || 0,
+                post.replies || 0,
+                post.views || 0,
+                followersAtPostTime
+            )
+
             const postId = post.postUri ? post.postUri.substring(post.postUri.lastIndexOf('/') + 1) : ''
 
             return {
@@ -184,13 +199,16 @@ export default class AnalyticsController {
                 likes: post.likes || 0,
                 reposts: post.reposts || 0,
                 replies: post.replies || 0,
+                views: post.views || 0,
                 date: post.postedAt ? post.postedAt.toISODate() : null,
                 url: baseUrl + postId,
-                engagement_rate: engagementRate
+                engagement_rate: engagementRates.basic,
+                weighted_engagement_rate: engagementRates.weighted
             }
-        })
+        }))
 
-        all_posts.sort((a, b) => b.engagement_rate - a.engagement_rate)
+        // Trier par taux d'engagement pondéré (plus précis)
+        all_posts.sort((a, b) => b.weighted_engagement_rate - a.weighted_engagement_rate)
 
         const responseData: AnalyticsData = {
             followers_history,
@@ -201,7 +219,7 @@ export default class AnalyticsController {
 
         await this.cacheManager.set(cacheKey, responseData, 300)
 
-        return inertia.render('Analytics', {
+        return inertia.render('analytics', {
             followers_history,
             posting_days,
             all_posts,
@@ -288,7 +306,8 @@ export default class AnalyticsController {
                     account: selectedAccount,
                     clusters: serializedClusters,
                     superClusters: serializedSuperClusters,
-                    analysisStatus
+                    analysisStatus,
+                    isRealData: true
                 })
             } else {
                 // Si l'analyse n'est pas encore complétée, afficher la page avec des données fictives pour le développement
@@ -319,7 +338,64 @@ export default class AnalyticsController {
                         size: 95,
                         accountHandle: selectedAccount.handle,
                         embeddings: [0.3, 0.4, 0.5, 0.6, 0.7]
-                    }
+                    },
+                    {
+                        id: 4,
+                        tag: 'Lifestyle & Loisirs',
+                        handles: ['@lifestyle.bsky.social', '@travel.bsky.social', '@foodie.bsky.social'],
+                        size: 80,
+                        accountHandle: selectedAccount.handle,
+                        embeddings: [0.4, 0.5, 0.6, 0.7, 0.8]
+                    },
+                    {
+                        id: 5,
+                        tag: 'Science & Technologie',
+                        handles: ['@science.bsky.social', '@tech.bsky.social', '@innovation.bsky.social'],
+                        size: 110,
+                        accountHandle: selectedAccount.handle,
+                        embeddings: [0.5, 0.6, 0.7, 0.8, 0.9]
+                    },
+                    {
+                        id: 6,
+                        tag: 'Santé & Bien-être',
+                        handles: ['@health.bsky.social', '@wellness.bsky.social', '@fitness.bsky.social'],
+                        size: 70,
+                        accountHandle: selectedAccount.handle,
+                        embeddings: [0.6, 0.7, 0.8, 0.9, 1.0]
+                    },
+                    {
+                        id: 7,
+                        tag: 'Culture & Divertissement',
+                        handles: ['@culture.bsky.social', '@entertainment.bsky.social', '@media.bsky.social'],
+                        size: 60,
+                        accountHandle: selectedAccount.handle,
+                        embeddings: [0.7, 0.8, 0.9, 1.0, 1.1]
+                    },
+                    {
+                        id: 8,
+                        tag: 'Éducation & Apprentissage',
+                        handles: ['@education.bsky.social', '@learning.bsky.social', '@knowledge.bsky.social'],
+                        size: 50,
+                        accountHandle: selectedAccount.handle,
+                        embeddings: [0.8, 0.9, 1.0, 1.1, 1.2]
+                    },
+                    {
+                        id: 9,
+                        tag: 'Communauté & Réseautage',
+                        handles: ['@community.bsky.social', '@networking.bsky.social', '@social.bsky.social'],
+                        size: 40,
+                        accountHandle: selectedAccount.handle,
+                        embeddings: [0.9, 1.0, 1.1, 1.2, 1.3]
+                    },
+                    {
+                        id: 10,
+                        tag: 'Actualités & Médias',
+                        handles: ['@news.bsky.social', '@media.bsky.social', '@journalism.bsky.social'],
+                        size: 30,
+                        accountHandle: selectedAccount.handle,
+                        embeddings: [1.0, 1.1, 1.2, 1.3, 1.4]
+                    },
+
                 ]
 
                 const mockClusters = [
@@ -392,6 +468,36 @@ export default class AnalyticsController {
                         superClusterId: null,
                         embeddings: [0.18, 0.28, 0.38, 0.48, 0.58],
                         superCluster: null
+                    },
+                    {
+                        id: 8,
+                        tag: 'Photographes',
+                        handles: ['@photography.bsky.social', '@photojournalism.bsky.social', '@landscape.bsky.social'],
+                        size: 50,
+                        accountHandle: selectedAccount.handle,
+                        superClusterId: null,
+                        embeddings: [0.20, 0.30, 0.40, 0.50, 0.60],
+                        superCluster: null
+                    },
+                    {
+                        id: 9,
+                        tag: 'Musiciens',
+                        handles: ['@musician.bsky.social', '@band.bsky.social', '@composer.bsky.social'],
+                        size: 45,
+                        accountHandle: selectedAccount.handle,
+                        superClusterId: null,
+                        embeddings: [0.15, 0.25, 0.35, 0.45, 0.55],
+                        superCluster: null
+                    },
+                    {
+                        id: 10,
+                        tag: 'Influenceurs Lifestyle',
+                        handles: ['@lifestyle.influencer.bsky.social', '@travel.influencer.bsky.social', '@foodie.influencer.bsky.social'],
+                        size: 60,
+                        accountHandle: selectedAccount.handle,
+                        superClusterId: null,
+                        embeddings: [0.10, 0.20, 0.30, 0.40, 0.50],
+                        superCluster: null
                     }
                 ]
 
@@ -412,7 +518,8 @@ export default class AnalyticsController {
                     account: selectedAccount,
                     clusters: mockClusters,
                     superClusters: mockSuperClusters,
-                    analysisStatus: mockAnalysisStatus
+                    analysisStatus: mockAnalysisStatus,
+                    isRealData: false
                 })
             }
         } catch (error) {
@@ -515,15 +622,29 @@ export default class AnalyticsController {
             // Mettre à jour les stats du compte
             await accountService.updateAccountStats(account);
 
-            // Enregistrer le nombre actuel de followers
-            await FollowersHistory.create({
-                userId: account.userId,
-                accountId: account.id,
-                followersCount: account.followers_count || 0,
-                recordedAt: DateTime.now()
-            });
+            const today = DateTime.now().startOf('day');
 
-            console.log(`Historique des followers créé pour ${account.handle}`);
+            // Vérifier s'il existe déjà un enregistrement pour aujourd'hui
+            const existingRecord = await FollowersHistory.query()
+                .where('account_id', account.id)
+                .where('recordedAt', today.toSQLDate()!)
+                .first();
+
+            if (existingRecord) {
+                // Mettre à jour l'enregistrement existant
+                existingRecord.followersCount = account.followers_count || 0;
+                await existingRecord.save();
+                console.log(`Historique des followers mis à jour pour ${account.handle}: ${account.followers_count} followers`);
+            } else {
+                // Créer un nouvel enregistrement
+                await FollowersHistory.create({
+                    userId: account.userId,
+                    accountId: account.id,
+                    followersCount: account.followers_count || 0,
+                    recordedAt: today
+                });
+                console.log(`Nouvel historique des followers créé pour ${account.handle}: ${account.followers_count} followers`);
+            }
         } catch (error) {
             console.error("Erreur lors de l'enregistrement de l'historique des followers:", error);
         }
@@ -621,5 +742,150 @@ export default class AnalyticsController {
         }
     }
 
+    /**
+     * Affiche les détails d'un cluster spécifique
+     */
+    public async clusterDetail({ inertia, auth, params, response }: HttpContext) {
+        const user = await auth.authenticate()
+        if (!user) {
+            return response.redirect('/login')
+        }
 
+        try {
+            // Récupérer le compte associé à l'ID et à l'utilisateur authentifié
+            const account = await Account.query()
+                .where('id', params.id)
+                .where('userId', user.id)
+                .firstOrFail()
+
+            // Récupérer le cluster spécifique
+            const cluster = await Cluster.query()
+                .where('id', params.clusterId)
+                .where('accountHandle', account.handle)
+                .first()
+
+            if (!cluster) {
+                return response.redirect(`/analytics/${account.id}/audience`)
+            }
+
+            return inertia.render('ClusterDetail', {
+                account,
+                cluster,
+                type: 'cluster'
+            })
+        } catch (error) {
+            console.error('Erreur lors du chargement du cluster:', error)
+            return response.redirect('/dashboard')
+        }
+    }
+
+    /**
+     * Affiche les détails d'un super cluster spécifique
+     */
+    public async superClusterDetail({ inertia, auth, params, response }: HttpContext) {
+        const user = await auth.authenticate()
+        if (!user) {
+            return response.redirect('/login')
+        }
+
+        try {
+            // Récupérer le compte associé à l'ID et à l'utilisateur authentifié
+            const account = await Account.query()
+                .where('id', params.id)
+                .where('userId', user.id)
+                .firstOrFail()
+
+            // Récupérer le super cluster spécifique
+            const superCluster = await SuperCluster.query()
+                .where('id', params.superClusterId)
+                .where('accountHandle', account.handle)
+                .first()
+
+            if (!superCluster) {
+                return response.redirect(`/analytics/${account.id}/audience`)
+            }
+
+            // Récupérer les clusters enfants
+            const childClusters = await Cluster.query()
+                .where('superClusterId', superCluster.id)
+                .where('accountHandle', account.handle)
+
+            return inertia.render('ClusterDetail', {
+                account,
+                superCluster,
+                childClusters,
+                type: 'supercluster'
+            })
+        } catch (error) {
+            console.error('Erreur lors du chargement du super cluster:', error)
+            return response.redirect('/dashboard')
+        }
+    }
+
+    /**
+     * Estime le nombre de followers qu'avait le compte au moment d'un post donné
+     * en utilisant l'historique des followers
+     */
+    private async getFollowersAtPostTime(
+        postDate: DateTime,
+        followersHistory: FollowerHistory[],
+        currentFollowersCount: number
+    ): Promise<number> {
+        if (followersHistory.length === 0) {
+            return currentFollowersCount
+        }
+
+        // Chercher l'enregistrement le plus proche de la date du post
+        const postDateStr = postDate.toISODate()
+
+        // Trier par date et trouver le point le plus proche
+        const sortedHistory = followersHistory
+            .filter(h => h.date !== null)
+            .sort((a, b) => a.date!.localeCompare(b.date!))
+
+        // Si le post est plus récent que toutes nos données d'historique
+        if (postDateStr! > sortedHistory[sortedHistory.length - 1].date!) {
+            return currentFollowersCount
+        }
+
+        // Si le post est plus ancien que toutes nos données d'historique
+        if (postDateStr! < sortedHistory[0].date!) {
+            return sortedHistory[0].count
+        }
+
+        // Interpolation linéaire entre deux points
+        for (let i = 0; i < sortedHistory.length - 1; i++) {
+            const current = sortedHistory[i]
+            const next = sortedHistory[i + 1]
+
+            if (postDateStr! >= current.date! && postDateStr! <= next.date!) {
+                // Interpolation simple ou retour de la valeur la plus proche
+                return current.count
+            }
+        }
+
+        return currentFollowersCount
+    }
+
+    /**
+     * Calcule le taux d'engagement avec pondération des interactions
+     */
+    private calculateEngagementRates(
+        likes: number,
+        reposts: number,
+        replies: number,
+        views: number,
+        followersCount: number
+    ): { basic: number; weighted: number } {
+        const totalBasicEngagement = likes + reposts + replies
+        const totalWeightedEngagement = (likes * 1) + (reposts * 2) + (replies * 3)
+
+        // Utiliser les vues si disponibles, sinon fallback sur les followers
+        const denominator = views > 0 ? views : Math.max(1, followersCount)
+
+        return {
+            basic: (totalBasicEngagement / denominator) * 100,
+            weighted: (totalWeightedEngagement / denominator) * 100
+        }
+    }
 }

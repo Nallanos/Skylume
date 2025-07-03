@@ -1,18 +1,21 @@
 import { Head, usePage } from '@inertiajs/react'
 import Layout from '../components/Layout'
 import PublicationCalendar from '../components/PublicationCalendar'
+import FollowersGrowthChart from '../components/FollowersGrowthChart'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { TrendingUp, Users, Heart, Repeat, MessageCircle } from 'lucide-react'
-
+import { Link } from '@inertiajs/react'
 interface Post {
   text: string
   likes: number
   reposts: number
   replies: number
+  views: number
   date: string
   url: string
   engagement_rate: number
+  weighted_engagement_rate: number
 }
 
 interface Account {
@@ -49,8 +52,15 @@ function Analytics({ followers_history, posting_days, all_posts, account }: Anal
         )
       : '0'
 
+  const avgWeightedEngagementRate =
+    all_posts.length > 0
+      ? (
+          all_posts.reduce((sum, post) => sum + post.weighted_engagement_rate, 0) / all_posts.length
+        ).toFixed(2)
+      : '0'
+
   const topPosts = [...all_posts]
-    .sort((a, b) => b.likes + b.reposts + b.replies - (a.likes + a.reposts + a.replies))
+    .sort((a, b) => b.weighted_engagement_rate - a.weighted_engagement_rate)
     .slice(0, 5)
 
   return (
@@ -61,7 +71,7 @@ function Analytics({ followers_history, posting_days, all_posts, account }: Anal
           {/* Header */}
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-500 to-blue-700 bg-clip-text text-transparent">
                 Analytics
               </h1>
               <p className="text-muted-foreground mt-1">
@@ -70,14 +80,14 @@ function Analytics({ followers_history, posting_days, all_posts, account }: Anal
             </div>
 
             <div className="flex space-x-3 items-center">
-              <Button asChild>
-                <a href={`/analytics/${account.id}/audience`}>Advanced Audience Analysis</a>
+              <Button variant="outline" asChild>
+                <Link href={`/analytics/${account.id}/audience`}>Advanced Audience Analysis</Link>
               </Button>
             </div>
           </div>
 
           {/* Stats Overview */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
             <Card>
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
@@ -89,7 +99,7 @@ function Analytics({ followers_history, posting_days, all_posts, account }: Anal
                 <div className="text-2xl font-bold">{account.followersCount?.toLocaleString()}</div>
                 <p className="text-xs text-muted-foreground mt-1">
                   {followers_history.length > 1 && (
-                    <span className="text-green-500">
+                    <span className="text-blue-500">
                       +
                       {followers_history[followers_history.length - 1]?.count -
                         followers_history[0]?.count || 0}{' '}
@@ -104,7 +114,7 @@ function Analytics({ followers_history, posting_days, all_posts, account }: Anal
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-sm font-medium">Total Posts</CardTitle>
-                  <MessageCircle className="h-4 w-4 text-green-500" />
+                  <MessageCircle className="h-4 w-4 text-blue-500" />
                 </div>
               </CardHeader>
               <CardContent>
@@ -117,7 +127,7 @@ function Analytics({ followers_history, posting_days, all_posts, account }: Anal
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
                   <CardTitle className="text-sm font-medium">Total Engagement</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-purple-500" />
+                  <TrendingUp className="h-4 w-4 text-blue-500" />
                 </div>
               </CardHeader>
               <CardContent>
@@ -129,13 +139,30 @@ function Analytics({ followers_history, posting_days, all_posts, account }: Anal
             <Card>
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-sm font-medium">Avg Engagement Rate</CardTitle>
-                  <Heart className="h-4 w-4 text-red-500" />
+                  <CardTitle className="text-sm font-medium">Basic Engagement</CardTitle>
+                  <Heart className="h-4 w-4 text-blue-500" />
                 </div>
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">{avgEngagementRate}%</div>
-                <p className="text-xs text-muted-foreground mt-1">Average across all posts</p>
+                <p className="text-xs text-muted-foreground mt-1">Based on followers count</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-sm font-medium">Weighted Engagement</CardTitle>
+                  <TrendingUp className="h-4 w-4 text-purple-500" />
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold text-purple-600">
+                  {avgWeightedEngagementRate}%
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Replies x3, Reposts x2, Likes x1
+                </p>
               </CardContent>
             </Card>
           </div>
@@ -143,92 +170,7 @@ function Analytics({ followers_history, posting_days, all_posts, account }: Anal
           {/* Charts Section */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Followers Chart */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Followers Growth</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {followers_history.length > 0 ? (
-                  <div className="h-64 relative">
-                    <div className="flex items-end justify-between h-full gap-2 px-2 py-4">
-                      {followers_history.map((point, index) => {
-                        const maxCount = Math.max(...followers_history.map((p) => p.count))
-                        const minCount = Math.min(...followers_history.map((p) => p.count))
-                        const range = maxCount - minCount
-
-                        // Calculate height as percentage of available space
-                        let heightPercent = 10 // minimum height
-                        if (range > 0) {
-                          heightPercent = Math.max(10, ((point.count - minCount) / range) * 80 + 10)
-                        } else {
-                          heightPercent = 50 // if all values are the same
-                        }
-
-                        return (
-                          <div
-                            key={index}
-                            className="flex flex-col items-center group relative"
-                            style={{ width: `${Math.max(100 / followers_history.length, 8)}%` }}
-                          >
-                            <div
-                              className="bg-blue-500 hover:bg-blue-400 rounded-t-sm transition-colors cursor-pointer shadow-sm w-full relative"
-                              style={{
-                                height: `${heightPercent}%`,
-                                minHeight: '8px',
-                                maxHeight: '90%',
-                              }}
-                              title={`${new Date(point.date).toLocaleDateString()}: ${point.count.toLocaleString()} followers`}
-                            >
-                              {/* Tooltip on hover */}
-                              <div className="absolute -top-8 left-1/2 transform -translate-x-1/2 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap z-10">
-                                {point.count.toLocaleString()}
-                              </div>
-                            </div>
-                            <div className="text-xs text-muted-foreground mt-2 text-center opacity-0 group-hover:opacity-100 transition-opacity transform rotate-45 origin-left">
-                              {new Date(point.date).toLocaleDateString('en-US', {
-                                month: 'short',
-                                day: 'numeric',
-                              })}
-                            </div>
-                          </div>
-                        )
-                      })}
-                    </div>
-
-                    {/* Y-axis labels */}
-                    <div className="absolute left-0 top-4 bottom-4 flex flex-col justify-between text-xs text-muted-foreground">
-                      <span>
-                        {Math.max(...followers_history.map((p) => p.count)).toLocaleString()}
-                      </span>
-                      <span>
-                        {Math.min(...followers_history.map((p) => p.count)).toLocaleString()}
-                      </span>
-                    </div>
-
-                    {/* Bottom labels */}
-                    <div className="flex justify-between text-xs text-muted-foreground mt-2 px-2">
-                      <span>
-                        {new Date(followers_history[0]?.date).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                        })}
-                      </span>
-                      <span>
-                        {new Date(
-                          followers_history[followers_history.length - 1]?.date
-                        ).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="h-64 flex flex-col items-center justify-center text-muted-foreground">
-                    <Users className="h-12 w-12 mb-2 opacity-50" />
-                    <p>No followers data available</p>
-                    <p className="text-sm">Connect your account to see growth analytics</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+            <FollowersGrowthChart followers_history={followers_history} />
 
             {/* Posting Activity */}
             <PublicationCalendar posting_days={posting_days} />
@@ -238,6 +180,11 @@ function Analytics({ followers_history, posting_days, all_posts, account }: Anal
           <Card>
             <CardHeader>
               <CardTitle>Top Performing Posts</CardTitle>
+              <p className="text-sm text-muted-foreground mt-1">
+                Sorted by weighted engagement rate. <span className="text-blue-600">Blue</span> =
+                basic rate, <span className="text-purple-600">Purple</span> = weighted rate
+                (replies×3, reposts×2, likes×1)
+              </p>
             </CardHeader>
             <CardContent>
               {topPosts.length > 0 ? (
@@ -245,7 +192,7 @@ function Analytics({ followers_history, posting_days, all_posts, account }: Anal
                   {topPosts.map((post, index) => (
                     <div
                       key={index}
-                      className="p-4 border rounded-lg hover:bg-muted/50 transition-colors"
+                      className="p-4 border border-blue-500/20 rounded-lg hover:bg-muted/50 transition-colors"
                     >
                       <div className="flex justify-between items-start mb-2">
                         <p className="text-sm flex-1 mr-4">{post.text}</p>
@@ -267,7 +214,18 @@ function Analytics({ followers_history, posting_days, all_posts, account }: Anal
                           <MessageCircle className="h-3 w-3" />
                           {post.replies}
                         </div>
-                        <div className="ml-auto">{post.engagement_rate.toFixed(2)}% engagement</div>
+                        {post.views > 0 && (
+                          <div className="flex items-center gap-1">
+                            <Users className="h-3 w-3" />
+                            {post.views} views
+                          </div>
+                        )}
+                        <div className="ml-auto flex gap-2">
+                          <span className="text-blue-600">{post.engagement_rate.toFixed(2)}%</span>
+                          <span className="text-purple-600 font-medium">
+                            {post.weighted_engagement_rate.toFixed(2)}%
+                          </span>
+                        </div>
                         <Button variant="outline" size="sm" asChild>
                           <a href={post.url} target="_blank" rel="noopener noreferrer">
                             View

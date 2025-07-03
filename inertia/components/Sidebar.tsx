@@ -11,6 +11,7 @@ import {
   Settings,
   Moon,
   Sun,
+  Users,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -24,9 +25,14 @@ import ThemeToggle from './ThemeToggle'
 
 interface SidebarProps {
   user: any
+  account?: {
+    id: string
+    handle: string
+    followersCount?: number
+  }
 }
 
-function Sidebar({ user }: SidebarProps) {
+function Sidebar({ user, account }: SidebarProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false)
 
   // Get current path
@@ -132,7 +138,45 @@ function Sidebar({ user }: SidebarProps) {
               <MessageSquare className="h-[18px] w-[18px] flex-shrink-0" />
               DM Campaigns
             </Link>
+
+            <Link
+              href="/follower-tracker"
+              className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-all duration-150 ${
+                isActive('/follower-tracker')
+                  ? 'bg-blue-500/10 text-blue-950 dark:text-blue-500 font-semibold shadow-sm'
+                  : 'text-blue-950 dark:text-blue-400 hover:bg-accent/50 hover:text-blue-900 dark:hover:text-blue-500 font-medium'
+              }`}
+            >
+              <Users className="h-[18px] w-[18px] flex-shrink-0" />
+              Follower Tracker
+            </Link>
           </div>
+
+          {/* Current Account Info */}
+          {account && (
+            <div className="mt-6 px-3">
+              <div className="border-t border-border/30 pt-4">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-2">
+                  Current Account
+                </p>
+                <div className="flex items-center gap-3 p-2 rounded-md bg-accent/30">
+                  <div className="w-8 h-8 rounded-full bg-blue-600 dark:bg-blue-500 flex items-center justify-center text-white font-semibold text-sm">
+                    {account.handle[0]?.toUpperCase() || 'A'}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-sm font-semibold text-foreground truncate">
+                      @{account.handle}
+                    </p>
+                    {account.followersCount !== undefined && (
+                      <p className="text-xs text-muted-foreground">
+                        {account.followersCount.toLocaleString()} followers
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </nav>
 
         {/* Footer with user info */}

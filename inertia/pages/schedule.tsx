@@ -148,7 +148,7 @@ function Schedule({ schedulings }: ScheduleProps) {
               <Button
                 size="sm"
                 disabled={isFreeLimitReached}
-                className="bg-blue-500 hover:bg-blue-600"
+                className="bg-white dark:bg-gray-800 border-2 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 dark:hover:border-blue-600 transition-all shadow-sm hover:shadow-md font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                 asChild
               >
                 <a href="/add/schedule">

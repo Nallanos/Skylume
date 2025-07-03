@@ -1,7 +1,7 @@
 import { Card, CardContent, CardFooter } from './ui/card'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
-import { BarChart3, Calendar, RefreshCw, Shield, Trash2 } from 'lucide-react'
+import { BarChart3, Calendar, RefreshCw, Shield, Trash2, Users } from 'lucide-react'
 import { useState } from 'react'
 import { router } from '@inertiajs/react'
 import {
@@ -53,11 +53,11 @@ function AccountCard({ account }: AccountCardProps) {
   }
 
   return (
-    <Card className="card-hover border-border overflow-hidden relative group bg-card hover:shadow-md transition-all duration-200">
-      <CardContent className="pt-6 pb-2">
+    <Card className="border-border overflow-hidden relative group bg-card transition-all duration-200">
+      <CardContent className="p-2">
         {/* Account avatar and name section */}
-        <div className="flex items-center justify-between mb-6">
-          <div className="min-w-0 flex-1 mr-4">
+        <div className="flex items-center justify-between mb-6 p-4">
+          <div className="min-w-0 flex gap-4 mr-4">
             <div className="flex items-center gap-2 mb-1">
               <h3 className="font-semibold truncate text-lg text-foreground">{account.handle}</h3>
               {account.displayName && (
@@ -87,13 +87,13 @@ function AccountCard({ account }: AccountCardProps) {
             <Button
               variant="ghost"
               size="sm"
-              className="h-9 w-9 rounded-full hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-colors"
+              className="rounded-full hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-colors"
               aria-label="Refresh statistics"
               disabled={isRefreshing}
               onClick={refreshStats}
             >
               <RefreshCw
-                className={`h-6 w-6 text-blue-600 dark:text-blue-400 transition-transform ${isRefreshing ? 'animate-spin' : ''}`}
+                className={`h-12 w-12 text-blue-600 dark:text-blue-400 transition-transform ${isRefreshing ? 'animate-spin' : ''}`}
               />
             </Button>
           </div>
@@ -165,8 +165,30 @@ function AccountCard({ account }: AccountCardProps) {
             className="h-8 px-3 border-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/5 hover:text-blue-700 dark:hover:text-blue-300 hover:border-blue-500/30"
             asChild
           >
+            <a href={`/analytics/${account.id}/audience`}>
+              <Users className="h-3.5 w-3.5 mr-1.5" />
+              Audience
+            </a>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 px-3 border-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/5 hover:text-blue-700 dark:hover:text-blue-300 hover:border-blue-500/30"
+            asChild
+          >
+            <a href={`/accounts/${account.id}/follower-tracker`}>
+              <Users className="h-3.5 w-3.5 mr-1.5" />
+              Tracker
+            </a>
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 px-3 border-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/5 hover:text-blue-700 dark:hover:text-blue-300 hover:border-blue-500/30"
+            asChild
+          >
             <a href={`/add/schedule?account_id=${account.id}`}>
-              <Calendar className="h-3.5 w-3.5 mr-1.5 text-gray-600 dark:text-gray-400" />
+              <Calendar className="h-3.5 w-3.5 mr-1.5" />
               Schedule
             </a>
           </Button>

@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    --background: 210 40% 98%;
+    --background: 0 0% 100%; /* Blanc pur pour un meilleur contraste */
     --foreground: 222.2 88% 4%; /* Encore plus sombre pour un contraste optimal */
 
     --card: 0 0% 100%;
@@ -14,7 +14,7 @@
     --popover-foreground: 222.2 88% 4%; /* Plus sombre pour un contraste optimal */
 
     --primary: 221.2 83.2% 35.5%; /* Plus foncé pour un meilleur contraste */
-    --primary-foreground: 210 40% 98%;
+    --primary-foreground: 0 0% 100%; /* Blanc pur pour contraste avec primary */
 
     --secondary: 210 40% 90%;
     --secondary-foreground: 222.2 88% 4%; /* Plus sombre pour un contraste optimal */
@@ -35,7 +35,7 @@
     --warning-foreground: 48 96% 8%; /* Plus sombre pour un contraste optimal */
 
     --border: 214.3 31.8% 65%; /* Plus foncé pour meilleure visibilité */
-    --input: 214.3 31.8% 65%; /* Plus foncé pour meilleure visibilité */
+    --input: 217 91% 92%; /* Équivalent de blue-500/20 - bleu très clair */
     --ring: 221.2 83.2% 35.5%; /* Accordé avec --primary */
 
     --radius: 0.75rem;

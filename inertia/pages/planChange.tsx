@@ -132,7 +132,7 @@ function PlanChange({ user }: PlanChangeProps) {
                     Current Plan
                   </Button>
                 ) : (
-                  <Button className="w-full bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600">
+                  <Button className="w-full bg-white dark:bg-gray-800 border-2 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:border-blue-300 dark:hover:border-blue-600 transition-all shadow-sm hover:shadow-md font-medium">
                     Upgrade to Pro
                   </Button>
                 )}

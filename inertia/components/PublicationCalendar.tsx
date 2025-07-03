@@ -83,15 +83,22 @@ export default function PublicationCalendar({
   // Génération des données du calendrier
   const calendarData = useMemo((): CalendarData => {
     const now = new Date()
+    
+    // Centrer le calendrier sur aujourd'hui (26 semaines avant, 26 semaines après)
+    const startDate = new Date(now)
+    startDate.setDate(now.getDate() - 26 * 7)
+    
     const endDate = new Date(now)
-
-    // Calculer la date de début (52 semaines avant)
-    const startDate = new Date(endDate)
-    startDate.setDate(endDate.getDate() - 52 * 7)
+    endDate.setDate(now.getDate() + 26 * 7)
 
     // Ajuster pour commencer un dimanche
     while (startDate.getDay() !== 0) {
       startDate.setDate(startDate.getDate() - 1)
+    }
+    
+    // Ajuster pour finir un samedi
+    while (endDate.getDay() !== 6) {
+      endDate.setDate(endDate.getDate() + 1)
     }
 
     const days: CalendarDay[] = []
@@ -178,7 +185,7 @@ export default function PublicationCalendar({
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-semibold">Publication Activity</CardTitle>
           <div className="text-sm text-muted-foreground">
-            {stats.totalPosts} posts in the last year
+            {stats.totalPosts} posts this year
           </div>
         </div>
       </CardHeader>
@@ -231,13 +238,13 @@ export default function PublicationCalendar({
                       <div
                         key={day.date}
                         className={cn(
-                          'w-[11px] h-[11px] rounded-[2px] cursor-pointer transition-all duration-150',
-                          // Couleurs GitHub exactes comme dans le fichier Svelte
-                          day.intensity === 0 && 'github-cell-empty',
-                          day.intensity === 1 && 'github-cell-level-1',
-                          day.intensity === 2 && 'github-cell-level-2',
-                          day.intensity === 3 && 'github-cell-level-3',
-                          day.intensity === 4 && 'github-cell-level-4'
+                          'w-[11px] h-[11px] rounded-[2px] cursor-pointer transition-all duration-150 hover:ring-2 hover:ring-blue-400 hover:ring-offset-1',
+                          // Couleurs cohérentes avec le design system (thème bleu)
+                          day.intensity === 0 && 'bg-gray-100 dark:bg-gray-800',
+                          day.intensity === 1 && 'bg-blue-100 dark:bg-blue-900/30',
+                          day.intensity === 2 && 'bg-blue-200 dark:bg-blue-800/50',
+                          day.intensity === 3 && 'bg-blue-400 dark:bg-blue-700/70',
+                          day.intensity === 4 && 'bg-blue-500 dark:bg-blue-600'
                         )}
                         onMouseEnter={() => setHoveredDay(day.date)}
                         onMouseLeave={() => setHoveredDay(null)}
@@ -259,7 +266,7 @@ export default function PublicationCalendar({
             <span>Max: {stats.maxPosts} posts/day</span>
           </div>
 
-          {/* Legend avec couleurs GitHub authentiques */}
+          {/* Legend avec couleurs cohérentes */}
           <div className="flex items-center gap-2">
             <span className="text-sm text-muted-foreground">Less</span>
             <div className="flex gap-1">
@@ -268,11 +275,11 @@ export default function PublicationCalendar({
                   key={level}
                   className={cn(
                     'w-[11px] h-[11px] rounded-[2px]',
-                    level === 0 && 'github-cell-empty',
-                    level === 1 && 'github-cell-level-1',
-                    level === 2 && 'github-cell-level-2',
-                    level === 3 && 'github-cell-level-3',
-                    level === 4 && 'github-cell-level-4'
+                    level === 0 && 'bg-gray-100 dark:bg-gray-800',
+                    level === 1 && 'bg-blue-100 dark:bg-blue-900/30',
+                    level === 2 && 'bg-blue-200 dark:bg-blue-800/50',
+                    level === 3 && 'bg-blue-400 dark:bg-blue-700/70',
+                    level === 4 && 'bg-blue-500 dark:bg-blue-600'
                   )}
                 />
               ))}
