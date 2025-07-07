@@ -74,7 +74,7 @@ export default class TestWorkflow extends BaseCommand {
     this.logger.success('✅ Python worker endpoints tested')
   }
 
-  private async testBulkAnalysisWorkflow(analysisId: number, accountId: string) {
+  private async testBulkAnalysisWorkflow(analysisId: number, _accountId: string) {
     // Test updating progress
     this.logger.info('  - Testing progress update...')
     const progressData = {
@@ -174,7 +174,7 @@ export default class TestWorkflow extends BaseCommand {
   private async makeRequest(method: string, path: string, data?: any): Promise<{ status: number; data: any }> {
     try {
       const url = `${this.baseUrl}${path}`
-      
+
       const options: RequestInit = {
         method,
         headers: {
@@ -187,10 +187,10 @@ export default class TestWorkflow extends BaseCommand {
       }
 
       const response = await fetch(url, options)
-      
+
       let responseData: any
       const responseText = await response.text()
-      
+
       try {
         responseData = responseText.trim() ? JSON.parse(responseText) : { message: 'Empty response' }
       } catch {
@@ -200,9 +200,9 @@ export default class TestWorkflow extends BaseCommand {
       return { status: response.status, data: responseData }
 
     } catch (error) {
-      return { 
-        status: 0, 
-        data: { error: 'Network error', message: error.message } 
+      return {
+        status: 0,
+        data: { error: 'Network error', message: error.message }
       }
     }
   }

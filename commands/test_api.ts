@@ -102,10 +102,10 @@ export default class TestApi extends BaseCommand {
     this.logger.success('✅ Real data tests completed')
   }
 
-  private async testEndpoint(method: string, path: string, data: any, description: string) {
+  private async testEndpoint(method: string, path: string, data: any, _description: string) {
     try {
       const url = `${this.baseUrl}${path}`
-      
+
       const options: RequestInit = {
         method,
         headers: {
@@ -118,10 +118,10 @@ export default class TestApi extends BaseCommand {
       }
 
       const response = await fetch(url, options)
-      
+
       let responseData: any
       const responseText = await response.text()
-      
+
       try {
         responseData = responseText.trim() ? JSON.parse(responseText) : { message: 'Empty response' }
       } catch {
@@ -132,11 +132,11 @@ export default class TestApi extends BaseCommand {
       const statusText = this.getStatusText(status)
 
       this.logger.info(`  - ${method} ${path} → ${status} ${statusText}`)
-      
+
       if (data) {
         this.logger.info(`    Request: ${JSON.stringify(data, null, 2)}`)
       }
-      
+
       this.logger.info(`    Response: ${JSON.stringify(responseData, null, 2)}`)
 
       return { status, data: responseData }
@@ -157,7 +157,7 @@ export default class TestApi extends BaseCommand {
       422: 'Unprocessable Entity',
       500: 'Internal Server Error'
     }
-    
+
     return statusTexts[status] || 'Unknown'
   }
 }

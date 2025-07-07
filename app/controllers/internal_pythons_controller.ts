@@ -8,14 +8,14 @@ export default class InternalPythonsController {
   async getAccount({ params, response }: HttpContext) {
     try {
       const account = await Account.findByOrFail('handle', params.handle)
-      
+
       return response.ok({
         success: true,
         account: {
           id: account.id,
           handle: account.handle,
           app_password: account.appPassword,
-          display_name: account.displayName,
+          display_name: account.handle, // Using handle as display name since displayName doesn't exist
         },
       })
     } catch (error) {
