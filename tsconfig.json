@@ -6,7 +6,7 @@
     },
     "rootDir": "./",
     "outDir": "./build",
-    "verbatimModuleSyntax": true,
+    "lib": ["ESNext", "DOM"],
     "typeRoots": ["./node_modules/@types", "./types"],
     "types": ["node"]
   },
