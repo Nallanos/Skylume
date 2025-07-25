@@ -62,6 +62,8 @@ export default class PythonControllerMethods {
             // Les followers sont déjà récupérés depuis Redis dans nextJob
             const followersToAnalyze = nextJob.followers
 
+            console.log(`📦 Envoi d'un batch de ${followersToAnalyze.length} followers pour l'analyse ${nextJob.analysisId} (job: ${nextJob.jobId})`)
+
             return response.json({
                 status: 'success',
                 data: {
@@ -69,8 +71,10 @@ export default class PythonControllerMethods {
                     analysisId: nextJob.analysisId,
                     accountId: nextJob.accountId,
                     accountHandle: account.handle,
+                    accountAppPassword: account.appPassword,
                     followers: followersToAnalyze,
-                    analysisType: 'bulk'
+                    analysisType: 'bulk',
+                    batchSize: followersToAnalyze.length
                 }
             })
 
@@ -117,11 +121,15 @@ export default class PythonControllerMethods {
             // Récupérer les followers récents (100 followers comme configuré dans le firehose)
             const followersToAnalyze = await this.getFollowersForAnalysis(accountInfo.accountHandle, accountInfo.followersCount)
 
+            // Récupérer les credentials du compte pour l'analyse récurrente
+            const account = await Account.findByOrFail('handle', accountInfo.accountHandle)
+
             return response.json({
                 status: 'success',
                 data: {
                     jobId: hashId, // Utiliser le hashId comme jobId pour les analyses récurrentes
                     accountHandle: accountInfo.accountHandle,
+                    accountAppPassword: account.appPassword, // Ajouter les credentials
                     followers: followersToAnalyze,
                     analysisType: 'recurring' // Distinguer du type bulk
                 }
@@ -142,7 +150,6 @@ export default class PythonControllerMethods {
      */
     public async processBatchProgress({ request, response, logger }: HttpContext) {
         try {
-            // Log request details for debugging
             logger.info('Processing batch progress:', {
                 contentType: request.header('content-type'),
                 contentLength: request.header('content-length'),
@@ -150,7 +157,6 @@ export default class PythonControllerMethods {
                 url: request.url()
             })
 
-            // Validate content type
             const contentType = request.header('content-type')
             if (!contentType || !contentType.includes('application/json')) {
                 logger.error('Invalid content type:', contentType)
@@ -160,7 +166,6 @@ export default class PythonControllerMethods {
                 })
             }
 
-            // Try to extract data with proper error handling
             let requestData
             try {
                 requestData = request.only([
@@ -193,12 +198,24 @@ export default class PythonControllerMethods {
                     console.warn(`Analyse récurrente ${jobId}: Aucun résultat ou clusters vides`)
                 } else {
                     console.log(`Analyse récurrente ${jobId}: ${results.clustersData.length} clusters traités`)
+
+                    // Log des nouvelles statistiques pour analyses récurrentes
+                    if (results.clusterStats) {
+                        console.log(`📊 Analyse récurrente - Total: ${results.clusterStats.totalClusters}, Sémantiques: ${results.clusterStats.semanticClusters}`)
+                        console.log(`📈 Cohésion moyenne: ${results.clusterStats.averageCohesion}`)
+                    }
+
+                    if (results.analysisQuality) {
+                        console.log(`🎯 Qualité récurrente - Valides: ${results.analysisQuality.validProfiles}/${results.analysisQuality.totalProfiles}, Poubelle: ${results.analysisQuality.trashProfiles}`)
+                    }
                 }
                 console.log(`Analyse récurrente terminée pour le job ${jobId}`)
                 await this.aiSchedulerService.updateBulkJobStatus(jobId, 'completed')
                 return response.json({
                     status: 'success',
-                    message: 'Analyse récurrente terminée'
+                    message: 'Analyse récurrente terminée',
+                    stats: results?.clusterStats,
+                    quality: results?.analysisQuality
                 })
             }
 
@@ -223,70 +240,99 @@ export default class PythonControllerMethods {
                 })
             }
 
-            // Batch traité avec succès - marquer le job comme terminé
             await this.aiSchedulerService.updateBulkJobStatus(jobId, 'completed')
 
-            // Log des résultats reçus pour debugging
             if (!results) {
                 console.warn(`Batch ${jobId}: Aucun résultat reçu du worker Python`)
             } else if (!results.clustersData || results.clustersData.length === 0) {
-                console.warn(`Batch ${jobId}: Résultats reçus mais aucun cluster généré (totalAnalyzed: ${results.totalAnalyzed || 0})`)
+                console.warn(`Batch ${jobId}: Résultats reçus mais aucun cluster généré`)
             } else {
-                console.log(`Batch ${jobId}: ${results.clustersData.length} clusters reçus, ${results.totalAnalyzed || 0} followers analysés`)
-            }
+                console.log(`Batch ${jobId}: ${results.clustersData.length} clusters reçus`)
 
-            // Mettre à jour le progrès
-            const currentProgress = analysis.progress || { analyzed: 0, total: 0, percentage: 0 }
-            const processedInThisBatch = results?.totalAnalyzed || 0
-            const analyzedCount = currentProgress.analyzed + processedInThisBatch
+                // Log des nouvelles statistiques complètes
+                if (results.clusterStats) {
+                    console.log(`📊 Statistiques clusters - Total: ${results.clusterStats.totalClusters}, Sémantiques: ${results.clusterStats.semanticClusters}, Bruit: ${results.clusterStats.noiseClusters}`)
+                    console.log(`📈 Cohésion moyenne: ${results.clusterStats.averageCohesion}`)
+                }
 
-            // Calculer le total estimé - essayer de récupérer le vrai count si nécessaire
-            let totalEstimated = this.followerBatchService.getEstimatedTotalFollowers(
-                await Account.findOrFail(analysis.accountId)
-            )
-
-            // Si le total estimé est 0 ou très faible, essayer de récupérer le vrai count via l'API
-            if (totalEstimated <= 0) {
-                try {
-                    console.log(`Total estimé invalide (${totalEstimated}) pour l'analyse ${analysis.id}, récupération via API...`)
-                    const account = await Account.findOrFail(analysis.accountId)
-                    const accountService = await this.followerBatchService['accountManager'].getOrCreateAccountService(account)
-                    const realFollowerCount = await accountService.getFollowersCount(account)
-                    if (realFollowerCount > 0) {
-                        totalEstimated = realFollowerCount
-                        console.log(`Total corrigé pour l'analyse ${analysis.id}: ${totalEstimated} followers`)
-                    } else {
-                        // Fallback sur le nombre analysé + une marge raisonnable
-                        totalEstimated = Math.max(analyzedCount + 100, 100)
-                        console.log(`Fallback appliqué pour l'analyse ${analysis.id}: ${totalEstimated} followers`)
-                    }
-                } catch (error) {
-                    console.error(`Erreur lors de la récupération du count réel pour l'analyse ${analysis.id}:`, error)
-                    // Fallback sur le nombre analysé + une marge raisonnable
-                    totalEstimated = Math.max(analyzedCount + 100, 100)
+                if (results.analysisQuality) {
+                    console.log(`🎯 Qualité analyse - Profils valides: ${results.analysisQuality.validProfiles}/${results.analysisQuality.totalProfiles}, Poubelle: ${results.analysisQuality.trashProfiles}`)
+                    console.log(`📋 Couverture sémantique: ${results.analysisQuality.semanticCoverage}%`)
                 }
             }
 
-            // Mettre à jour le progrès de l'analyse
-            const newProgress = {
-                analyzed: analyzedCount,
-                total: Math.max(totalEstimated, analyzedCount),
-                percentage: totalEstimated > 0 ? Math.round((analyzedCount / totalEstimated) * 100) : 0
+            // Calculer le progrès simplifié basé sur les clusters reçus
+            const batchAccount = await Account.findOrFail(analysis.accountId)
+            let clusterMembersTotal = 0
+
+            if (results?.clustersData) {
+                clusterMembersTotal = results.clustersData.reduce((sum: number, cluster: any) => {
+                    return sum + (cluster.size || 0)
+                }, 0)
             }
 
-            await analysis.updateProgress(newProgress)
+            // Calculer le pourcentage basé sur les membres des clusters vs followers à analyser
+            const totalFollowers = batchAccount.numbersOfFollowersToAnalyze || 100
+            const analyzedFollowers = batchAccount.numbersOfFollowersAnalyzed || 0
+            const progressPercentage = Math.min(100, Math.round((analyzedFollowers / totalFollowers) * 100))
 
-            // Stocker les résultats partiels
+            // Mettre à jour le progrès simplifié
+            await analysis.updateProgress({
+                analyzed: clusterMembersTotal,
+                total: totalFollowers,
+                percentage: progressPercentage
+            })
+
+            // Stocker les résultats partiels avec toutes les nouvelles données
             if (results) {
-                const currentResults = analysis.result || { batches: [] }
+                const currentResults = analysis.result || { batches: [], aggregatedStats: {} }
                 if (!currentResults.batches) {
                     currentResults.batches = []
                 }
-                currentResults.batches.push(results)
+
+                // Stocker le batch complet avec toutes les données
+                const batchResult = {
+                    clustersData: results.clustersData || [],
+                    clusterStats: results.clusterStats,
+                    clusterDetails: results.clusterDetails,
+                    analysisQuality: results.analysisQuality,
+                    tagsFrequency: results.tagsFrequency,
+                    batchTimestamp: new Date().toISOString()
+                }
+
+                currentResults.batches.push(batchResult)
+
+                // Agréger les statistiques globales
+                if (results.clusterStats) {
+                    if (!currentResults.aggregatedStats.totalClusters) {
+                        currentResults.aggregatedStats = {
+                            totalClusters: 0,
+                            semanticClusters: 0,
+                            noiseClusters: 0,
+                            totalCohesion: 0,
+                            batchCount: 0,
+                            totalValidProfiles: 0,
+                            totalProfiles: 0,
+                            totalTrashProfiles: 0
+                        }
+                    }
+
+                    currentResults.aggregatedStats.totalClusters += results.clusterStats.totalClusters || 0
+                    currentResults.aggregatedStats.semanticClusters += results.clusterStats.semanticClusters || 0
+                    currentResults.aggregatedStats.noiseClusters += results.clusterStats.noiseClusters || 0
+                    currentResults.aggregatedStats.totalCohesion += results.clusterStats.averageCohesion || 0
+                    currentResults.aggregatedStats.batchCount += 1
+
+                    if (results.analysisQuality) {
+                        currentResults.aggregatedStats.totalValidProfiles += results.analysisQuality.validProfiles || 0
+                        currentResults.aggregatedStats.totalProfiles += results.analysisQuality.totalProfiles || 0
+                        currentResults.aggregatedStats.totalTrashProfiles += results.analysisQuality.trashProfiles || 0
+                    }
+                }
+
                 analysis.result = currentResults
                 await analysis.save()
 
-                // CRÉATION INCRÉMENTALE DES CLUSTERS - Interface plus responsive
                 if (results.clustersData && results.clustersData.length > 0) {
                     try {
                         console.log(`Création incrémentale de ${results.clustersData.length} clusters pour l'analyse ${analysis.id}`)
@@ -312,7 +358,7 @@ export default class PythonControllerMethods {
 
             if (!nextBatch || nextBatch.followers.length === 0) {
                 // Plus de followers à analyser - terminer l'analyse
-                console.log(`Analyse terminée pour ${analysis.id}, création des clusters...`)
+                console.log(`✅ Analyse complète terminée pour ${analysis.id}, création des clusters finaux...`)
 
                 // Récupérer le compte pour créer les clusters
                 const account = await Account.findOrFail(analysis.accountId)
@@ -320,16 +366,40 @@ export default class PythonControllerMethods {
                 // Agréger tous les résultats des batches pour créer les clusters
                 await this.createClustersFromBatchResults(analysis, account)
 
-                await analysis.markAsCompleted({
+                // Calculer les statistiques finales
+                const finalStats = analysis.result?.aggregatedStats
+                let completionData: any = {
                     totalBatches: (analysis.result?.batches || []).length,
-                    totalAnalyzed: analyzedCount,
+                    totalAnalyzed: clusterMembersTotal,
                     processedAt: DateTime.now().toISO()
-                })
+                }
+
+                if (finalStats && finalStats.batchCount > 0) {
+                    completionData = {
+                        ...completionData,
+                        finalStats: {
+                            totalClusters: finalStats.totalClusters,
+                            semanticClusters: finalStats.semanticClusters,
+                            noiseClusters: finalStats.noiseClusters,
+                            averageCohesion: finalStats.totalCohesion / finalStats.batchCount,
+                            totalValidProfiles: finalStats.totalValidProfiles,
+                            totalProfiles: finalStats.totalProfiles,
+                            totalTrashProfiles: finalStats.totalTrashProfiles,
+                            semanticCoverage: finalStats.totalProfiles > 0 ?
+                                (finalStats.totalValidProfiles / finalStats.totalProfiles * 100).toFixed(2) : 0
+                        }
+                    }
+
+                    console.log(`📊 Statistiques finales pour l'analyse ${analysis.id}:`, completionData.finalStats)
+                }
+
+                await analysis.markAsCompleted(completionData)
 
                 return response.json({
                     status: 'completed',
                     message: 'Analyse terminée avec succès',
-                    totalAnalyzed: analyzedCount
+                    totalAnalyzed: clusterMembersTotal,
+                    finalStats: completionData.finalStats
                 })
             }
 
@@ -337,12 +407,12 @@ export default class PythonControllerMethods {
             await this.followerBatchService.updateAnalysisCursor(analysis, nextBatch.newCursor)
 
             // Calculer la priorité pour le prochain batch
-            const account = await Account.findOrFail(analysis.accountId)
-            await account.load('user')
+            const priorityAccount = await Account.findOrFail(analysis.accountId)
+            await priorityAccount.load('user')
 
             const priority = this.calculateBatchPriority(
-                account.user.plan,
-                analyzedCount
+                priorityAccount.user.plan,
+                clusterMembersTotal
             )
 
             // Ajouter le prochain batch à la queue
@@ -353,12 +423,19 @@ export default class PythonControllerMethods {
                 priority
             )
 
+            console.log(`📦 Prochain batch de ${nextBatch.followers.length} followers mis en queue (job: ${nextJobId}) - Progrès: ${progressPercentage}%`)
+
             return response.json({
                 status: 'next_batch_queued',
-                message: 'Batch traité, prochain batch mis en queue',
+                message: `Batch de ${clusterMembersTotal} followers traité, prochain batch de ${nextBatch.followers.length} followers mis en queue`,
                 nextJobId,
-                progress: newProgress,
-                nextBatchSize: nextBatch.followers.length
+                progress: {
+                    analyzed: clusterMembersTotal,
+                    total: totalFollowers,
+                    percentage: progressPercentage
+                },
+                nextBatchSize: nextBatch.followers.length,
+                batchSize: 200
             })
 
         } catch (error) {
@@ -409,19 +486,12 @@ export default class PythonControllerMethods {
     }
 
     /**
-     * Met à jour le progrès d'une analyse en cours
+     * Met à jour le progrès d'une analyse en cours (simplifié)
      */
-    public async updateAnalysisProgress({ request, response, logger }: HttpContext) {
+    public async updateAnalysisProgress({ request, response }: HttpContext) {
         try {
-            // Log request details for debugging
-            logger.info('Updating analysis progress:', {
-                contentType: request.header('content-type'),
-                contentLength: request.header('content-length'),
-                url: request.url()
-            })
-
-            const { analysisId, analyzed, percentage } = request.only([
-                'analysisId', 'analyzed', 'percentage'
+            const { analysisId, analyzed, percentage, total, step, message } = request.only([
+                'analysisId', 'analyzed', 'percentage', 'total', 'step', 'message'
             ])
 
             if (!analysisId) {
@@ -431,7 +501,6 @@ export default class PythonControllerMethods {
                 })
             }
 
-            // Validate analysisId is a number
             const numericAnalysisId = parseInt(analysisId, 10)
             if (isNaN(numericAnalysisId)) {
                 return response.status(400).json({
@@ -440,7 +509,6 @@ export default class PythonControllerMethods {
                 })
             }
 
-            // Récupérer l'analyse depuis la base de données
             const analysis = await AnalysisAudience.find(numericAnalysisId)
             if (!analysis) {
                 return response.status(404).json({
@@ -449,39 +517,38 @@ export default class PythonControllerMethods {
                 })
             }
 
-            // Mettre à jour le progrès
-            // Note: Ne pas écraser le 'total' car il vient du batch (len(followers)) 
-            // et ne représente pas le total réel de followers du compte.
-            // Le vrai total est calculé dans processBatchProgress via getEstimatedTotalFollowers.
-            const currentProgress = analysis.progress || { analyzed: 0, total: 0, percentage: 0 }
-
-            analysis.progress = {
-                analyzed: analyzed || 0,
-                total: currentProgress.total || 0, // Garder le total existant, ne pas l'écraser
-                percentage: percentage || 0
+            // Progrès simplifié : juste mettre à jour le pourcentage et le statut
+            if (percentage !== undefined) {
+                analysis.progress = {
+                    analyzed: analyzed || 0,
+                    total: total || 100,
+                    percentage: Math.min(100, Math.max(0, percentage))
+                }
             }
+
+            // Mettre à jour le statut si fourni
+            if (step) {
+                if (step === 'completed') {
+                    analysis.status = 'completed'
+                    analysis.completedAt = DateTime.now()
+                } else if (step === 'failed') {
+                    analysis.status = 'failed'
+                    analysis.errorMessage = message || 'Erreur lors du traitement'
+                } else if (step === 'starting' || step === 'processing') {
+                    analysis.status = 'in_progress'
+                }
+            }
+
             await analysis.save()
 
             return response.json({
                 status: 'success',
-                message: 'Progrès mis à jour'
+                message: 'Progrès mis à jour',
+                progress: analysis.progress
             })
 
         } catch (error) {
             console.error("Erreur lors de la mise à jour du progrès:", error)
-
-            // Enhanced error logging for debugging
-            logger.error('Detailed error in updateAnalysisProgress:', {
-                error: error.message,
-                stack: error.stack,
-                url: request.url(),
-                method: request.method(),
-                headers: request.headers(),
-                contentType: request.header('content-type'),
-                contentLength: request.header('content-length'),
-                rawBodyPreview: request.raw()?.substring(0, 1000)
-            })
-
             return response.status(500).json({
                 status: 'error',
                 message: `Une erreur est survenue: ${error instanceof Error ? error.message : String(error)}`
@@ -532,11 +599,26 @@ export default class PythonControllerMethods {
                 return
             }
 
-            // Agréger tous les clusters de tous les batches
+            // Agréger tous les clusters de tous les batches avec les nouvelles données
             const allClusters: any[] = []
+            const aggregatedTagsFrequency: Record<string, number> = {}
+            let totalTrashProfiles = 0
+
             for (const batch of batches) {
                 if (batch.clustersData && Array.isArray(batch.clustersData)) {
                     allClusters.push(...batch.clustersData)
+                }
+
+                // Agréger les fréquences de tags
+                if (batch.tagsFrequency) {
+                    for (const [tag, count] of Object.entries(batch.tagsFrequency)) {
+                        aggregatedTagsFrequency[tag] = (aggregatedTagsFrequency[tag] || 0) + (count as number)
+                    }
+                }
+
+                // Compter les profils poubelle
+                if (batch.analysisQuality?.trashProfiles) {
+                    totalTrashProfiles += batch.analysisQuality.trashProfiles
                 }
             }
 
@@ -546,17 +628,34 @@ export default class PythonControllerMethods {
             }
 
             console.log(`Création de ${allClusters.length} clusters pour le compte ${account.handle}`)
+            console.log(`📊 Tags les plus fréquents:`, Object.entries(aggregatedTagsFrequency)
+                .sort(([, a], [, b]) => (b as number) - (a as number))
+                .slice(0, 10))
+            console.log(`🗑️ Total profils poubelle: ${totalTrashProfiles}`)
 
             // Utiliser FollowerAnalysisService pour créer les clusters
             // Mais d'abord, nous devons adapter les données au format attendu
-            const clustersData = allClusters.map(cluster => ({
-                tag: cluster.tag || 'Unknown',
-                handles: cluster.handles || [],
-                keywords: cluster.keywords || [],
-                embedding: cluster.embeddings || cluster.embedding || [], // Fix: Python uses 'embeddings' (plural)
-                size: cluster.size || 0,
-                cohesion: cluster.cohesion || 0
-            }))
+            const clustersData = allClusters.map(cluster => {
+                console.log(`DEBUG: Processing cluster from batch results:`, {
+                    tag: cluster.tag,
+                    size: cluster.size,
+                    cohesion: cluster.cohesion,
+                    persistence: cluster.persistence
+                })
+
+                const result = {
+                    tag: cluster.tag || 'Unknown',
+                    handles: cluster.handles || [],
+                    keywords: cluster.keywords || [],
+                    embedding: cluster.embedding || cluster.embeddings || [], // Fixed: Use singular 'embedding' key consistently
+                    size: cluster.size || 0,
+                    cohesion: cluster.cohesion !== undefined ? cluster.cohesion : null,
+                    persistence: cluster.persistence !== undefined ? cluster.persistence : null
+                }
+
+                console.log(`DEBUG: Mapped cluster data from batch:`, result)
+                return result
+            })
 
             // Créer les clusters via le service
             await this.followerAnalysisService.createClustersFromData(account, clustersData)
@@ -580,14 +679,28 @@ export default class PythonControllerMethods {
                 return
             }
 
-            const clustersData = batchResults.clustersData.map((cluster: any) => ({
-                tag: cluster.tag || 'Unknown',
-                handles: cluster.handles || [],
-                keywords: cluster.keywords || [],
-                embedding: cluster.embeddings || cluster.embedding || [], // Fix: Python uses 'embeddings' (plural)
-                size: cluster.size || 0,
-                cohesion: cluster.cohesion || 0
-            }))
+            console.log(`Création incrémentale de ${JSON.stringify(batchResults.clustersData)} clusters pour l'analyse ${analysis.id}`)
+            const clustersData = batchResults.clustersData.map((cluster: any) => {
+                console.log(`DEBUG: Processing cluster from Python:`, {
+                    tag: cluster.tag,
+                    size: cluster.size,
+                    cohesion: cluster.cohesion,
+                    persistence: cluster.persistence
+                })
+
+                const result = {
+                    tag: cluster.tag || 'Unknown',
+                    handles: cluster.handles || [],
+                    keywords: cluster.keywords || [],
+                    embedding: cluster.centroid || cluster.embedding || cluster.embeddings || [],
+                    size: cluster.size || 0,
+                    cohesion: cluster.cohesion !== undefined ? cluster.cohesion : null,
+                    persistence: cluster.persistence !== undefined ? cluster.persistence : null
+                }
+
+                console.log(`DEBUG: Mapped cluster data:`, result)
+                return result
+            })
 
             // Créer les clusters immédiatement via le service
             await this.followerAnalysisService.createClustersFromData(account, clustersData)
@@ -624,7 +737,8 @@ export default class PythonControllerMethods {
                 account: {
                     id: account.id,
                     handle: account.handle,
-                    app_password: account.appPassword
+                    blueskyHandle: account.handle, // Le handle Bluesky est le même que le handle du compte
+                    blueskyPassword: account.appPassword // Le mot de passe Bluesky est stocké dans appPassword
                 }
             })
 

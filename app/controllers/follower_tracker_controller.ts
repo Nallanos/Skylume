@@ -30,7 +30,7 @@ export default class FollowerTrackerController {
   public async selectAccount({ auth, response, inertia }: HttpContext) {
     const user = auth.user
     if (!user) {
-      return response.redirect('/login')
+      return response.redirect('/dashboard')
     }
 
     try {

@@ -2,12 +2,12 @@ import AccountService from "./account_service.js";
 import Account from "#models/account";
 import type { PostView } from "@atproto/api/dist/client/types/app/bsky/feed/defs.js";
 import { inject } from "@adonisjs/core";
-import { TargetAudienceService } from "./AI_services.js";
+import { AIService } from "./AI_services.js";
 import Feed from "#models/feed";
 
 @inject()
 export class FeedService {
-  constructor(private targetAudienceService: TargetAudienceService) { }
+  constructor(private targetAudienceService: AIService) { }
 
   public async getPertinentPosts(accountService: AccountService, account: Account, feed: Feed): Promise<{ sortedMatchPosts: PostView[], keywordCursor: Map<string, string | null> }> {
     try {

@@ -120,7 +120,7 @@ function Register() {
               <p className="text-sm text-muted-foreground">
                 Already have an account?{' '}
                 <a
-                  href="/login"
+                  href="/dashboard"
                   className="hover:text-primary underline underline-offset-4 font-medium"
                 >
                   Sign in

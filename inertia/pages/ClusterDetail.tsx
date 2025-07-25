@@ -3,7 +3,16 @@ import Layout from '../components/Layout'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
-import { Users, Target, ArrowLeft, ExternalLink, TrendingUp, Hash, BarChart3 } from 'lucide-react'
+import {
+  Users,
+  Target,
+  ArrowLeft,
+  ExternalLink,
+  TrendingUp,
+  Hash,
+  BarChart3,
+  Shield,
+} from 'lucide-react'
 
 interface Account {
   id: number
@@ -15,10 +24,15 @@ interface Account {
 interface SuperCluster {
   id: number
   tag: string
-  embeddings: number[]
   size: number
   handles: string[]
   accountHandle: string
+  robustnessLevel?: string | null
+  robustnessTag?: string | null
+  pipelineStep?: number | null
+  clusteringMethod?: string | null
+  skipTagging?: boolean
+  processingStatus?: string | null
 }
 
 interface Cluster {
@@ -26,9 +40,16 @@ interface Cluster {
   tag: string
   handles: string[]
   superClusterId: number | null
-  embeddings: number[]
   size: number
   accountHandle: string
+  persistence?: number | null
+  cohesion?: number | null
+  robustnessLevel?: string | null
+  robustnessTag?: string | null
+  pipelineStep?: number | null
+  clusteringMethod?: string | null
+  skipTagging?: boolean
+  processingStatus?: string | null
 }
 
 interface ClusterDetailProps {
@@ -50,6 +71,7 @@ function ClusterDetail({
   const user = props.user
   const currentItem = type === 'supercluster' ? superCluster : cluster
   const percentage = currentItem ? (currentItem.size / (account.followersCount || 1)) * 100 : 0
+  console.log('Current item:', currentItem)
 
   if (!currentItem) {
     return (
@@ -62,7 +84,7 @@ function ClusterDetail({
               <p className="text-muted-foreground mb-6">
                 The requested cluster could not be found.
               </p>
-              <Link href={`/accounts/${account.id}/audience-analysis`}>
+              <Link href={`/analytics/${account.id}/audience`}>
                 <Button variant="outline">
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Back to Analysis
@@ -83,7 +105,7 @@ function ClusterDetail({
           {/* Header */}
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Link href={`/accounts/${account.id}/audience-analysis`}>
+              <Link href={`/analytics/${account.id}/audience`}>
                 <Button variant="outline" size="sm">
                   <ArrowLeft className="h-4 w-4 mr-2" />
                   Back to Analysis
@@ -112,7 +134,7 @@ function ClusterDetail({
           </div>
 
           {/* Overview Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             <Card>
               <CardHeader className="pb-3">
                 <CardTitle className="text-sm font-medium flex items-center gap-2 text-slate-600 dark:text-slate-400">
@@ -186,6 +208,74 @@ function ClusterDetail({
                   <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">
                     Part of a larger interest group
                   </p>
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Quality Metrics - Afficher SOIT persistence SOIT cohésion */}
+            {type === 'cluster' &&
+            cluster?.persistence !== undefined &&
+            cluster?.persistence !== null ? (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2 text-slate-600 dark:text-slate-400">
+                    <BarChart3 className="h-4 w-4" />
+                    Accuracy (HDBSCAN persistence)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                    {cluster.persistence.toFixed(3)}
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">
+                    Weighted cluster stability
+                  </p>
+                </CardContent>
+              </Card>
+            ) : type === 'cluster' &&
+              cluster?.cohesion !== undefined &&
+              cluster?.cohesion !== null ? (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2 text-slate-600 dark:text-slate-400">
+                    <TrendingUp className="h-4 w-4" />
+                    Cohesion
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-slate-900 dark:text-slate-100">
+                    {(cluster.cohesion * 100).toFixed(1)}%
+                  </div>
+                  <p className="text-xs text-slate-500 dark:text-slate-500 mt-1">
+                    Internal similarity strength
+                  </p>
+                </CardContent>
+              </Card>
+            ) : null}
+
+            {/* 🎯 NEW: Robustness Level Card */}
+            {currentItem?.robustnessLevel && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm font-medium flex items-center gap-2 text-slate-600 dark:text-slate-400">
+                    <Shield className="h-4 w-4" />
+                    Quality Level
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="text-lg font-semibold text-slate-900 dark:text-slate-100 mb-2">
+                    {currentItem.robustnessTag || currentItem.robustnessLevel}
+                  </div>
+                  {currentItem.clusteringMethod && (
+                    <p className="text-xs text-slate-500 dark:text-slate-500 mb-2">
+                      Generated via {currentItem.clusteringMethod}
+                    </p>
+                  )}
+                  {currentItem.skipTagging && (
+                    <Badge variant="secondary" className="text-xs">
+                      No Tags Generated
+                    </Badge>
+                  )}
                 </CardContent>
               </Card>
             )}
@@ -281,15 +371,28 @@ function ClusterDetail({
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="font-medium text-slate-900 dark:text-slate-100 truncate">
-                          @{handle}
+                          <a
+                            href={`https://bsky.app/profile/${handle}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="hover:underline text-blue-700 dark:text-blue-300"
+                          >
+                            @{handle}
+                          </a>
                         </div>
                         <div className="text-xs text-slate-500 dark:text-slate-400">
                           Account #{index + 1}
                         </div>
                       </div>
-                      <Button variant="ghost" size="sm">
-                        <ExternalLink className="h-3 w-3" />
-                      </Button>
+                      <a
+                        href={`https://bsky.app/profile/${handle}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        <Button variant="ghost" size="sm">
+                          <ExternalLink className="h-3 w-3" />
+                        </Button>
+                      </a>
                     </div>
                   ))}
                 </div>

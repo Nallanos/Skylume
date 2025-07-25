@@ -45,24 +45,25 @@ export default class FollowerAnalysisController {
                 .first()
 
             if (existingAnalysis) {
-                // Vérifier si l'analyse est vraiment en cours dans Redis
-                const isActiveInQueue = await this.aiSchedulerService.isBulkAnalysisActiveInQueue(existingAnalysis.id)
+                // Utiliser la nouvelle méthode pour vérifier le statut avec nettoyage automatique
+                const queueStatus = await this.aiSchedulerService.getAnalysisQueueStatus(existingAnalysis.id)
 
-                if (isActiveInQueue) {
-                    // L'analyse est vraiment en cours
+                if (queueStatus.isActive) {
                     return response.status(409).json({
                         status: 'error',
                         message: 'Une analyse est déjà en cours pour ce compte',
-                        analysisId: existingAnalysis.id
+                        analysisId: existingAnalysis.id,
+                        queueStatus: queueStatus
                     })
                 } else {
-                    // L'analyse est marquée comme en cours en DB mais n'existe plus dans Redis
-                    // Probablement due à un crash de Redis, on peut relancer
-                    console.log(`Analysis ${existingAnalysis.id} marked as in progress in DB but not found in Redis queue. Allowing restart.`)
+                    console.log(`Analysis ${existingAnalysis.id} marked as in progress in DB but not active in Redis queue. Allowing restart.`)
+
+                    // Nettoyer complètement l'ancienne analyse
+                    await this.aiSchedulerService.forceStopAnalysis(existingAnalysis.id)
 
                     // Marquer l'ancienne analyse comme échouée
                     existingAnalysis.status = 'failed'
-                    existingAnalysis.errorMessage = 'Analysis was interrupted (Redis queue lost)'
+                    existingAnalysis.errorMessage = 'Analysis was interrupted or lost from Redis queue'
                     await existingAnalysis.save()
                 }
             }
@@ -117,11 +118,13 @@ export default class FollowerAnalysisController {
 
             return response.status(202).json({
                 status: 'success',
-                message: `Analyse des followers démarrée pour le compte ${account.handle}`,
+                message: `Analyse des followers démarrée pour le compte ${account.handle} - Premier batch de 200 followers en cours de traitement`,
                 analysisId: analysis.id,
                 queueJobId,
                 firstBatchSize: firstBatch.followers.length,
-                estimatedTotal: estimatedTotal
+                estimatedTotal: estimatedTotal,
+                batchSize: 200,
+                processingMode: 'batch_200'
             })
         } catch (error) {
             console.error("Erreur lors du démarrage de l'analyse des followers:", error)
@@ -166,10 +169,8 @@ export default class FollowerAnalysisController {
                 })
             }
 
-            // Annuler le job dans Redis si il existe
-            if (analysis.queueJobId) {
-                await this.aiSchedulerService.cancelBulkAnalysisJob(analysis.queueJobId)
-            }
+            // Forcer l'arrêt complet de l'analyse dans Redis
+            await this.aiSchedulerService.forceStopAnalysis(analysis.id)
 
             // Supprimer tous les clusters et super clusters liés au compte
             await Cluster.query()
@@ -232,10 +233,20 @@ export default class FollowerAnalysisController {
             size: cluster.size,
             accountHandle: cluster.accountHandle,
             superClusterId: cluster.superClusterId,
-            embeddings: cluster.embeddings || [],
+            persistence: cluster.persistence,
+            cohesion: cluster.cohesion,
+            robustnessLevel: cluster.robustnessLevel,
+            robustnessTag: cluster.robustnessTag,
+            pipelineStep: cluster.pipelineStep,
+            clusteringMethod: cluster.clusteringMethod,
+            skipTagging: cluster.skipTagging,
+            processingStatus: cluster.processingStatus,
+            // 🚫 REMOVED: embeddings pour ne pas surcharger le frontend
             superCluster: cluster.superCluster ? {
                 id: cluster.superCluster.id,
-                tag: cluster.superCluster.tag
+                tag: cluster.superCluster.tag,
+                robustnessLevel: cluster.superCluster.robustnessLevel,
+                robustnessTag: cluster.superCluster.robustnessTag
             } : undefined
         }))
 
@@ -245,7 +256,13 @@ export default class FollowerAnalysisController {
             handles: superCluster.handles || [],
             size: superCluster.size,
             accountHandle: superCluster.accountHandle,
-            embeddings: superCluster.embeddings || []
+            robustnessLevel: superCluster.robustnessLevel,
+            robustnessTag: superCluster.robustnessTag,
+            pipelineStep: superCluster.pipelineStep,
+            clusteringMethod: superCluster.clusteringMethod,
+            skipTagging: superCluster.skipTagging,
+            processingStatus: superCluster.processingStatus
+            // 🚫 REMOVED: embeddings pour ne pas surcharger le frontend
         }))
 
         let analysisStatus = currentAnalysis ? {
@@ -257,110 +274,6 @@ export default class FollowerAnalysisController {
             errorMessage: currentAnalysis.errorMessage
         } : null
 
-        // Données fictives pour le développement si aucune donnée en BDD
-        if (serializedClusters.length === 0 && serializedSuperClusters.length === 0) {
-            serializedSuperClusters = [
-                {
-                    id: 1,
-                    tag: 'Tech & Développement',
-                    handles: ['@developer.bsky.social', '@programmer.bsky.social', '@coder.bsky.social'],
-                    size: 150,
-                    accountHandle: account.handle,
-                    embeddings: [0.1, 0.2, 0.3, 0.4, 0.5]
-                },
-                {
-                    id: 2,
-                    tag: 'Design & Créativité',
-                    handles: ['@designer.bsky.social', '@artist.bsky.social', '@creative.bsky.social'],
-                    size: 120,
-                    accountHandle: account.handle,
-                    embeddings: [0.2, 0.3, 0.4, 0.5, 0.6]
-                },
-                {
-                    id: 3,
-                    tag: 'Business & Entrepreneuriat',
-                    handles: ['@entrepreneur.bsky.social', '@startup.bsky.social', '@business.bsky.social'],
-                    size: 95,
-                    accountHandle: account.handle,
-                    embeddings: [0.3, 0.4, 0.5, 0.6, 0.7]
-                }
-            ]
-
-            serializedClusters = [
-                {
-                    id: 1,
-                    tag: 'Développeurs Frontend',
-                    handles: ['@react.dev.bsky.social', '@vue.dev.bsky.social', '@svelte.dev.bsky.social'],
-                    size: 75,
-                    accountHandle: account.handle,
-                    superClusterId: 1,
-                    embeddings: [0.15, 0.25, 0.35, 0.45, 0.55],
-                    superCluster: { id: 1, tag: 'Tech & Développement' }
-                },
-                {
-                    id: 2,
-                    tag: 'Développeurs Backend',
-                    handles: ['@nodejs.dev.bsky.social', '@python.dev.bsky.social', '@java.dev.bsky.social'],
-                    size: 65,
-                    accountHandle: account.handle,
-                    superClusterId: 1,
-                    embeddings: [0.12, 0.22, 0.32, 0.42, 0.52],
-                    superCluster: { id: 1, tag: 'Tech & Développement' }
-                },
-                {
-                    id: 3,
-                    tag: 'UI/UX Designers',
-                    handles: ['@figma.design.bsky.social', '@sketch.design.bsky.social', '@adobe.design.bsky.social'],
-                    size: 80,
-                    accountHandle: account.handle,
-                    superClusterId: 2,
-                    embeddings: [0.25, 0.35, 0.45, 0.55, 0.65],
-                    superCluster: { id: 2, tag: 'Design & Créativité' }
-                },
-                {
-                    id: 4,
-                    tag: 'Illustrateurs',
-                    handles: ['@illustrator.art.bsky.social', '@digital.art.bsky.social', '@concept.art.bsky.social'],
-                    size: 40,
-                    accountHandle: account.handle,
-                    superClusterId: 2,
-                    embeddings: [0.22, 0.32, 0.42, 0.52, 0.62],
-                    superCluster: { id: 2, tag: 'Design & Créativité' }
-                },
-                {
-                    id: 5,
-                    tag: 'Startups Tech',
-                    handles: ['@techstartup.bsky.social', '@saas.startup.bsky.social', '@fintech.bsky.social'],
-                    size: 55,
-                    accountHandle: account.handle,
-                    superClusterId: 3,
-                    embeddings: [0.35, 0.45, 0.55, 0.65, 0.75],
-                    superCluster: { id: 3, tag: 'Business & Entrepreneuriat' }
-                },
-                {
-                    id: 6,
-                    tag: 'Investisseurs',
-                    handles: ['@vc.fund.bsky.social', '@angel.investor.bsky.social', '@crypto.investor.bsky.social'],
-                    size: 40,
-                    accountHandle: account.handle,
-                    superClusterId: 3,
-                    embeddings: [0.32, 0.42, 0.52, 0.62, 0.72],
-                    superCluster: { id: 3, tag: 'Business & Entrepreneuriat' }
-                },
-                {
-                    id: 7,
-                    tag: 'Blogueurs Tech',
-                    handles: ['@techblog.bsky.social', '@devblog.bsky.social', '@coding.blog.bsky.social'],
-                    size: 30,
-                    accountHandle: account.handle,
-                    superClusterId: null,
-                    embeddings: [0.18, 0.28, 0.38, 0.48, 0.58],
-                    superCluster: undefined
-                }
-            ]
-        } else {
-            console.log(`Found ${serializedClusters.length} clusters and ${serializedSuperClusters.length} super clusters for account ${account.handle}`)
-        }
 
         return inertia.render('AudienceAnalysis', {
             account,
@@ -597,6 +510,133 @@ export default class FollowerAnalysisController {
             return response.status(500).json({
                 status: 'error',
                 message: `Error retrieving clusters: ${error.message}`
+            })
+        }
+    }
+
+    /**
+     * Récupère le statut de l'analyse pour l'API (JSON)
+     */
+    public async getAnalysisStatusApi({ params, response, auth }: HttpContext) {
+        try {
+            const user = await auth.authenticate()
+            if (!user) {
+                return response.status(401).json({
+                    status: 'error',
+                    message: 'Non autorisé'
+                })
+            }
+
+            const accountId = params.id
+
+            // Vérifier que l'utilisateur est propriétaire du compte
+            await Account.query() // eslint-disable-line @typescript-eslint/no-unused-vars
+                .where('id', accountId)
+                .andWhere('user_id', user.id)
+                .firstOrFail()
+            // account is used for security check above
+
+            // Récupérer l'analyse d'audience la plus récente
+            const currentAnalysis = await AnalysisAudience.query()
+                .where('account_id', accountId)
+                .orderBy('created_at', 'desc')
+                .first()
+
+            // Vérifier si l'analyse est en cours
+            const isRunning = currentAnalysis && ['pending', 'in_progress'].includes(currentAnalysis.status)
+
+            let analysisJob = null
+            if (currentAnalysis) {
+                const progressData = currentAnalysis.progress || { analyzed: 0, total: 0, percentage: 0 }
+
+                analysisJob = {
+                    id: currentAnalysis.id,
+                    status: currentAnalysis.status,
+                    progress: progressData.percentage || 0,
+                    total_followers: progressData.total || 0,
+                    processed_followers: progressData.analyzed || 0,
+                    started_at: currentAnalysis.startedAt?.toISO() || null,
+                    completed_at: currentAnalysis.completedAt?.toISO() || null,
+                    error_message: currentAnalysis.errorMessage || null
+                }
+            }
+
+            return response.json({
+                status: 'success',
+                analysis_job: analysisJob,
+                analysis_running: isRunning
+            })
+        } catch (error) {
+            console.error('Erreur lors de la récupération du statut de l\'analyse:', error)
+            return response.status(500).json({
+                status: 'error',
+                message: `Une erreur est survenue: ${error.message}`
+            })
+        }
+    }
+
+    /**
+     * Force la réinitialisation d'une analyse bloquée
+     */
+    public async forceResetAnalysis({ params, response, auth }: HttpContext) {
+        try {
+            const user = await auth.authenticate()
+            if (!user) {
+                return response.status(401).json({
+                    status: 'error',
+                    message: 'Non autorisé'
+                })
+            }
+
+            const accountId = params.id
+
+            // Vérifier que l'utilisateur est propriétaire du compte
+            const account = await Account.query()
+                .where('id', accountId)
+                .andWhere('user_id', user.id)
+                .firstOrFail()
+
+            // Récupérer toutes les analyses pour ce compte
+            const analyses = await AnalysisAudience.query()
+                .where('account_id', accountId)
+                .whereIn('status', ['pending', 'in_progress'])
+
+            let cleanedAnalyses = 0
+
+            for (const analysis of analyses) {
+                // Nettoyer complètement l'analyse
+                await this.aiSchedulerService.forceStopAnalysis(analysis.id)
+
+                // Marquer comme échouée
+                analysis.status = 'failed'
+                analysis.errorMessage = 'Analysis force reset by user'
+                await analysis.save()
+
+                cleanedAnalyses++
+            }
+
+            // Supprimer tous les clusters et super clusters liés au compte
+            await Cluster.query()
+                .where('accountHandle', account.handle)
+                .delete()
+
+            await SuperCluster.query()
+                .where('accountHandle', account.handle)
+                .delete()
+
+            // Nettoyer les jobs obsolètes
+            await this.aiSchedulerService.cleanupStaleJobs()
+
+            return response.json({
+                status: 'success',
+                message: `Analyse réinitialisée pour le compte ${account.handle}. ${cleanedAnalyses} analyse(s) nettoyée(s).`,
+                cleanedAnalyses
+            })
+        } catch (error) {
+            console.error("Erreur lors de la réinitialisation de l'analyse:", error)
+            return response.status(500).json({
+                status: 'error',
+                message: `Une erreur est survenue: ${error.message}`
             })
         }
     }

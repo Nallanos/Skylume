@@ -9,7 +9,7 @@ export default class FollowerBatchService {
   constructor(protected accountManager: AccountManager) { }
 
   /**
-   * Récupère le prochain batch de 100 followers non analysés
+   * Récupère le prochain batch de 200 followers non analysés
    * @param analysis - L'analyse en cours
    * @returns Un objet contenant les followers et le nouveau cursor, ou null si terminé
    */
@@ -28,25 +28,47 @@ export default class FollowerBatchService {
       // Utiliser le cursor stocké dans l'analyse
       const cursor = analysis.followersCursor
 
-      // Récupérer les followers via l'AccountService
-      const followersData = await accountService.getFollowers(
-        account,
-        analysis.accountHandle, // Utiliser le handle Bluesky, pas l'ID interne
-        cursor || undefined
-      )
+      let allFollowers: any[] = []
+      let currentCursor = cursor
+      const targetBatchSize = 500
 
-      if (!followersData || !followersData.followers || followersData.followers.length === 0) {
-        // Plus de followers à analyser
+      // Récupérer des followers jusqu'à atteindre 500 ou épuiser la source
+      while (allFollowers.length < targetBatchSize) {
+        // Récupérer les followers via l'AccountService
+        const followersData = await accountService.getFollowers(
+          account,
+          analysis.accountHandle, // Utiliser le handle Bluesky, pas l'ID interne
+          currentCursor || undefined
+        )
+
+        if (!followersData || !followersData.followers || followersData.followers.length === 0) {
+          // Plus de followers à analyser
+          break
+        }
+
+        // Ajouter les nouveaux followers
+        allFollowers = allFollowers.concat(followersData.followers)
+
+        // Mettre à jour le cursor
+        currentCursor = followersData.cursor || null
+
+        // Si pas de nouveau cursor, on a atteint la fin
+        if (!currentCursor) {
+          break
+        }
+      }
+
+      if (allFollowers.length === 0) {
         return null
       }
 
-      // Limiter à 100 followers maximum par batch
-      const followers = followersData.followers.slice(0, 100)
+      // Limiter à 200 followers maximum par batch
+      const followers = allFollowers.slice(0, targetBatchSize)
 
       return {
         followers,
-        newCursor: followersData.cursor || null,
-        hasMore: followersData.followers.length === 100 && !!followersData.cursor
+        newCursor: currentCursor,
+        hasMore: allFollowers.length === targetBatchSize && !!currentCursor
       }
     } catch (error) {
       console.error(`Error getting followers batch for analysis ${analysis.id}:`, error)

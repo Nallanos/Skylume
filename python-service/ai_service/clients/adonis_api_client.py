@@ -127,20 +127,27 @@ class AdonisApiClient:
             logger.error(f"Error getting recurring job: {e}")
             raise
     
-    async def update_analysis_progress(self, analysis_id: str, progress: int, status: str, message: str = "") -> bool:
-        """Met à jour le progrès d'une analyse"""
+    async def update_analysis_progress(self, analysis_id: str, progress: int, status: str, message: str = "", total: int = None, analyzed: int = None) -> bool:
+        """Met à jour le progrès d'une analyse avec plus de détails"""
         try:
             payload = {
                 'analysisId': analysis_id,
-                'analyzed': progress,
-                'total': 100,
-                'percentage': progress
+                'percentage': progress,
+                'step': status,
+                'message': message
             }
+            
+            # Ajouter les données optionnelles si fournies
+            if total is not None:
+                payload['total'] = total
+                
+            if analyzed is not None:
+                payload['analyzed'] = analyzed
             
             response = await self.client.post('/internal/python/update-progress', json=payload, headers=self.headers)
             response.raise_for_status()
             
-            logger.info(f"Updated progress for analysis {analysis_id}: {progress}% - {status}")
+            logger.info(f"Updated progress for analysis {analysis_id}: {progress}% - {status} - {message}")
             return True
             
         except httpx.HTTPStatusError as e:

@@ -22,7 +22,7 @@ class TextCleaner:
         self.mention_pattern = re.compile(r'@\w+')
         self.hashtag_pattern = re.compile(r'#\w+')
     
-    def clean(self, texts: Union[str, List[str]], aggressive: bool = False) -> Union[str, List[str], None]:
+    def clean(self, texts: Union[str, List[str]], aggressive: bool = True) -> Union[str, List[str], None]:
         """
         Nettoie un texte ou une liste de textes
         
@@ -39,6 +39,10 @@ class TextCleaner:
             cleaned_list = []
             for text in texts:
                 if text is None:
+                    continue
+                if isinstance(text, list):
+                    # Flatten any nested lists (defensive)
+                    cleaned_list.extend(self.clean(text, aggressive))
                     continue
                 cleaned = self._clean_single(text, aggressive)
                 if cleaned:  # On garde seulement les textes valides
@@ -87,3 +91,67 @@ class TextCleaner:
             return None
         
         return cleaned_text
+    
+    def is_semantically_informative(self, text: str, min_words: int = 3) -> bool:
+        """
+        Évalue si un texte contient suffisamment d'informations sémantiques utiles.
+        
+        Args:
+            text: Le texte à évaluer
+            min_words: Nombre minimum de mots significatifs requis
+            
+        Returns:
+            True si le texte est suffisamment informatif, False sinon
+        """
+        if not text or not text.strip():
+            return False
+        
+        # Nettoie le texte d'abord
+        cleaned = self._clean_single(text, aggressive=False)
+        if not cleaned:
+            return False
+        
+        # Tokenise avec spaCy pour une analyse plus précise
+        doc = self.nlp(cleaned)
+        
+        # Compte les mots significatifs (pas de stopwords, pas de ponctuation)
+        meaningful_tokens = [
+            token for token in doc 
+            if not token.is_stop 
+            and not token.is_punct 
+            and not token.is_space
+            and token.is_alpha  # Seulement les mots alphabétiques
+            and len(token.text) > 2  # Mots de plus de 2 caractères
+        ]
+        
+        # Vérifie la diversité des mots (pas de répétitions excessives)
+        unique_words = set(token.text.lower() for token in meaningful_tokens)
+        
+        return len(unique_words) >= min_words
+    
+    def extract_meaningful_words(self, text: str, min_length: int = 3) -> List[str]:
+        """
+        Extrait les mots significatifs d'un texte.
+        
+        Args:
+            text: Le texte à analyser
+            min_length: Longueur minimale des mots à conserver
+            
+        Returns:
+            Liste des mots significatifs
+        """
+        if not text:
+            return []
+        
+        doc = self.nlp(text)
+        meaningful_words = []
+        
+        for token in doc:
+            if (not token.is_stop and 
+                not token.is_punct and 
+                not token.is_space and
+                token.is_alpha and 
+                len(token.text) >= min_length):
+                meaningful_words.append(token.text.lower())
+        
+        return meaningful_words

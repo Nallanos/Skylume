@@ -9,6 +9,7 @@ import { Key, ShieldCheck, Loader, UserPlus } from 'lucide-react'
 function AddAccount() {
   const [tokenAppPassword, setTokenAppPassword] = useState('')
   const [bksySocial, setBksySocial] = useState('')
+  const [rememberMe, setRememberMe] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
   const { props } = usePage()
   const errors = props.errors as Record<string, string> | undefined
@@ -18,7 +19,11 @@ function AddAccount() {
     setIsLoading(true)
     router.put(
       '/account',
-      { bksy_social: bksySocial, token_app_password: tokenAppPassword },
+      {
+        bksy_social: bksySocial,
+        token_app_password: tokenAppPassword,
+        remember_me: rememberMe,
+      },
       {
         onFinish: () => setIsLoading(false),
       }
@@ -108,6 +113,23 @@ function AddAccount() {
                   required
                   className="bg-background border-input text-foreground focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary"
                 />
+              </div>
+
+              {/* Remember Me Checkbox */}
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="remember_me"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
+                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                />
+                <label
+                  htmlFor="remember_me"
+                  className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                >
+                  Keep me signed in for 2 years
+                </label>
               </div>
 
               <Button type="submit" className="w-full group" disabled={isLoading}>

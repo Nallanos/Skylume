@@ -13,7 +13,7 @@ class KeyBERTTagger(TagGenerator):
     
     def __init__(self, 
                  embedding_model: Optional[EmbeddingModel] = None, 
-                 model_name: str = 'all-MiniLM-L6-v2',
+                 model_name: str = 'all-mpnet-base-v2',
                  text_cleaner: Optional[TextCleaner] = None):
         """
         Initialise le générateur de tags KeyBERT

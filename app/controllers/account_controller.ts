@@ -20,7 +20,8 @@ export default class AccountController {
   public async createAccount({ request, auth, response, session }: HttpContext) {
     const agent = new AtpAgent({ service: "https://bsky.social" })
     try {
-      const { token_app_password, bksy_social } = request.only(['token_app_password', 'bksy_social'])
+      const { token_app_password, bksy_social, remember_me } = request.only(['token_app_password', 'bksy_social', 'remember_me'])
+      console.log('CreateAccount called for handle:', bksy_social)
 
       if (!token_app_password || !bksy_social) {
         session.flash("errors.credentials", "Missing app password or social handle.")
@@ -47,23 +48,34 @@ export default class AccountController {
       }
 
       let user: User | undefined;
-      try {
-        user = await auth.authenticate()
-        await auth.use('web').login(user)
-      } catch (err) {
+
+      // First, try to find existing user by handle/email
+      const existingUser = await User.findBy('email', bksy_social)
+
+      if (existingUser) {
+        // User exists, login directly
         try {
-          if (!user) {
-            console.warn(`error while auth: ${err.code}, creating new account...`)
-            user = await this.createUser(bksy_social, token_app_password)
-            await User.verifyCredentials(bksy_social, token_app_password)
-            if (!user) {
-              session.flash("errors.credentials", "Failed to retrieve account information. Please verify your credentials.")
-              return response.redirect().back()
-            }
-            await auth.use('web').login(user)
-          }
+          await auth.use('web').login(existingUser, !!remember_me)
+          user = existingUser
+          console.log('Logged in existing user:', bksy_social)
         } catch (err) {
-          session.flash("errors.credentials", "Failed to retrieve account information. Please verify your credentials.")
+          console.error("Error logging in existing user:", err)
+          session.flash("errors.credentials", "Failed to login existing account.")
+          return response.redirect().back()
+        }
+      } else {
+        // User doesn't exist, create new one
+        try {
+          console.log('Creating new user account for:', bksy_social)
+          user = await this.createUser(bksy_social, token_app_password)
+          if (!user) {
+            session.flash("errors.credentials", "Failed to create user account.")
+            return response.redirect().back()
+          }
+          await auth.use('web').login(user, !!remember_me)
+        } catch (err) {
+          console.error("Error creating user:", err)
+          session.flash("errors.credentials", "Failed to create user account. Please try again.")
           return response.redirect().back()
         }
       }
@@ -145,16 +157,32 @@ export default class AccountController {
 
   private async createUser(handle: string, appPassword: string) {
     try {
+      // Check if user already exists
       const userAlreadyExists = await User.findBy('email', handle)
+      if (userAlreadyExists) {
+        console.log('User already exists:', handle)
+        return userAlreadyExists
+      }
 
-      if (userAlreadyExists) return userAlreadyExists
+      // Create new user
+      console.log('Creating new user:', handle)
+      const newUser = await User.create({
+        id: handle,
+        email: handle,
+        password: appPassword,
+        createdAt: DateTime.now()
+      })
 
-      await User.create({ id: handle, email: handle, password: appPassword, createdAt: DateTime.now() })
-      const user = await User.verifyCredentials(handle, appPassword)
+      if (!newUser) {
+        throw new Error('Failed to create user')
+      }
 
-      return user
+      console.log('User created successfully:', handle)
+      return newUser
+
     } catch (err) {
-      console.log("error while signin up:", err)
+      console.error("Error in createUser:", err)
+      throw err
     }
   }
 

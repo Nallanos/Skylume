@@ -3,7 +3,7 @@ import { BaseCommand } from '@adonisjs/core/ace'
 import type { CommandOptions } from '@adonisjs/core/types/ace'
 import { DateTime } from 'luxon'
 import type { ProfileView } from '@atproto/api/dist/client/types/app/bsky/actor/defs.js'
-import { TargetAudienceService } from '#services/AI_services'
+import { AIService } from '#services/AI_services'
 import AccountManager from '#services/account_manager'
 import AccountService from '#services/account_service'
 import Account from '#models/account'
@@ -17,7 +17,7 @@ export default class FollowCommand extends BaseCommand {
   private readonly HOURLY_LIMIT = 3000
 
   // State
-  private service = new TargetAudienceService()
+  private service = new AIService()
   private account?: Account
   private accountService?: AccountService
   private accountManager = new AccountManager()

@@ -44,6 +44,24 @@ export default class SuperCluster extends BaseModel {
   @column()
   declare accountHandle: string
 
+  @column()
+  declare robustnessLevel: string | null
+
+  @column()
+  declare robustnessTag: string | null
+
+  @column()
+  declare pipelineStep: number | null
+
+  @column()
+  declare clusteringMethod: string | null
+
+  @column()
+  declare skipTagging: boolean
+
+  @column()
+  declare processingStatus: string | null
+
   @belongsTo(() => Account)
   declare account: BelongsTo<typeof Account>
 

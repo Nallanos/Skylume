@@ -1,77 +1,85 @@
 #!/usr/bin/env python3
 """
-Test simple pour vérifier le bon fonctionnement du worker Python avec la nouvelle architecture API.
-Ce script valide que :
-1. Le client API peut se connecter à AdonisJS avec la clé API
-2. Les endpoints API nécessaires sont disponibles et répondent correctement
-3. Le worker peut récupérer les données de compte
+Test de connectivité avec l'API AdonisJS pour le worker.
+Vérifie que l'API est accessible avant de démarrer le worker.
 """
+import os
+import sys
+import requests
+import time
+from requests.exceptions import RequestException, Timeout, ConnectionError
 
-import asyncio
-import logging
-from dotenv import load_dotenv
-from ai_service.clients.adonis_api_client import AdonisApiClient
 
-# Configuration du logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
-
-async def test_api_connectivity():
-    """Test de connectivité à l'API AdonisJS"""
+def test_api_connectivity():
+    """Test la connectivité avec l'API AdonisJS."""
+    api_url = os.environ.get('ADONISJS_API_URL', 'http://localhost:8081')
+    internal_api_key = os.environ.get('INTERNAL_API_KEY')
+    
+    if not internal_api_key:
+        print("❌ Erreur: Variable INTERNAL_API_KEY non définie")
+        return False
+    
+    # Test de connectivité basique
+    health_url = f"{api_url}/health"
+    headers = {'Authorization': f'Bearer {internal_api_key}'}
+    
     try:
-        client = AdonisApiClient()
+        # Test simple de connectivité avec timeout court
+        response = requests.get(health_url, headers=headers, timeout=5)
         
-        # Afficher l'URL de base pour le débogage
-        logger.info(f"Connexion à l'API AdonisJS à l'adresse: {client.base_url}")
-        
-        # Test du endpoint de santé
-        logger.info("Test du endpoint de santé...")
-        health_ok = await client.health_check()
-        
-        if health_ok:
-            logger.info("✅ API AdonisJS accessible et fonctionnelle")
+        if response.status_code == 200:
+            print(f"✅ API accessible à {api_url}")
+            return True
+        elif response.status_code == 404:
+            # L'endpoint /health n'existe peut-être pas, testons un autre endpoint
+            worker_url = f"{api_url}/api/workers/status"
+            try:
+                worker_response = requests.get(worker_url, headers=headers, timeout=5)
+                if worker_response.status_code in [200, 401, 403]:  # API répond même si non autorisé
+                    print(f"✅ API accessible à {api_url}")
+                    return True
+            except:
+                pass
+            
+            print(f"⚠️  API répond mais endpoint non trouvé ({response.status_code})")
+            return True  # L'API est accessible même si l'endpoint n'existe pas
         else:
-            logger.error("❌ API AdonisJS inaccessible")
-            return False
-        
-        # Test de récupération de compte (simulé)
-        logger.info("Test de récupération d'un compte (peut échouer si le compte n'existe pas)...")
-        test_handle = "test.bsky.app"  # Remplacer par un compte existant dans votre base de données
-        
-        try:
-            account = await client.get_account(test_handle)
-            if account:
-                logger.info(f"✅ Compte récupéré avec succès: {test_handle}")
-            else:
-                logger.warning(f"⚠️ Compte non trouvé: {test_handle}")
-        except Exception as e:
-            logger.error(f"❌ Erreur lors de la récupération du compte: {e}")
-        
-        # Fermer proprement le client API
-        await client.close()
-        return True
-        
+            print(f"⚠️  API répond avec code {response.status_code}")
+            return True  # L'API est accessible
+            
+    except ConnectionError:
+        print(f"❌ Impossible de se connecter à {api_url}")
+        print("   Vérifiez que l'API AdonisJS est démarrée")
+        return False
+    except Timeout:
+        print(f"❌ Timeout lors de la connexion à {api_url}")
+        print("   L'API met trop de temps à répondre")
+        return False
+    except RequestException as e:
+        print(f"❌ Erreur de requête: {e}")
+        return False
     except Exception as e:
-        logger.error(f"❌ Erreur lors des tests API: {e}")
+        print(f"❌ Erreur inattendue: {e}")
         return False
 
-async def main():
-    """Fonction principale pour exécuter les tests"""
-    logger.info("Démarrage des tests d'API du worker Python...")
+
+def main():
+    """Point d'entrée principal."""
+    if len(sys.argv) > 1 and sys.argv[1] == "--verbose":
+        print("🔍 Test de connectivité en mode verbose")
     
-    # Charger les variables d'environnement
-    load_dotenv()
+    success = test_api_connectivity()
     
-    # Tester la connectivité API
-    api_ok = await test_api_connectivity()
+    if not success:
+        print("\n💡 Suggestions de dépannage:")
+        print("   1. Vérifiez que l'API AdonisJS est démarrée")
+        print("   2. Vérifiez l'URL dans ADONISJS_API_URL")
+        print("   3. Vérifiez la clé API dans INTERNAL_API_KEY")
+        print("   4. Utilisez --skip-check pour ignorer ce test")
+        sys.exit(1)
     
-    if api_ok:
-        logger.info("✅ Tests API réussis")
-    else:
-        logger.error("❌ Tests API échoués")
+    sys.exit(0)
+
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    main()

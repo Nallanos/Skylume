@@ -35,6 +35,13 @@ const FollowersGrowthChart: React.FC<FollowersGrowthChartProps> = ({ followers_h
     }),
   }))
 
+  // Calcul dynamique du domaine Y pour une échelle plus précise
+  const followersValues = chartData.map((d) => d.followers)
+  const minFollowers = followersValues.length > 0 ? Math.min(...followersValues) : 0
+  const maxFollowers = followersValues.length > 0 ? Math.max(...followersValues) : 0
+  const margin = Math.max(1, Math.round((maxFollowers - minFollowers) * 0.05))
+  const yDomain = [minFollowers - margin, maxFollowers + margin]
+
   const chartConfig = {
     followers: {
       label: 'Followers',
@@ -114,6 +121,7 @@ const FollowersGrowthChart: React.FC<FollowersGrowthChartProps> = ({ followers_h
               axisLine={false}
               tickMargin={8}
               tickFormatter={(value) => value.toLocaleString()}
+              domain={yDomain}
             />
             <Tooltip
               content={

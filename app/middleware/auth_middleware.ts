@@ -10,7 +10,7 @@ export default class AuthMiddleware {
   /**
    * The URL to redirect to, when authentication fails
    */
-  redirectTo = '/dashboard'
+  redirectTo = '/dashboard' // Redirect to dashboard, which handles auth state
 
   async handle(
     ctx: HttpContext,

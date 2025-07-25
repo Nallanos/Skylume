@@ -14,7 +14,6 @@ import Feed from '#models/feed'
 import DmCampaign from '#models/dm_campaign'
 
 router.on('/').renderInertia('home')
-router.on('/login').renderInertia('login')
 router.on("/terms").renderInertia("terms")
 router.on("/privacy").renderInertia("privacy")
 router.on("/pricing").renderInertia("pricing")
@@ -28,8 +27,6 @@ router.on("/add/schedule").renderInertia("AddSchedule").use(middleware.auth())
 router.on("/plan/change").renderInertia("planChange").use(middleware.auth())
 router.on('/account/:id/dashboard/loading').renderInertia("AccountDashboard").use(middleware.auth())
 
-// AI Analysis Routes
-router.on("/ai-analysis").renderInertia("AiAnalysis").use(middleware.auth())
 // Route corrigée pour l'analyse d'audience
 // router.get("/account/:id/audience-analysis", async ({ params, inertia, auth, response }) => {
 //     const user = auth.user
@@ -63,7 +60,6 @@ const follower_tracker_controller = () => import('#controllers/follower_tracker_
 const python_controller_methods = () => import('#controllers/python_controller_methods')
 
 
-router.post("/login", [session_controller, 'login'])
 router.put("/logout", [session_controller, 'logout']).use(middleware.auth())
 
 // General Follower Tracker route - handles account selection
@@ -119,10 +115,12 @@ router.post('/feed/delete', async ({ request, response }) => {
 router.get("/feed/:id/getPosts", [feed_controller, "processPosts"]).use(middleware.auth())
 
 
-router.get('/dashboard', async ({ auth, inertia, response }) => {
-    try {
-        let user = await auth.authenticate()
+router.get('/dashboard', async ({ auth, inertia }) => {
+    // Silently check for authentication (including remember me tokens)
+    await auth.check()
 
+    const user = auth.user
+    if (user) {
         let accounts = await Account.query()
             .where('user_id', user.id)
             .orderBy('followers_count', 'desc')
@@ -130,13 +128,10 @@ router.get('/dashboard', async ({ auth, inertia, response }) => {
         return inertia.render('dashboard', {
             accounts: accounts,
         })
-    } catch (err) {
-        if (err.status === 401 || err.message === "E_UNAUTHORIZED_ACCESS") {
-            console.error(err)
-            return inertia.render('dashboard', { accounts: [] })
-        }
-        console.error("test", err)
-        return response.redirect("/")
+    } else {
+        // User not authenticated, show AddAccount component
+        console.log('User not authenticated, showing AddAccount component')
+        return inertia.render('dashboard', { accounts: [] })
     }
 })
 
@@ -170,6 +165,10 @@ router.get('/analytics/:id', [analytics_controller, 'basicAnalytics']).use(middl
 router.get('/analytics/:id/audience', [analytics_controller, 'audienceAnalysisPage']).use(middleware.auth())
 router.get('/analytics/:id/audience/refresh', [follower_analysis_controller, 'getAnalysisStatus']).use(middleware.auth())
 
+// Routes pour le cache des clusters
+router.post('/api/accounts/:id/clusters/refresh-cache', [analytics_controller, 'refreshClusterCache']).use(middleware.auth())
+router.get('/api/accounts/:id/clusters/data', [analytics_controller, 'getClusterData']).use(middleware.auth())
+
 // Routes pour les détails de cluster
 router.get('/accounts/:id/clusters/cluster/:clusterId', [analytics_controller, 'clusterDetail']).use(middleware.auth())
 router.get('/accounts/:id/clusters/supercluster/:superClusterId', [analytics_controller, 'superClusterDetail']).use(middleware.auth())
@@ -177,7 +176,8 @@ router.get('/accounts/:id/clusters/supercluster/:superClusterId', [analytics_con
 // Routes d'analyse des followers
 router.post('/api/accounts/:id/follower-analysis/start', [follower_analysis_controller, 'startAnalysis']).use(middleware.auth())
 router.post('/api/accounts/:id/follower-analysis/stop', [follower_analysis_controller, 'stopAnalysis']).use(middleware.auth())
-router.get('/api/accounts/:id/follower-analysis/status', [follower_analysis_controller, 'getAnalysisStatus']).use(middleware.auth())
+router.post('/api/accounts/:id/follower-analysis/force-reset', [follower_analysis_controller, 'forceResetAnalysis']).use(middleware.auth())
+router.get('/api/accounts/:id/follower-analysis/status', [follower_analysis_controller, 'getAnalysisStatusApi']).use(middleware.auth())
 router.get('/api/accounts/:id/follower-analysis/stream', [follower_analysis_controller, 'streamAnalysisStatus']).use(middleware.auth())
 router.get('/api/clusters', [follower_analysis_controller, 'getClusters'])
 

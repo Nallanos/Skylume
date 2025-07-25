@@ -310,7 +310,7 @@ export class AiSchedulerService {
 
       // Si terminé ou échoué, nettoyer après 24h
       if (status === 'completed' || status === 'failed') {
-        await redis.expire(`job:${jobId}`, 24 * 60 * 60) // 24 heures
+        await redis.expire(`job:${jobId}`, 2 * 60) // 24 heures
       }
     } catch (error) {
       console.error(`Error updating bulk job status: ${error.message}`)
@@ -346,25 +346,38 @@ export class AiSchedulerService {
    */
   public async isBulkAnalysisActiveInQueue(analysisId: number): Promise<boolean> {
     try {
-      // Chercher dans la queue des jobs en attente
+      // 1. Chercher dans la queue des jobs en attente
       const queuedJobs = await redis.zrange(this.BULK_ANALYSIS_QUEUE, 0, -1)
 
       for (const jobId of queuedJobs) {
         const jobData = await redis.hgetall(`job:${jobId}`)
         if (jobData.analysisId === analysisId.toString()) {
+          console.log(`Found queued job ${jobId} for analysis ${analysisId}`)
           return true
         }
       }
 
-      // Chercher parmi les jobs en cours (qui ont été retirés de la queue mais pas encore terminés)
-      const pattern = 'job:audience_analysis_*'
-      const keys = await redis.keys(pattern)
+      // 2. Chercher un job en cours de traitement avec un pattern plus spécifique
+      const jobIdPattern = `audience_analysis_${analysisId}_*`
+      const jobKeys = await redis.keys(`job:${jobIdPattern}`)
 
-      for (const key of keys) {
+      for (const key of jobKeys) {
         const jobData = await redis.hgetall(key)
-        if (jobData.analysisId === analysisId.toString() &&
-          (jobData.status === 'processing' || jobData.status === 'queued')) {
-          return true
+        if (jobData.status === 'processing') {
+          // Vérifier si le job est récent (moins de 10 minutes)
+          const createdAt = new Date(jobData.createdAt || jobData.updatedAt)
+          const now = new Date()
+          const timeDiff = now.getTime() - createdAt.getTime()
+          const tenMinutes = 10 * 60 * 1000
+
+          if (timeDiff < tenMinutes) {
+            console.log(`Found recent processing job ${key} for analysis ${analysisId}`)
+            return true
+          } else {
+            console.log(`Found stale processing job ${key} for analysis ${analysisId}, cleaning up`)
+            // Nettoyer le job obsolète
+            await redis.del(key)
+          }
         }
       }
 
@@ -373,6 +386,245 @@ export class AiSchedulerService {
       console.error(`Error checking if bulk analysis is active in queue: ${error.message}`)
       // En cas d'erreur Redis, on retourne false pour permettre de relancer
       return false
+    }
+  }
+
+  /**
+   * Nettoie les jobs obsolètes et orphelins dans Redis
+   * @param analysisId - ID de l'analyse à nettoyer (optionnel)
+   */
+  public async cleanupStaleJobs(analysisId?: number): Promise<void> {
+    try {
+      console.log('Starting cleanup of stale jobs...')
+      let pattern = 'job:audience_analysis_*'
+      if (analysisId) {
+        pattern = `job:audience_analysis_${analysisId}_*`
+      }
+
+      const jobKeys = await redis.keys(pattern)
+      let cleanedCount = 0
+
+      for (const key of jobKeys) {
+        const jobData = await redis.hgetall(key)
+
+        if (!jobData.createdAt && !jobData.updatedAt) {
+          // Job sans timestamp, probablement corrompu
+          await redis.del(key)
+          cleanedCount++
+          continue
+        }
+
+        const lastUpdate = new Date(jobData.updatedAt || jobData.createdAt)
+        const now = new Date()
+        const timeDiff = now.getTime() - lastUpdate.getTime()
+        const oneHour = 60 * 60 * 1000
+
+        // Nettoyer les jobs de plus d'une heure
+        if (timeDiff > oneHour) {
+          console.log(`Cleaning up stale job ${key} (${timeDiff / 1000 / 60} minutes old)`)
+          await redis.del(key)
+          cleanedCount++
+        }
+      }
+
+      // Nettoyer aussi les jobs orphelins dans la queue
+      const queuedJobs = await redis.zrange(this.BULK_ANALYSIS_QUEUE, 0, -1)
+      for (const jobId of queuedJobs) {
+        const jobExists = await redis.exists(`job:${jobId}`)
+        if (!jobExists) {
+          console.log(`Removing orphaned job ${jobId} from queue`)
+          await redis.zrem(this.BULK_ANALYSIS_QUEUE, jobId)
+          cleanedCount++
+        }
+      }
+
+      console.log(`Cleanup completed: ${cleanedCount} stale jobs removed`)
+    } catch (error) {
+      console.error(`Error during cleanup: ${error.message}`)
+    }
+  }
+
+  /**
+   * Récupère le statut complet d'une analyse avec nettoyage automatique
+   * @param analysisId - ID de l'analyse
+   * @returns Informations sur le statut de l'analyse
+   */
+  public async getAnalysisQueueStatus(analysisId: number): Promise<{
+    isActive: boolean
+    isQueued: boolean
+    isProcessing: boolean
+    jobId?: string
+    status?: string
+    lastUpdate?: string
+  }> {
+    try {
+      // D'abord nettoyer les jobs obsolètes pour cette analyse
+      await this.cleanupStaleJobs(analysisId)
+
+      let isQueued = false
+      let isProcessing = false
+      let jobId: string | undefined
+      let status: string | undefined
+      let lastUpdate: string | undefined
+
+      // Vérifier dans la queue
+      const queuedJobs = await redis.zrange(this.BULK_ANALYSIS_QUEUE, 0, -1)
+      for (const queuedJobId of queuedJobs) {
+        const jobData = await redis.hgetall(`job:${queuedJobId}`)
+        if (jobData.analysisId === analysisId.toString()) {
+          isQueued = true
+          jobId = queuedJobId
+          status = jobData.status
+          lastUpdate = jobData.updatedAt || jobData.createdAt
+          break
+        }
+      }
+
+      // Vérifier les jobs en cours
+      if (!isQueued) {
+        const jobIdPattern = `audience_analysis_${analysisId}_*`
+        const jobKeys = await redis.keys(`job:${jobIdPattern}`)
+
+        for (const key of jobKeys) {
+          const jobData = await redis.hgetall(key)
+          if (jobData.status === 'processing') {
+            isProcessing = true
+            jobId = key.replace('job:', '')
+            status = jobData.status
+            lastUpdate = jobData.updatedAt || jobData.createdAt
+            break
+          }
+        }
+      }
+
+      return {
+        isActive: isQueued || isProcessing,
+        isQueued,
+        isProcessing,
+        jobId,
+        status,
+        lastUpdate
+      }
+    } catch (error) {
+      console.error(`Error getting analysis queue status: ${error.message}`)
+      return {
+        isActive: false,
+        isQueued: false,
+        isProcessing: false
+      }
+    }
+  }
+
+  /**
+   * Force l'arrêt complet d'une analyse et nettoie tous les jobs associés
+   * @param analysisId - ID de l'analyse à arrêter
+   */
+  public async forceStopAnalysis(analysisId: number): Promise<void> {
+    try {
+      console.log(`Force stopping analysis ${analysisId}`)
+
+      // 1. Supprimer tous les jobs en queue pour cette analyse
+      const queuedJobs = await redis.zrange(this.BULK_ANALYSIS_QUEUE, 0, -1)
+      for (const jobId of queuedJobs) {
+        const jobData = await redis.hgetall(`job:${jobId}`)
+        if (jobData.analysisId === analysisId.toString()) {
+          await redis.zrem(this.BULK_ANALYSIS_QUEUE, jobId)
+          await redis.del(`job:${jobId}`)
+          console.log(`Removed queued job ${jobId} for analysis ${analysisId}`)
+        }
+      }
+
+      // 2. Supprimer tous les jobs en cours pour cette analyse
+      const jobIdPattern = `audience_analysis_${analysisId}_*`
+      const jobKeys = await redis.keys(`job:${jobIdPattern}`)
+
+      for (const key of jobKeys) {
+        await redis.del(key)
+        console.log(`Removed processing job ${key} for analysis ${analysisId}`)
+      }
+
+      console.log(`Force stop completed for analysis ${analysisId}`)
+    } catch (error) {
+      console.error(`Error force stopping analysis: ${error.message}`)
+      throw error
+    }
+  }
+
+  /**
+   * Méthode appelée par le worker Python pour signaler la fin du traitement
+   * @param jobId - ID du job qui a été traité
+   * @param success - Si le traitement a réussi
+   * @param errorMessage - Message d'erreur si le traitement a échoué
+   */
+  public async completeJobFromWorker(
+    jobId: string,
+    success: boolean,
+    errorMessage?: string
+  ): Promise<void> {
+    try {
+      const status = success ? 'completed' : 'failed'
+      await this.updateBulkJobStatus(jobId, status, errorMessage)
+
+      if (success) {
+        console.log(`✅ Job ${jobId} completed successfully by worker`)
+      } else {
+        console.log(`❌ Job ${jobId} failed in worker: ${errorMessage}`)
+      }
+    } catch (error) {
+      console.error(`Error completing job from worker: ${error.message}`)
+    }
+  }
+
+  /**
+   * Méthode pour vérifier l'état de la communication avec le worker
+   * @returns Statistiques sur l'état de la queue
+   */
+  public async getQueueStats(): Promise<{
+    queuedJobs: number
+    processingJobs: number
+    recentCompletedJobs: number
+    staleJobs: number
+  }> {
+    try {
+      const queuedJobs = await redis.zcard(this.BULK_ANALYSIS_QUEUE)
+
+      const allJobKeys = await redis.keys('job:audience_analysis_*')
+      let processingJobs = 0
+      let recentCompletedJobs = 0
+      let staleJobs = 0
+
+      const now = new Date()
+      const oneHour = 60 * 60 * 1000
+      const oneDay = 24 * oneHour
+
+      for (const key of allJobKeys) {
+        const jobData = await redis.hgetall(key)
+        const lastUpdate = new Date(jobData.updatedAt || jobData.createdAt)
+        const timeDiff = now.getTime() - lastUpdate.getTime()
+
+        if (jobData.status === 'processing' && timeDiff < oneHour) {
+          processingJobs++
+        } else if (jobData.status === 'completed' && timeDiff < oneDay) {
+          recentCompletedJobs++
+        } else if (timeDiff > oneHour) {
+          staleJobs++
+        }
+      }
+
+      return {
+        queuedJobs,
+        processingJobs,
+        recentCompletedJobs,
+        staleJobs
+      }
+    } catch (error) {
+      console.error(`Error getting queue stats: ${error.message}`)
+      return {
+        queuedJobs: 0,
+        processingJobs: 0,
+        recentCompletedJobs: 0,
+        staleJobs: 0
+      }
     }
   }
 }

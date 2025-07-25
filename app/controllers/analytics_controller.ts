@@ -10,6 +10,8 @@ import SuperCluster from '#models/superCluster'
 import Database from '@adonisjs/lucid/services/db'
 import AccountManager from '#services/account_manager'
 import { CacheManager } from '#services/cache_manager'
+import redis from '@adonisjs/redis/services/main'
+
 // Interfaces pour typer les données d'analytics
 interface FollowerHistory {
     date: string | null
@@ -41,7 +43,10 @@ interface AnalyticsData {
 }
 @inject()
 export default class AnalyticsController {
-    constructor(protected account_manager: AccountManager, protected cacheManager: CacheManager) { }
+    constructor(
+        protected account_manager: AccountManager,
+        protected cacheManager: CacheManager
+    ) { }
 
     /**
      * Affiche la page d'analytics de base avec les données nécessaires
@@ -233,7 +238,7 @@ export default class AnalyticsController {
     public async audienceAnalysisPage({ params, response, auth, inertia }: HttpContext) {
         const user = await auth.authenticate()
         if (!user) {
-            return response.status(401).redirect('/login')
+            return response.status(401).redirect('/dashboard')
         }
 
         const accountId = params.id
@@ -251,275 +256,56 @@ export default class AnalyticsController {
                 .orderBy('created_at', 'desc')
                 .first()
 
-            const [clusters, superClusters] = await Promise.all([
-                Cluster.query()
-                    .where('accountHandle', selectedAccount.handle)
-                    .preload('superCluster'),
-                SuperCluster.query()
-                    .where('accountHandle', selectedAccount.handle)
-            ])
+            // Utiliser le système de cache pour récupérer les clusters
+            const clusterData = await this.getCachedClusterData(selectedAccount.handle)
 
-            console.log("Clusters:", clusters)
-            console.log("superClusters: ", superClusters)
-
-
-            // Sérialiser les données pour le frontend
-            const serializedClusters = clusters.map(cluster => ({
-                id: cluster.id,
-                tag: cluster.tag,
-                handles: cluster.handles || [],
-                size: cluster.size,
-                accountHandle: cluster.accountHandle,
-                superClusterId: cluster.superClusterId,
-                embeddings: cluster.embeddings || [],
-                superCluster: cluster.superCluster ? {
-                    id: cluster.superCluster.id,
-                    tag: cluster.superCluster.tag
-                } : null
-            }))
-
-            const serializedSuperClusters = superClusters.map(superCluster => ({
-                id: superCluster.id,
-                tag: superCluster.tag,
-                handles: superCluster.handles || [],
-                size: superCluster.size,
-                accountHandle: superCluster.accountHandle,
-                embeddings: superCluster.embeddings || []
-            }))
+            console.log('Clusters trouvés:', clusterData.clusters.length, 'SuperClusters:', clusterData.superClusters.length)
 
             // Préparer les données d'analyse pour le frontend
-            const analysisStatus = currentAnalysis ? {
+            const analysisJob = currentAnalysis ? {
                 id: currentAnalysis.id,
                 status: currentAnalysis.status,
-                progress: currentAnalysis.progress,
-                startedAt: currentAnalysis.startedAt,
-                completedAt: currentAnalysis.completedAt,
-                errorMessage: currentAnalysis.errorMessage
-            } : null
+                progress: currentAnalysis.progress ?
+                    (typeof currentAnalysis.progress === 'object' ? currentAnalysis.progress.percentage || 0 : 0) : 0,
+                total_followers: currentAnalysis.progress ?
+                    (typeof currentAnalysis.progress === 'object' ? currentAnalysis.progress.total || 0 : 0) : 0,
+                processed_followers: currentAnalysis.progress ?
+                    (typeof currentAnalysis.progress === 'object' ? currentAnalysis.progress.analyzed || 0 : 0) : 0,
+                started_at: currentAnalysis.startedAt?.toISO() || '',
+                completed_at: currentAnalysis.completedAt?.toISO(),
+                error_message: currentAnalysis.errorMessage || undefined
+            } : undefined
+
+            // Déterminer si l'analyse est en cours - utiliser les statuts corrects
+            const analysisRunning = currentAnalysis ? ['pending', 'in_progress'].includes(currentAnalysis.status) : false
 
             // Si l'analyse est complétée, charger les clusters et super clusters
-            if (serializedSuperClusters.length > 0 || serializedClusters.length > 0) {
+            if (clusterData.superClusters.length > 0 || clusterData.clusters.length > 0) {
                 console.log('Analyse d\'audience déjà commencée, chargement des données...')
 
-                console.log(serializedSuperClusters)
                 return inertia.render('AudienceAnalysis', {
                     account: selectedAccount,
-                    clusters: serializedClusters,
-                    superClusters: serializedSuperClusters,
-                    analysisStatus,
-                    isRealData: true
+                    clusters: clusterData.clusters,
+                    superClusters: clusterData.superClusters,
+                    analysis_job: analysisJob,
+                    analysis_running: analysisRunning,
+                    isRealData: true,
+                    cache_info: {
+                        fromCache: clusterData.fromCache,
+                        cachedAt: clusterData.cachedAt
+                    }
                 })
             } else {
-                // Si l'analyse n'est pas encore complétée, afficher la page avec des données fictives pour le développement
                 console.log('Analyse d\'audience non complétée, affichage de la page avec données fictives...')
-
-                // Données fictives pour le développement et les tests
-                const mockSuperClusters = [
-                    {
-                        id: 1,
-                        tag: 'Tech & Développement',
-                        handles: ['@developer.bsky.social', '@programmer.bsky.social', '@coder.bsky.social'],
-                        size: 150,
-                        accountHandle: selectedAccount.handle,
-                        embeddings: [0.1, 0.2, 0.3, 0.4, 0.5]
-                    },
-                    {
-                        id: 2,
-                        tag: 'Design & Créativité',
-                        handles: ['@designer.bsky.social', '@artist.bsky.social', '@creative.bsky.social'],
-                        size: 120,
-                        accountHandle: selectedAccount.handle,
-                        embeddings: [0.2, 0.3, 0.4, 0.5, 0.6]
-                    },
-                    {
-                        id: 3,
-                        tag: 'Business & Entrepreneuriat',
-                        handles: ['@entrepreneur.bsky.social', '@startup.bsky.social', '@business.bsky.social'],
-                        size: 95,
-                        accountHandle: selectedAccount.handle,
-                        embeddings: [0.3, 0.4, 0.5, 0.6, 0.7]
-                    },
-                    {
-                        id: 4,
-                        tag: 'Lifestyle & Loisirs',
-                        handles: ['@lifestyle.bsky.social', '@travel.bsky.social', '@foodie.bsky.social'],
-                        size: 80,
-                        accountHandle: selectedAccount.handle,
-                        embeddings: [0.4, 0.5, 0.6, 0.7, 0.8]
-                    },
-                    {
-                        id: 5,
-                        tag: 'Science & Technologie',
-                        handles: ['@science.bsky.social', '@tech.bsky.social', '@innovation.bsky.social'],
-                        size: 110,
-                        accountHandle: selectedAccount.handle,
-                        embeddings: [0.5, 0.6, 0.7, 0.8, 0.9]
-                    },
-                    {
-                        id: 6,
-                        tag: 'Santé & Bien-être',
-                        handles: ['@health.bsky.social', '@wellness.bsky.social', '@fitness.bsky.social'],
-                        size: 70,
-                        accountHandle: selectedAccount.handle,
-                        embeddings: [0.6, 0.7, 0.8, 0.9, 1.0]
-                    },
-                    {
-                        id: 7,
-                        tag: 'Culture & Divertissement',
-                        handles: ['@culture.bsky.social', '@entertainment.bsky.social', '@media.bsky.social'],
-                        size: 60,
-                        accountHandle: selectedAccount.handle,
-                        embeddings: [0.7, 0.8, 0.9, 1.0, 1.1]
-                    },
-                    {
-                        id: 8,
-                        tag: 'Éducation & Apprentissage',
-                        handles: ['@education.bsky.social', '@learning.bsky.social', '@knowledge.bsky.social'],
-                        size: 50,
-                        accountHandle: selectedAccount.handle,
-                        embeddings: [0.8, 0.9, 1.0, 1.1, 1.2]
-                    },
-                    {
-                        id: 9,
-                        tag: 'Communauté & Réseautage',
-                        handles: ['@community.bsky.social', '@networking.bsky.social', '@social.bsky.social'],
-                        size: 40,
-                        accountHandle: selectedAccount.handle,
-                        embeddings: [0.9, 1.0, 1.1, 1.2, 1.3]
-                    },
-                    {
-                        id: 10,
-                        tag: 'Actualités & Médias',
-                        handles: ['@news.bsky.social', '@media.bsky.social', '@journalism.bsky.social'],
-                        size: 30,
-                        accountHandle: selectedAccount.handle,
-                        embeddings: [1.0, 1.1, 1.2, 1.3, 1.4]
-                    },
-
-                ]
-
-                const mockClusters = [
-                    {
-                        id: 1,
-                        tag: 'Développeurs Frontend',
-                        handles: ['@react.dev.bsky.social', '@vue.dev.bsky.social', '@svelte.dev.bsky.social'],
-                        size: 75,
-                        accountHandle: selectedAccount.handle,
-                        superClusterId: 1,
-                        embeddings: [0.15, 0.25, 0.35, 0.45, 0.55],
-                        superCluster: { id: 1, tag: 'Tech & Développement' }
-                    },
-                    {
-                        id: 2,
-                        tag: 'Développeurs Backend',
-                        handles: ['@nodejs.dev.bsky.social', '@python.dev.bsky.social', '@java.dev.bsky.social'],
-                        size: 65,
-                        accountHandle: selectedAccount.handle,
-                        superClusterId: 1,
-                        embeddings: [0.12, 0.22, 0.32, 0.42, 0.52],
-                        superCluster: { id: 1, tag: 'Tech & Développement' }
-                    },
-                    {
-                        id: 3,
-                        tag: 'UI/UX Designers',
-                        handles: ['@figma.design.bsky.social', '@sketch.design.bsky.social', '@adobe.design.bsky.social'],
-                        size: 80,
-                        accountHandle: selectedAccount.handle,
-                        superClusterId: 2,
-                        embeddings: [0.25, 0.35, 0.45, 0.55, 0.65],
-                        superCluster: { id: 2, tag: 'Design & Créativité' }
-                    },
-                    {
-                        id: 4,
-                        tag: 'Illustrateurs',
-                        handles: ['@illustrator.art.bsky.social', '@digital.art.bsky.social', '@concept.art.bsky.social'],
-                        size: 40,
-                        accountHandle: selectedAccount.handle,
-                        superClusterId: 2,
-                        embeddings: [0.22, 0.32, 0.42, 0.52, 0.62],
-                        superCluster: { id: 2, tag: 'Design & Créativité' }
-                    },
-                    {
-                        id: 5,
-                        tag: 'Startups Tech',
-                        handles: ['@techstartup.bsky.social', '@saas.startup.bsky.social', '@fintech.bsky.social'],
-                        size: 55,
-                        accountHandle: selectedAccount.handle,
-                        superClusterId: 3,
-                        embeddings: [0.35, 0.45, 0.55, 0.65, 0.75],
-                        superCluster: { id: 3, tag: 'Business & Entrepreneuriat' }
-                    },
-                    {
-                        id: 6,
-                        tag: 'Investisseurs',
-                        handles: ['@vc.fund.bsky.social', '@angel.investor.bsky.social', '@crypto.investor.bsky.social'],
-                        size: 40,
-                        accountHandle: selectedAccount.handle,
-                        superClusterId: 3,
-                        embeddings: [0.32, 0.42, 0.52, 0.62, 0.72],
-                        superCluster: { id: 3, tag: 'Business & Entrepreneuriat' }
-                    },
-                    {
-                        id: 7,
-                        tag: 'Blogueurs Tech',
-                        handles: ['@techblog.bsky.social', '@devblog.bsky.social', '@coding.blog.bsky.social'],
-                        size: 30,
-                        accountHandle: selectedAccount.handle,
-                        superClusterId: null,
-                        embeddings: [0.18, 0.28, 0.38, 0.48, 0.58],
-                        superCluster: null
-                    },
-                    {
-                        id: 8,
-                        tag: 'Photographes',
-                        handles: ['@photography.bsky.social', '@photojournalism.bsky.social', '@landscape.bsky.social'],
-                        size: 50,
-                        accountHandle: selectedAccount.handle,
-                        superClusterId: null,
-                        embeddings: [0.20, 0.30, 0.40, 0.50, 0.60],
-                        superCluster: null
-                    },
-                    {
-                        id: 9,
-                        tag: 'Musiciens',
-                        handles: ['@musician.bsky.social', '@band.bsky.social', '@composer.bsky.social'],
-                        size: 45,
-                        accountHandle: selectedAccount.handle,
-                        superClusterId: null,
-                        embeddings: [0.15, 0.25, 0.35, 0.45, 0.55],
-                        superCluster: null
-                    },
-                    {
-                        id: 10,
-                        tag: 'Influenceurs Lifestyle',
-                        handles: ['@lifestyle.influencer.bsky.social', '@travel.influencer.bsky.social', '@foodie.influencer.bsky.social'],
-                        size: 60,
-                        accountHandle: selectedAccount.handle,
-                        superClusterId: null,
-                        embeddings: [0.10, 0.20, 0.30, 0.40, 0.50],
-                        superCluster: null
-                    }
-                ]
-
-                const mockAnalysisStatus = {
-                    id: 1,
-                    status: 'completed' as const,
-                    progress: {
-                        analyzed: 500,
-                        total: 500,
-                        percentage: 100
-                    },
-                    startedAt: new Date(Date.now() - 300000).toISOString(), // Il y a 5 minutes
-                    completedAt: new Date(Date.now() - 60000).toISOString(), // Il y a 1 minute
-                    errorMessage: null
-                }
 
                 return inertia.render('AudienceAnalysis', {
                     account: selectedAccount,
-                    clusters: mockClusters,
-                    superClusters: mockSuperClusters,
-                    analysisStatus: mockAnalysisStatus,
-                    isRealData: false
+                    clusters: [],
+                    superClusters: [],
+                    analysis_job: analysisJob,
+                    analysis_running: analysisRunning,
+                    isRealData: false,
+                    cache_info: null
                 })
             }
         } catch (error) {
@@ -748,7 +534,7 @@ export default class AnalyticsController {
     public async clusterDetail({ inertia, auth, params, response }: HttpContext) {
         const user = await auth.authenticate()
         if (!user) {
-            return response.redirect('/login')
+            return response.redirect('/dashboard')
         }
 
         try {
@@ -785,7 +571,7 @@ export default class AnalyticsController {
     public async superClusterDetail({ inertia, auth, params, response }: HttpContext) {
         const user = await auth.authenticate()
         if (!user) {
-            return response.redirect('/login')
+            return response.redirect('/dashboard')
         }
 
         try {
@@ -819,6 +605,198 @@ export default class AnalyticsController {
         } catch (error) {
             console.error('Erreur lors du chargement du super cluster:', error)
             return response.redirect('/dashboard')
+        }
+    }
+
+    /**
+     * Récupère les données de clusters depuis le cache ou depuis la base de données
+     */
+    private async getCachedClusterData(accountHandle: string) {
+        const cacheKey = `cluster_data:${accountHandle}`
+        const cacheTTL = 60 * 60 * 2 // 2 heures de cache
+
+        try {
+            // Tenter de récupérer depuis le cache
+            const cachedData = await redis.get(cacheKey)
+            const parsedData = cachedData ? JSON.parse(cachedData) : null
+            if (parsedData && parsedData.clusters && parsedData.superClusters &&
+                parsedData.clusters.length > 0 && parsedData.superClusters.length > 0) {
+                console.log(`Using cached cluster data for ${accountHandle}`)
+                return {
+                    clusters: parsedData.clusters,
+                    superClusters: parsedData.superClusters,
+                    fromCache: true,
+                    cachedAt: parsedData.cachedAt
+                }
+            }
+        } catch (cacheError) {
+            console.warn('Cache retrieval failed for clusters:', cacheError)
+        }
+
+        // Récupérer depuis la base de données
+        console.log(`Fetching fresh cluster data for ${accountHandle}...`)
+        const [clusters, superClusters] = await Promise.all([
+            Cluster.query()
+                .where('accountHandle', accountHandle)
+                .preload('superCluster'),
+            SuperCluster.query()
+                .where('accountHandle', accountHandle)
+        ])
+        console.log('Clusters trouvés:', clusters.length, 'SuperClusters:', superClusters.length)
+
+        // Sérialiser les données
+        const serializedClusters = clusters.map(cluster => ({
+            id: cluster.id,
+            tag: cluster.tag,
+            handles: cluster.handles || [],
+            size: cluster.size,
+            accountHandle: cluster.accountHandle,
+            superClusterId: cluster.superClusterId,
+            embeddings: cluster.embeddings || [],
+            superCluster: cluster.superCluster ? {
+                id: cluster.superCluster.id,
+                tag: cluster.superCluster.tag
+            } : undefined
+        }))
+
+        const serializedSuperClusters = superClusters.map(superCluster => ({
+            id: superCluster.id,
+            tag: superCluster.tag,
+            handles: superCluster.handles || [],
+            size: superCluster.size,
+            accountHandle: superCluster.accountHandle,
+            embeddings: superCluster.embeddings || []
+        }))
+
+        // Mettre en cache les données fraîches
+        try {
+            await redis.setex(cacheKey, cacheTTL, JSON.stringify({
+                clusters: serializedClusters,
+                superClusters: serializedSuperClusters,
+                cachedAt: new Date().toISOString()
+            }))
+            console.log(`Cached cluster data for ${accountHandle}`)
+        } catch (cacheError) {
+            console.warn('Cache storage failed for clusters:', cacheError)
+        }
+
+        return {
+            clusters: serializedClusters,
+            superClusters: serializedSuperClusters,
+            fromCache: false,
+            cachedAt: new Date().toISOString()
+        }
+    }
+
+    /**
+     * Force le rafraîchissement du cache des clusters
+     */
+    public async refreshClusterCache({ params, response, auth }: HttpContext) {
+        const user = await auth.authenticate()
+        if (!user) {
+            return response.status(401).json({ message: 'Non autorisé' })
+        }
+
+        const accountId = params.id
+
+        try {
+            // Vérifier que le compte appartient à l'utilisateur
+            const selectedAccount = await Account.query()
+                .where('id', accountId)
+                .andWhere('userId', user.id)
+                .firstOrFail()
+
+            // Supprimer le cache existant
+            const cacheKey = `cluster_data:${selectedAccount.handle}`
+            await redis.del(cacheKey)
+            console.log(`Cleared cluster cache for ${selectedAccount.handle}`)
+
+            // Récupérer les données fraîches (qui vont automatiquement recréer le cache)
+            const clusterData = await this.getCachedClusterData(selectedAccount.handle)
+
+            return response.json({
+                success: true,
+                message: 'Cache rafraîchi avec succès',
+                data: {
+                    clusters: clusterData.clusters,
+                    superClusters: clusterData.superClusters,
+                    fromCache: clusterData.fromCache,
+                    cachedAt: clusterData.cachedAt,
+                    clustersCount: clusterData.clusters.length,
+                    superClustersCount: clusterData.superClusters.length
+                }
+            })
+        } catch (error) {
+            console.error('Erreur lors du rafraîchissement du cache des clusters:', error)
+            return response.status(500).json({
+                success: false,
+                message: 'Erreur lors du rafraîchissement du cache'
+            })
+        }
+    }
+
+    /**
+     * API endpoint pour récupérer les données de clusters (avec cache)
+     */
+    public async getClusterData({ params, response, auth }: HttpContext) {
+        const user = await auth.authenticate()
+        if (!user) {
+            return response.status(401).json({ message: 'Non autorisé' })
+        }
+
+        const accountId = params.id
+
+        try {
+            // Vérifier que le compte appartient à l'utilisateur
+            const selectedAccount = await Account.query()
+                .where('id', accountId)
+                .andWhere('userId', user.id)
+                .firstOrFail()
+
+            // Récupérer les données depuis le cache ou la base de données
+            const clusterData = await this.getCachedClusterData(selectedAccount.handle)
+
+            // Récupérer aussi l'état de l'analyse
+            const currentAnalysis = await AnalysisAudience.query()
+                .where('account_id', accountId)
+                .orderBy('created_at', 'desc')
+                .first()
+
+            const analysisJob = currentAnalysis ? {
+                id: currentAnalysis.id,
+                status: currentAnalysis.status,
+                progress: currentAnalysis.progress || 0,
+                total_followers: currentAnalysis.progress?.total || 0,
+                processed_followers: currentAnalysis.progress?.analyzed || 0,
+                started_at: currentAnalysis.startedAt?.toISO() || '',
+                completed_at: currentAnalysis.completedAt?.toISO(),
+                error_message: currentAnalysis.errorMessage || undefined
+            } : undefined
+
+            const analysisRunning = currentAnalysis ? ['pending', 'in_progress'].includes(currentAnalysis.status) : false
+
+            return response.json({
+                success: true,
+                data: {
+                    account: selectedAccount,
+                    clusters: clusterData.clusters,
+                    superClusters: clusterData.superClusters,
+                    analysis_job: analysisJob,
+                    analysis_running: analysisRunning,
+                    cache_info: {
+                        fromCache: clusterData.fromCache,
+                        cachedAt: clusterData.cachedAt,
+                        clustersCount: clusterData.clusters.length,
+                        superClustersCount: clusterData.superClusters.length
+                    }
+                }
+            })
+        } catch (error) {
+            console.error('Erreur lors de la récupération des données de clusters:', error)
+            return response.status(500).json({
+                success: false,
+                message: 'Erreur lors de la récupération des données'
+            })
         }
     }
 

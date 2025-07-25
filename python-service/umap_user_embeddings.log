@@ -1,0 +1,20 @@
+2025-07-25 15:19:17,923 INFO Loaded 170 user embeddings from user_embeddings.json
+2025-07-25 15:19:17,997 INFO Logged 170 user embeddings to user_embeddings_global.log
+2025-07-25 15:19:17,997 INFO Embedding validation: 170 valid, 0 invalid
+2025-07-25 15:19:18,000 INFO Processing UMAP with 170 valid embeddings, shape: (170, 384)
+2025-07-25 15:19:26,076 INFO UMAP plot saved to umap_users.png with 170 points
+2025-07-25 15:22:18,300 INFO Loaded 170 user embeddings from user_embeddings.json
+2025-07-25 15:22:18,370 INFO Logged 170 user embeddings to user_embeddings_global.log
+2025-07-25 15:22:18,370 INFO Embedding validation: 170 valid, 0 invalid
+2025-07-25 15:22:18,372 INFO Processing UMAP with 170 valid embeddings, shape: (170, 384)
+2025-07-25 15:22:26,843 INFO UMAP plot saved to umap_users.png with 170 points
+2025-07-25 15:26:50,368 INFO Loaded 184 user embeddings from user_embeddings.json
+2025-07-25 15:26:50,443 INFO Logged 184 user embeddings to user_embeddings_global.log
+2025-07-25 15:26:50,443 INFO Embedding validation: 184 valid, 0 invalid
+2025-07-25 15:26:50,446 INFO Processing UMAP with 184 valid embeddings, shape: (184, 384)
+2025-07-25 15:26:58,628 INFO UMAP plot saved to umap_users.png with 184 points
+2025-07-25 17:37:31,911 INFO Loaded 443 user embeddings from user_embeddings.json
+2025-07-25 17:37:32,259 INFO Logged 443 user embeddings to user_embeddings_global.log
+2025-07-25 17:37:32,262 INFO Embedding validation: 443 valid, 0 invalid
+2025-07-25 17:37:32,272 INFO Processing UMAP with 443 valid embeddings, shape: (443, 384)
+2025-07-25 17:37:53,051 INFO UMAP plot saved to umap_users.png with 443 points

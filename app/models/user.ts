@@ -3,6 +3,7 @@ import hash from '@adonisjs/core/services/hash'
 import { compose } from '@adonisjs/core/helpers'
 import { BaseModel, column, hasMany, computed } from '@adonisjs/lucid/orm'
 import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
+import { DbRememberMeTokensProvider } from '@adonisjs/auth/session'
 import Account from './account.js'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
 import Scheduling from './scheduling.js'
@@ -45,6 +46,9 @@ export default class User extends compose(BaseModel, AuthFinder) {
 
   @column.dateTime({ autoCreate: true, autoUpdate: true })
   declare updatedAt: DateTime | null
+
+  // Configure Remember Me tokens provider
+  static rememberMeTokens = DbRememberMeTokensProvider.forModel(User)
 
   @hasMany(() => Account)
   declare account: HasMany<typeof Account>

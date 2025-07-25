@@ -3,7 +3,7 @@ import { Agent } from "@atproto/api";
 import pQueue from 'p-queue';
 import KMeans from 'ml-kmeans';
 import crypto from 'crypto';
-
+import * as WordNet from 'wordnet';
 
 // Import Transformers.js (cela fonctionnera localement avec WASM ou en pur JS)
 import { FeatureExtractionPipeline, pipeline } from '@xenova/transformers';
@@ -13,7 +13,15 @@ type KeywordData = {
   embeddings: number[][]; // tableau de nombres pour les embeddings
 }
 
-export class TargetAudienceService {
+type WordAnalysis = {
+  word: string;
+  isValid: boolean;
+  synsets: any[];
+  generalityScore: number;
+  frequency: number;
+}
+
+export class AIService {
   // Utilisation d'un modèle via Transformers.js
   private static model: FeatureExtractionPipeline | null = null;
   private static modelPromise: Promise<void>;
@@ -24,16 +32,16 @@ export class TargetAudienceService {
   private similarityCache: Map<string, number> = new Map();
 
   constructor() {
-    TargetAudienceService.modelPromise = this.initModel();
+    AIService.modelPromise = this.initModel();
     console.log('TargetAudienceService initialized with cache');
   }
 
   private async initModel() {
     console.log('Initializing Transformers model (all-MiniLM-L6-v2)...');
-    if (!TargetAudienceService.model) {
+    if (!AIService.model) {
       try {
         // Crée un pipeline pour l'extraction d'embeddings (le modèle sera téléchargé si nécessaire)
-        TargetAudienceService.model = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
+        AIService.model = await pipeline('feature-extraction', 'Xenova/all-MiniLM-L6-v2');
         console.log('Model loaded successfully.');
       } catch (error) {
         console.log('Error loading Transformers model:', error);
@@ -69,9 +77,9 @@ export class TargetAudienceService {
   // Prépare les embeddings pour une liste de keywords (tokens déjà en minuscule)
   private async prepareKeywords(keywords: string[]): Promise<KeywordData> {
     console.log('Preparing keywords for embedding...');
-    await TargetAudienceService.modelPromise;
+    await AIService.modelPromise;
     const kwSet = new Set(keywords);
-    if (!TargetAudienceService.model) {
+    if (!AIService.model) {
       throw new Error('Model not initialized');
     }
 
@@ -94,7 +102,7 @@ export class TargetAudienceService {
     // Traiter uniquement les mots clés non mis en cache
     let newEmbeddings: number[][] = [];
     if (uncachedKeywords.length > 0) {
-      const res = await TargetAudienceService.model(uncachedKeywords);
+      const res = await AIService.model(uncachedKeywords);
       newEmbeddings = this.convertEmbeddings(res.data as Float32Array, uncachedKeywords.length);
 
       // Mettre en cache les nouveaux embeddings
@@ -142,7 +150,7 @@ export class TargetAudienceService {
   // ──────────────────────────────
   // Calcul de la similarité sémantique entre un ensemble de mots et des keywords.
   private async semanticMatch(words: string[], keywordData: KeywordData): Promise<number> {
-    if (!TargetAudienceService.model) throw new Error('Model not initialized');
+    if (!AIService.model) throw new Error('Model not initialized');
 
     // Traiter les mots en utilisant le cache
     const cachedEmbeddings: number[][] = [];
@@ -162,7 +170,7 @@ export class TargetAudienceService {
     // Traiter uniquement les mots non mis en cache
     let newEmbeddings: number[][] = [];
     if (uncachedWords.length > 0) {
-      const wordEmbeddingsRes = await TargetAudienceService.model(uncachedWords);
+      const wordEmbeddingsRes = await AIService.model(uncachedWords);
       newEmbeddings = this.convertEmbeddings(wordEmbeddingsRes.data as Float32Array, uncachedWords.length);
       const normalizedNew = this.normalizeEmbeddings(newEmbeddings);
 
@@ -274,7 +282,7 @@ export class TargetAudienceService {
 
   private async getEmbedding(text: string): Promise<number[]> {
     try {
-      if (!TargetAudienceService.model) throw new Error("Model is not initialized");
+      if (!AIService.model) throw new Error("Model is not initialized");
       if (!text) throw new Error("Text is null");
 
       const cacheKey = this.generateCacheKey(text);
@@ -282,7 +290,7 @@ export class TargetAudienceService {
         return this.embeddingsCache.get(cacheKey)!;
       }
 
-      const tensor = await TargetAudienceService.model(text, {
+      const tensor = await AIService.model(text, {
         pooling: "mean",
         normalize: true,
       });
@@ -302,7 +310,7 @@ export class TargetAudienceService {
     keywords: string[],
     cursor: string | undefined
   ) {
-    await TargetAudienceService.modelPromise;
+    await AIService.modelPromise;
     const keywordData = await this.prepareKeywords(keywords);
     const followers: any[] = [];
 
@@ -339,8 +347,8 @@ export class TargetAudienceService {
   }
 
   public async getSemanticSimilarity(text1: string, text2: string): Promise<number> {
-    await TargetAudienceService.modelPromise;
-    if (!TargetAudienceService.model) throw new Error('Model not initialized');
+    await AIService.modelPromise;
+    if (!AIService.model) throw new Error('Model not initialized');
 
     // Vérifier le cache de similarité
     const cacheKey = this.generateCacheKey(text1, text2);
@@ -349,7 +357,7 @@ export class TargetAudienceService {
     }
 
     // Traiter les deux textes pour obtenir leurs embeddings
-    const embeddingsRes = await TargetAudienceService.model([text1, text2]);
+    const embeddingsRes = await AIService.model([text1, text2]);
     const embeddings = this.convertEmbeddings(embeddingsRes.data as Float32Array, 2);
     const normalized = this.normalizeEmbeddings(embeddings);
 
@@ -367,7 +375,7 @@ export class TargetAudienceService {
     profiles: ProfileView[]
   ) {
     try {
-      await TargetAudienceService.modelPromise;
+      await AIService.modelPromise;
       let profilesEmbeddings: ProfileEmbeddings[] = [];
       const profileProcessingQueue = new pQueue({ concurrency: 10 }); // Contrôle de la concurrence
 
@@ -440,7 +448,7 @@ export class TargetAudienceService {
     agent?: Agent,
     includePostAnalysis: boolean = false
   ): Promise<number> {
-    await TargetAudienceService.modelPromise;
+    await AIService.modelPromise;
 
     try {
       const keywordData = await this.prepareKeywords(keywords);
@@ -506,6 +514,279 @@ export class TargetAudienceService {
       console.error(`Error scoring profile ${profile.handle}:`, error);
       return 0;
     }
+  }
+
+  /**
+   * Génère un tag combiné intelligent basé sur WordNet pour analyser la hiérarchie sémantique
+   * Utilise les synsets, hypernymes et la profondeur dans la hiérarchie pour trouver le terme le plus général et approprié
+   */
+  public async generateCombinedClusterTag(tags: string[]): Promise<string> {
+    try {
+      console.log(`🔬 Analyzing ${tags.length} tags using WordNet semantic hierarchy...`)
+
+      if (tags.length === 0) return 'Mixed Community'
+      if (tags.length === 1) return tags[0]
+
+      // Nettoyer et extraire les mots significatifs de tous les tags
+      const allWords = this.extractSignificantWords(tags)
+      console.log(`📝 Extracted significant words: ${allWords.join(', ')}`)
+
+      if (allWords.length === 0) return tags[0] // Fallback au premier tag
+
+      // Filtrer les mots valides avant WordNet
+      const validWords = allWords.filter(word => this.isValidWordForWordNet(word))
+      console.log(`🔍 Filtered to ${validWords.length} valid words for WordNet: ${validWords.join(', ')}`)
+
+      if (validWords.length === 0) {
+        console.log(`⚠️ No valid words for WordNet analysis, using fallback`)
+        return tags.reduce((longest, current) =>
+          current.length > longest.length ? current : longest
+        )
+      }
+
+      // Analyser chaque mot avec WordNet
+      const wordAnalysis = await Promise.all(
+        validWords.map(word => this.analyzeWordWithWordNet(word))
+      )
+
+      // Filtrer les analyses valides
+      const validAnalyses = wordAnalysis.filter(analysis => analysis.isValid)
+      console.log(`✅ Found ${validAnalyses.length} valid WordNet analyses`)
+
+      if (validAnalyses.length === 0) {
+        // Fallback : retourner le tag le plus long
+        return tags.reduce((longest, current) =>
+          current.length > longest.length ? current : longest
+        )
+      }
+
+      // Trouver le meilleur terme basé sur la généralité et la fréquence
+      const bestTerm = this.selectBestTermFromAnalysis(validAnalyses, tags)
+      console.log(`🎯 Selected best term: "${bestTerm}"`)
+
+      return bestTerm
+
+    } catch (error) {
+      console.error('Error in generateCombinedClusterTag:', error)
+      // Fallback en cas d'erreur
+      return tags.reduce((longest, current) =>
+        current.length > longest.length ? current : longest
+      )
+    }
+  }
+
+  /**
+   * Extrait les mots significatifs des tags (supprime les mots vides, la ponctuation, etc.)
+   */
+  private extractSignificantWords(tags: string[]): string[] {
+    const stopWords = new Set([
+      'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'with', 'by',
+      'from', 'up', 'about', 'into', 'through', 'during', 'before', 'after', 'above', 'below',
+      'between', 'among', 'is', 'are', 'was', 'were', 'be', 'been', 'being', 'have', 'has', 'had',
+      'do', 'does', 'did', 'will', 'would', 'could', 'should', 'may', 'might', 'must', 'can'
+    ])
+
+    const words = new Set<string>()
+
+    tags.forEach(tag => {
+      // Diviser le tag en mots et nettoyer
+      const tagWords = tag.toLowerCase()
+        .replace(/[^\w\s]/g, ' ') // Remplacer la ponctuation par des espaces
+        .split(/\s+/)
+        .filter(word =>
+          word.length > 2 && // Mots de plus de 2 caractères
+          !stopWords.has(word) && // Pas de mots vides
+          /^[a-z]+$/.test(word) // Seulement des lettres
+        )
+
+      tagWords.forEach(word => words.add(word))
+    })
+
+    return Array.from(words)
+  }
+
+  /**
+   * Vérifie si un mot est valide pour une analyse WordNet
+   */
+  private isValidWordForWordNet(word: string): boolean {
+    try {
+      const problematicWords = new Set([
+        'writer', 
+        'affiliate',
+        'api', 'url', 'http', 'https', 'www', 
+        'bitcoin', 'crypto', 'nft', 
+        'instagram', 'twitter', 'facebook', 'tiktok',
+        'bot', 'ai', 'ml', 'ux', 'ui' 
+      ])
+
+      if (!word || word.length < 3 || word.length > 20) {
+        return false
+      }
+
+      // Vérifier si c'est un mot problématique connu
+      if (problematicWords.has(word.toLowerCase())) {
+        console.log(`⚠️ Skipping known problematic word: "${word}"`)
+        return false
+      }
+
+      // Vérifier le format (seulement lettres)
+      if (!/^[a-zA-Z]+$/.test(word)) {
+        return false
+      }
+
+      // Éviter les mots avec des caractères répétés (possibles erreurs)
+      if (/(.)\1{3,}/.test(word)) {
+        return false
+      }
+
+      return true
+    } catch (error) {
+      console.log(`❌ Error validating word "${word}": ${error}`)
+      return false
+    }
+  }
+
+  /**
+   * Analyse un mot avec WordNet pour obtenir ses propriétés sémantiques
+   */
+  private async analyzeWordWithWordNet(word: string): Promise<WordAnalysis> {
+    return new Promise((resolve) => {
+      const analysis: WordAnalysis = {
+        word,
+        isValid: false,
+        synsets: [],
+        generalityScore: 0,
+        frequency: 0
+      }
+
+      try {
+        // Chercher les synsets pour ce mot avec gestion d'erreur robuste
+        WordNet.lookup(word, (err: any, definitions: any[]) => {
+          try {
+            if (err) {
+              console.log(`❌ WordNet error for "${word}": ${err.message || err}`)
+              resolve(analysis)
+              return
+            }
+
+            if (!definitions || definitions.length === 0) {
+              console.log(`❌ No WordNet definitions found for "${word}"`)
+              resolve(analysis)
+              return
+            }
+
+            analysis.isValid = true
+            analysis.synsets = definitions
+
+            // Calculer le score de généralité basé sur les hypernymes
+            this.calculateGeneralityScore(definitions, analysis)
+              .then(() => {
+                console.log(`📊 "${word}": generality=${analysis.generalityScore.toFixed(2)}, synsets=${analysis.synsets.length}`)
+                resolve(analysis)
+              })
+              .catch((calcError) => {
+                console.log(`❌ Error calculating generality for "${word}": ${calcError}`)
+                resolve(analysis)
+              })
+          } catch (callbackError) {
+            console.log(`❌ WordNet callback error for "${word}": ${callbackError}`)
+            resolve(analysis)
+          }
+        })
+      } catch (error) {
+        console.log(`❌ WordNet lookup error for "${word}": ${error}`)
+        resolve(analysis)
+      }
+    })
+  }  /**
+   * Calcule le score de généralité d'un mot basé sur sa position dans la hiérarchie WordNet
+   */
+  private async calculateGeneralityScore(synsets: any[], analysis: WordAnalysis): Promise<void> {
+    let totalDepth = 0
+    let validSynsets = 0
+
+    for (const synset of synsets) {
+      try {
+        // Calculer la profondeur dans la hiérarchie en remontant les hypernymes
+        const depth = await this.getHierarchyDepth(synset)
+        if (depth > 0) {
+          totalDepth += depth
+          validSynsets++
+        }
+      } catch (error) {
+        // Ignorer les erreurs pour ce synset
+      }
+    }
+
+    if (validSynsets > 0) {
+      const averageDepth = totalDepth / validSynsets
+      // Score de généralité : plus la profondeur est faible, plus c'est général
+      // Normaliser entre 0 et 1 (profondeur max estimée à 15)
+      analysis.generalityScore = Math.max(0, 1 - (averageDepth / 15))
+    }
+  }
+
+  /**
+   * Calcule la profondeur d'un synset dans la hiérarchie WordNet
+   */
+  private async getHierarchyDepth(synset: any): Promise<number> {
+    return new Promise((resolve) => {
+      const maxDepth = 15 // Limite pour éviter les boucles infinies
+
+      const traverseUp = (currentSynset: any, currentDepth: number) => {
+        if (currentDepth >= maxDepth) {
+          resolve(currentDepth)
+          return
+        }
+
+        // Obtenir les hypernymes (concepts plus généraux)
+        WordNet.getHypernyms(currentSynset.synsetOffset, currentSynset.pos, (err: any, hypernyms: any[]) => {
+          if (err || !hypernyms || hypernyms.length === 0) {
+            // Pas d'hypernymes trouvés, on est probablement près de la racine
+            resolve(currentDepth)
+            return
+          }
+
+          // Prendre le premier hypernyme et continuer la traversée
+          traverseUp(hypernyms[0], currentDepth + 1)
+        })
+      }
+
+      traverseUp(synset, 1)
+    })
+  }
+
+  /**
+   * Sélectionne le meilleur terme basé sur l'analyse WordNet
+   */
+  private selectBestTermFromAnalysis(analyses: WordAnalysis[], originalTags: string[]): string {
+    // Calculer la fréquence de chaque mot dans les tags originaux
+    const wordFrequency = new Map<string, number>()
+
+    originalTags.forEach(tag => {
+      const words = this.extractSignificantWords([tag])
+      words.forEach(word => {
+        wordFrequency.set(word, (wordFrequency.get(word) || 0) + 1)
+      })
+    })
+
+    // Mettre à jour les scores de fréquence
+    analyses.forEach(analysis => {
+      analysis.frequency = wordFrequency.get(analysis.word) || 0
+    })
+
+    // Trier par score composite : généralité (60%) + fréquence (40%)
+    analyses.sort((a, b) => {
+      const scoreA = (a.generalityScore * 0.6) + ((a.frequency / originalTags.length) * 0.4)
+      const scoreB = (b.generalityScore * 0.6) + ((b.frequency / originalTags.length) * 0.4)
+      return scoreB - scoreA
+    })
+
+    const bestAnalysis = analyses[0]
+    console.log(`🏆 Best analysis: "${bestAnalysis.word}" (generality: ${bestAnalysis.generalityScore.toFixed(3)}, frequency: ${bestAnalysis.frequency})`)
+
+    // Retourner le mot le mieux classé, en capitalisant la première lettre
+    return bestAnalysis.word.charAt(0).toUpperCase() + bestAnalysis.word.slice(1)
   }
 
 

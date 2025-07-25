@@ -34,6 +34,17 @@ new Ignitor(APP_ROOT, { importer: IMPORTER })
     app.booting(async () => {
       await import('#start/env')
     })
+    app.ready(async () => {
+      // Nettoyer les jobs obsolètes au démarrage
+      try {
+        const { AiSchedulerService } = await import('#services/ai_scheduler_service')
+        const aiSchedulerService = new AiSchedulerService()
+        await aiSchedulerService.cleanupStaleJobs()
+        console.log('✅ Cleanup des jobs obsolètes terminé')
+      } catch (error) {
+        console.error('❌ Erreur lors du cleanup des jobs obsolètes:', error)
+      }
+    })
     app.listen('SIGTERM', () => app.terminate())
     app.listenIf(app.managedByPm2, 'SIGINT', () => app.terminate())
   })
