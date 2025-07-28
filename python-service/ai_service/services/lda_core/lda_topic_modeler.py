@@ -32,7 +32,7 @@ class LDATopicModeler:
                 self.logger.warning(f"⚠️ Could not initialize TextCleaner: {e}")
                 self.text_cleaner = None
 
-    def build_topic_matrix(self, texts: List[str], n_topics: int = None):
+    def build_topic_matrix(self, texts: List[str], n_topics: int = None, return_model_info: bool = False):
         """
         Build LDA topic distribution matrix from profile texts with advanced preprocessing.
         Optimized for lower perplexity using TextCleaner and best practices.
@@ -40,8 +40,10 @@ class LDATopicModeler:
         Args:
             texts: List of profile texts
             n_topics: Number of topics (auto-determined if None)
+            return_model_info: If True, returns tuple with (matrix, model_info)
         Returns:
             Topic distribution matrix (n_profiles x n_topics) or None if failed
+            Or tuple (matrix, model_info) if return_model_info=True
         """
         try:
             from sklearn.feature_extraction.text import CountVectorizer
@@ -120,6 +122,10 @@ class LDATopicModeler:
             # Step 5: Enhanced logging and evaluation
             self.logger.info(f"✅ LDA topic matrix built: {topic_distributions.shape} (profiles x topics)")
             
+            # Extract topic words
+            feature_names = vectorizer.get_feature_names_out()
+            topic_words = self.get_topic_words(lda, feature_names, top_words=50)
+            
             try:
                 # Calculate and log perplexity
                 perplexity = lda.perplexity(text_matrix)
@@ -130,14 +136,28 @@ class LDATopicModeler:
                 
             except Exception as e:
                 self.logger.warning(f"Could not calculate perplexity: {e}")
+            
+            if return_model_info:
+                model_info = {
+                    'n_topics': n_topics,
+                    'topic_words': topic_words,
+                    'feature_names': feature_names.tolist(),
+                    'lda_model': lda,
+                    'vectorizer': vectorizer
+                }
+                return topic_distributions, model_info
                 
             return topic_distributions
             
         except ImportError:
             self.logger.error("sklearn not available for LDA")
+            if return_model_info:
+                return None, None
             return None
         except Exception as e:
             self.logger.error(f"LDA topic matrix creation failed: {e}")
+            if return_model_info:
+                return None, None
             return None
 
     def _preprocess_texts_for_lda(self, texts: List[str]) -> List[str]:

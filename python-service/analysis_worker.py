@@ -369,7 +369,11 @@ class BulkAnalysisWorker:
                             'keywords': cluster.get('keywords', []),
                             'handles_count': len(cluster.get('handles', [])),
                             'has_embedding': bool(cluster.get('embedding')),
+                            # 🔥 CORRECTION: Inclure toutes les données de robustesse
+                            'robustness_level': cluster.get('robustness_level'),
                             'robustness_tag': cluster.get('robustness_tag'),
+                            'pipeline_step': cluster.get('pipeline_step'),
+                            'clustering_method': cluster.get('clustering_method'),
                             'skip_tagging': cluster.get('skip_tagging', False)
                         }
                         for idx, cluster in enumerate(results)

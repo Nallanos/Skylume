@@ -4,9 +4,23 @@ Responsible for generating meaningful, human-readable tags from semantic keyword
 """
 
 import logging
-from typing import List, Tuple, Optional, Dict, Any
+from typing import List, Tuple, Optional, Dict, Any, Set
 from ai_service.models.interfaces.embedding_model import EmbeddingModel
 from ai_service.services.semantic_clustering.infrastructure import MemoryManager
+
+# Import libraries for advanced filtering
+try:
+    import spacy
+    SPACY_AVAILABLE = True
+except ImportError:
+    SPACY_AVAILABLE = False
+
+try:
+    from nltk.corpus import stopwords
+    import nltk
+    NLTK_AVAILABLE = True
+except ImportError:
+    NLTK_AVAILABLE = False
 
 
 class TagGeneratorService:
@@ -26,7 +40,551 @@ class TagGeneratorService:
             self.logger.warning(f"Failed to initialize ImprovedTagGenerator: {e}")
             self.improved_tag_generator = None
         
+        # Initialize NLP tools for filtering
+        self._init_nlp_tools()
+        
+        # Initialize stoplists and whitelists
+        self._init_filter_lists()
+        
         self.logger.info("🔄 TagGeneratorService initialized")
+    
+    def _init_nlp_tools(self):
+        """Initialize NLP tools for POS tagging and linguistic analysis."""
+        try:
+            if SPACY_AVAILABLE:
+                try:
+                    self.nlp = spacy.load("en_core_web_sm")
+                    self.logger.info("✅ SpaCy model loaded for POS tagging")
+                except OSError:
+                    self.logger.warning("⚠️ SpaCy en_core_web_sm model not found, installing...")
+                    import subprocess
+                    subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"])
+                    self.nlp = spacy.load("en_core_web_sm")
+                    self.logger.info("✅ SpaCy model installed and loaded")
+            else:
+                self.nlp = None
+                self.logger.warning("⚠️ SpaCy not available, POS filtering disabled")
+        except Exception as e:
+            self.nlp = None
+            self.logger.warning(f"⚠️ Failed to initialize SpaCy: {e}")
+    
+    def _init_filter_lists(self):
+        """Initialize stoplist and whitelist for tag filtering."""
+        try:
+            # Extended stoplist for low-quality tags
+            self.stoplist = {
+                # Generic terms
+                'big', 'small', 'new', 'old', 'good', 'bad', 'nice', 'cool', 'hot', 'cold',
+                'red', 'blue', 'green', 'black', 'white', 'yellow', 'orange', 'purple',
+                'pro', 'anti', 'super', 'mega', 'ultra', 'mini', 'micro', 'macro',
+                'very', 'much', 'many', 'some', 'all', 'every', 'any', 'no', 'none',
+                # Common words
+                'user', 'users', 'people', 'person', 'human', 'humans', 'man', 'woman',
+                'thing', 'things', 'stuff', 'item', 'items', 'object', 'objects',
+                'make', 'do', 'go', 'get', 'take', 'give', 'put', 'see', 'look',
+                'time', 'day', 'year', 'month', 'week', 'hour', 'minute', 'second',
+                'way', 'ways', 'method', 'methods', 'type', 'types', 'kind', 'kinds',
+                # Filler words
+                'like', 'just', 'really', 'actually', 'basically', 'literally',
+                'probably', 'maybe', 'perhaps', 'possibly', 'definitely',
+                # Pronouns and articles
+                'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them',
+                'my', 'your', 'his', 'her', 'its', 'our', 'their', 'mine', 'yours', 'ours', 'theirs',
+                'the', 'a', 'an', 'this', 'that', 'these', 'those'
+            }
+            
+            # Add NLTK stopwords if available
+            if NLTK_AVAILABLE:
+                try:
+                    nltk_stopwords = set(stopwords.words('english'))
+                    self.stoplist.update(nltk_stopwords)
+                    self.logger.info("✅ NLTK stopwords loaded")
+                except:
+                    self.logger.warning("⚠️ NLTK stopwords not available")
+            
+            # Professional/domain whitelist
+            self.domain_whitelist = {
+                # Technology
+                'developer', 'engineer', 'programmer', 'coder', 'architect', 'devops',
+                'frontend', 'backend', 'fullstack', 'software', 'hardware', 'tech',
+                'javascript', 'python', 'java', 'react', 'node', 'cloud', 'ai', 'ml',
+                # Business
+                'entrepreneur', 'founder', 'ceo', 'cto', 'manager', 'consultant',
+                'startup', 'business', 'marketing', 'sales', 'finance', 'strategy',
+                'product', 'design', 'ux', 'ui', 'branding', 'digital',
+                # Creative
+                'artist', 'designer', 'creative', 'photographer', 'writer', 'author',
+                'musician', 'filmmaker', 'animator', 'illustrator', 'graphic',
+                # Academic/Research
+                'researcher', 'scientist', 'professor', 'academic', 'student',
+                'phd', 'doctor', 'analyst', 'data', 'research', 'science',
+                # Professional roles
+                'lawyer', 'doctor', 'teacher', 'nurse', 'journalist', 'editor',
+                'chef', 'architect', 'realtor', 'broker', 'agent', 'specialist'
+            }
+            
+            self.logger.info(f"✅ Filter lists initialized: {len(self.stoplist)} stopwords, {len(self.domain_whitelist)} domain terms")
+            
+        except Exception as e:
+            self.logger.warning(f"⚠️ Failed to initialize filter lists: {e}")
+            self.stoplist = set()
+            self.domain_whitelist = set()
+    
+    def calculate_semantic_representativity(self, tag: str, cluster_texts: List[str], 
+                                          keyword_cluster: List[Tuple[str, float]]) -> Dict[str, float]:
+        """
+        Calculate how well a tag represents the semantic content of a cluster.
+        
+        Args:
+            tag: Tag to evaluate
+            cluster_texts: Profile descriptions/texts from the cluster
+            keyword_cluster: Original keywords with scores
+            
+        Returns:
+            Dictionary with semantic representativity scores
+        """
+        try:
+            if not cluster_texts or not self.embedding_model:
+                return {'embedding_similarity': 0.0, 'lexical_coverage': 0.0, 'keyword_relevance': 0.0, 'final_score': 0.0}
+            
+            # 1. Embedding similarity (tag vs cluster centroid)
+            tag_embedding = self.embedding_model.encode([tag.lower().strip()])[0]
+            cluster_embeddings = self.embedding_model.encode(cluster_texts)
+            
+            # Calculate cluster centroid
+            import numpy as np
+            if hasattr(cluster_embeddings, 'tolist'):
+                cluster_embeddings = np.array(cluster_embeddings)
+            
+            cluster_centroid = np.mean(cluster_embeddings, axis=0)
+            
+            # Normalize vectors
+            tag_norm = tag_embedding / np.linalg.norm(tag_embedding)
+            centroid_norm = cluster_centroid / np.linalg.norm(cluster_centroid)
+            
+            # Cosine similarity
+            embedding_similarity = float(np.dot(tag_norm, centroid_norm))
+            embedding_similarity = max(0.0, embedding_similarity)  # Ensure non-negative
+            
+            # 2. Lexical coverage (how many profiles contain the tag or similar words)
+            tag_words = set(tag.lower().replace('_', ' ').split())
+            coverage_count = 0
+            
+            for text in cluster_texts:
+                text_words = set(text.lower().split())
+                # Check for exact matches or substring matches
+                if any(tag_word in text_words or any(tag_word in text_word for text_word in text_words) 
+                       for tag_word in tag_words):
+                    coverage_count += 1
+            
+            lexical_coverage = coverage_count / len(cluster_texts)
+            
+            # 3. Keyword relevance (how closely tag relates to top keywords)
+            keyword_relevance = 0.0
+            if keyword_cluster:
+                top_keywords = [kw.lower() for kw, _ in keyword_cluster[:5]]
+                tag_words_lower = [w.lower() for w in tag_words]
+                
+                matches = sum(1 for tag_word in tag_words_lower 
+                             if any(tag_word in kw or kw in tag_word for kw in top_keywords))
+                keyword_relevance = matches / len(tag_words) if tag_words else 0.0
+            
+            # 4. Final weighted score
+            final_score = (
+                0.5 * embedding_similarity +  # 50% embedding similarity
+                0.3 * lexical_coverage +       # 30% lexical coverage
+                0.2 * keyword_relevance        # 20% keyword relevance
+            )
+            
+            return {
+                'embedding_similarity': embedding_similarity,
+                'lexical_coverage': lexical_coverage,
+                'keyword_relevance': keyword_relevance,
+                'final_score': final_score
+            }
+            
+        except Exception as e:
+            self.logger.debug(f"Error calculating semantic representativity: {e}")
+            return {'embedding_similarity': 0.0, 'lexical_coverage': 0.0, 'keyword_relevance': 0.0, 'final_score': 0.0}
+
+    def is_semantically_specific(self, tag: str, whitelist: Optional[Set[str]] = None) -> bool:
+        """
+        Check if a tag is semantically specific to a domain or community.
+        Now uses whitelist as bonus only, not as blocking filter.
+        
+        Args:
+            tag: Tag to evaluate
+            whitelist: Optional custom whitelist of specific terms
+            
+        Returns:
+            True if tag appears to be domain-specific (bonus only)
+        """
+        try:
+            tag_lower = tag.lower().strip()
+            
+            # Use custom whitelist if provided
+            if whitelist:
+                return any(term in tag_lower for term in whitelist)
+            
+            # Check against domain whitelist (bonus, not blocking)
+            if any(term in tag_lower for term in self.domain_whitelist):
+                return True
+            
+            # Heuristic patterns (also bonus, not blocking)
+            specific_patterns = [
+                'dev', 'tech', 'pro', 'expert', 'specialist', 'engineer', 'architect',
+                'designer', 'creator', 'founder', 'entrepreneur', 'consultant',
+                'researcher', 'analyst', 'scientist', 'writer', 'artist'
+            ]
+            
+            return any(pattern in tag_lower for pattern in specific_patterns)
+            
+        except Exception as e:
+            self.logger.debug(f"Error checking semantic specificity: {e}")
+            return False
+    
+    def is_frequent_tag(self, tag: str, all_tags: List[str], max_ratio: float = 0.15) -> bool:
+        """
+        Check if a tag appears too frequently across all clusters.
+        
+        Args:
+            tag: Tag to check
+            all_tags: List of all tags generated for the cohort
+            max_ratio: Maximum allowed frequency ratio
+            
+        Returns:
+            True if tag is too frequent (should be filtered out)
+        """
+        try:
+            if not all_tags:
+                return False
+            
+            tag_lower = tag.lower().strip()
+            count = sum(1 for t in all_tags if t.lower().strip() == tag_lower)
+            frequency_ratio = count / len(all_tags)
+            
+            return frequency_ratio > max_ratio
+            
+        except Exception as e:
+            self.logger.debug(f"Error checking tag frequency: {e}")
+            return False
+    
+    def is_noun(self, tag: str) -> bool:
+        """
+        Check if a tag is primarily composed of nouns.
+        
+        Args:
+            tag: Tag to analyze
+            
+        Returns:
+            True if tag contains primarily nouns
+        """
+        try:
+            if not self.nlp:
+                # Fallback heuristic without SpaCy
+                return self._is_noun_heuristic(tag)
+            
+            doc = self.nlp(tag)
+            noun_count = 0
+            total_words = 0
+            
+            for token in doc:
+                if token.is_alpha:  # Skip punctuation
+                    total_words += 1
+                    if token.pos_ in ['NOUN', 'PROPN']:  # Noun or proper noun
+                        noun_count += 1
+            
+            if total_words == 0:
+                return False
+            
+            # Tag is good if >50% of words are nouns
+            return (noun_count / total_words) >= 0.5
+            
+        except Exception as e:
+            self.logger.debug(f"Error checking POS for tag '{tag}': {e}")
+            return self._is_noun_heuristic(tag)
+    
+    def _is_noun_heuristic(self, tag: str) -> bool:
+        """Heuristic noun detection when SpaCy is not available."""
+        try:
+            tag_lower = tag.lower().strip()
+            
+            # Common verb patterns to avoid
+            verb_patterns = ['ing', 'ed', 'er', 'est']
+            if any(tag_lower.endswith(pattern) for pattern in verb_patterns):
+                return False
+            
+            # Common adjective patterns to avoid
+            adj_patterns = ['ly', 'ful', 'less', 'ish', 'ous', 'ive']
+            if any(tag_lower.endswith(pattern) for pattern in adj_patterns):
+                return False
+            
+            # If it's in our domain whitelist, it's likely a good noun
+            if any(term in tag_lower for term in self.domain_whitelist):
+                return True
+            
+            # Default to True for simple cases
+            return True
+            
+        except Exception as e:
+            self.logger.debug(f"Error in noun heuristic: {e}")
+            return True
+    
+    def validate_tag_quality(self, tag: str, keyword_cluster: List[Tuple[str, float]], 
+                           all_tags: List[str], cluster_texts: Optional[List[str]] = None,
+                           min_score: float = 0.3) -> Dict[str, Any]:
+        """
+        Comprehensive tag quality validation with semantic representativity.
+        
+        Args:
+            tag: Tag to validate
+            keyword_cluster: Original keyword cluster with scores
+            all_tags: All tags generated for frequency analysis
+            cluster_texts: Profile descriptions for semantic validation
+            min_score: Minimum KeyBERT score threshold
+            
+        Returns:
+            Dictionary with validation results and quality score
+        """
+        try:
+            issues = []
+            score = 0.0
+            
+            # 1. Length and form validation (0-0.1)
+            if len(tag) >= 3:
+                score += 0.05
+                if 5 <= len(tag) <= 25:
+                    score += 0.05
+            else:
+                issues.append(f"Tag too short ({len(tag)} chars)")
+            
+            # 2. Stoplist check (0-0.1)
+            tag_words = tag.lower().replace('_', ' ').split()
+            if not any(word in self.stoplist for word in tag_words):
+                score += 0.1
+            else:
+                issues.append("Contains stopwords")
+            
+            # 3. POS filtering (0-0.1)
+            if self.is_noun(tag):
+                score += 0.1
+            else:
+                issues.append("Not primarily composed of nouns")
+            
+            # 4. SEMANTIC REPRESENTATIVITY (0-0.5) - Main criterion
+            semantic_scores = {'embedding_similarity': 0.0, 'lexical_coverage': 0.0, 'keyword_relevance': 0.0, 'final_score': 0.0}
+            if cluster_texts:
+                semantic_scores = self.calculate_semantic_representativity(tag, cluster_texts, keyword_cluster)
+                semantic_score = semantic_scores['final_score']
+                
+                if semantic_score >= 0.7:
+                    score += 0.5
+                elif semantic_score >= 0.5:
+                    score += 0.3
+                elif semantic_score >= 0.3:
+                    score += 0.15
+                else:
+                    issues.append(f"Low semantic representativity ({semantic_score:.2f})")
+            else:
+                issues.append("No cluster texts provided for semantic validation")
+            
+            # 5. Domain specificity BONUS (0-0.1) - No longer blocking
+            if self.is_semantically_specific(tag):
+                score += 0.1
+            
+            # 6. Frequency check (0-0.1)
+            if not self.is_frequent_tag(tag, all_tags):
+                score += 0.1
+            else:
+                issues.append("Too frequent across clusters")
+            
+            # 7. Keyword relevance bonus (0-0.1)
+            if keyword_cluster:
+                keyword_words = [kw.lower() for kw, score_val in keyword_cluster[:5]]
+                tag_word_found = any(
+                    any(tag_word in kw or kw in tag_word for kw in keyword_words)
+                    for tag_word in tag_words
+                )
+                if tag_word_found:
+                    score += 0.05
+                    # Bonus for high-scoring keywords
+                    top_scores = [score_val for _, score_val in keyword_cluster[:3]]
+                    if top_scores and max(top_scores) > min_score:
+                        score += 0.05
+                else:
+                    issues.append("Tag words not found in top keywords")
+            
+            # Quality classification: much higher threshold for semantic representativity
+            is_high_quality = (
+                score >= 0.7 and 
+                len(issues) <= 2 and 
+                semantic_scores['final_score'] >= 0.5  # Must be semantically representative
+            )
+            
+            return {
+                'tag': tag,
+                'quality_score': min(score, 1.0),
+                'issues': issues,
+                'is_high_quality': is_high_quality,
+                'semantic_scores': semantic_scores,
+                'filters_passed': {
+                    'length': len(tag) >= 3,
+                    'stoplist': not any(word in self.stoplist for word in tag_words),
+                    'pos': self.is_noun(tag),
+                    'semantic_representativity': semantic_scores['final_score'] >= 0.3,
+                    'domain_specificity': self.is_semantically_specific(tag),
+                    'frequency': not self.is_frequent_tag(tag, all_tags),
+                    'keyword_relevance': any(
+                        any(tag_word in kw or kw in tag_word 
+                            for kw, _ in keyword_cluster[:5])
+                        for tag_word in tag_words
+                    ) if keyword_cluster else False
+                }
+            }
+            
+        except Exception as e:
+            self.logger.warning(f"Error validating tag quality: {e}")
+            return {
+                'tag': tag,
+                'quality_score': 0.0,
+                'issues': ['Validation error'],
+                'is_high_quality': False,
+                'semantic_scores': {'embedding_similarity': 0.0, 'lexical_coverage': 0.0, 'keyword_relevance': 0.0, 'final_score': 0.0},
+                'filters_passed': {}
+            }
+    
+    def generate_and_filter_tags(self, keyword_cluster: List[Tuple[str, float]], 
+                               cluster_texts: Optional[List[str]] = None,
+                               all_tags: List[str] = None) -> Dict[str, Any]:
+        """
+        Main pipeline: Generate tag candidates and apply all quality filters.
+        
+        Args:
+            keyword_cluster: List of (keyword, score) tuples
+            cluster_texts: Optional profile descriptions/texts from the cluster for semantic validation
+            all_tags: All tags generated so far (for frequency filtering)
+            
+        Returns:
+            Dictionary with best tag and comprehensive diagnostics
+        """
+        try:
+            if not keyword_cluster:
+                return self._create_fallback_result("No keywords provided")
+            
+            if all_tags is None:
+                all_tags = []
+            
+            self.logger.debug(f"🔄 Generating and filtering tags from {len(keyword_cluster)} keywords")
+            
+            # Step 1: Generate tag candidates
+            candidates = self._generate_tag_candidates(keyword_cluster, cluster_texts)
+            
+            if not candidates:
+                return self._create_fallback_result("No candidates generated")
+            
+            # Step 2: Validate and score each candidate
+            validated_candidates = []
+            for candidate in candidates:
+                validation = self.validate_tag_quality(candidate, keyword_cluster, all_tags, cluster_texts)
+                validated_candidates.append(validation)
+            
+            # Step 3: Sort by quality score
+            validated_candidates.sort(key=lambda x: x['quality_score'], reverse=True)
+            
+            # Step 4: Select best high-quality tag or fallback
+            best_candidate = validated_candidates[0] if validated_candidates else None
+            
+            if best_candidate and best_candidate['is_high_quality']:
+                result = {
+                    'tag': best_candidate['tag'],
+                    'quality_score': best_candidate['quality_score'],
+                    'issues': best_candidate['issues'],
+                    'is_high_quality': True,
+                    'generation_method': 'filtered_pipeline',
+                    'candidates_evaluated': len(validated_candidates),
+                    'filters_passed': best_candidate['filters_passed']
+                }
+            else:
+                # Fallback to best available or default
+                fallback_tag = best_candidate['tag'] if best_candidate else 'Community'
+                result = {
+                    'tag': fallback_tag,
+                    'quality_score': best_candidate['quality_score'] if best_candidate else 0.3,
+                    'issues': best_candidate['issues'] if best_candidate else ['Low quality candidates'],
+                    'is_high_quality': False,
+                    'generation_method': 'fallback',
+                    'candidates_evaluated': len(validated_candidates),
+                    'filters_passed': best_candidate['filters_passed'] if best_candidate else {}
+                }
+            
+            self.logger.debug(f"✅ Selected tag: '{result['tag']}' (quality: {result['quality_score']:.2f})")
+            return result
+            
+        except Exception as e:
+            self.logger.warning(f"Error in tag generation pipeline: {e}")
+            return self._create_fallback_result(f"Pipeline error: {e}")
+    
+    def _generate_tag_candidates(self, keyword_cluster: List[Tuple[str, float]], 
+                               cluster_texts: Optional[List[str]] = None) -> List[str]:
+        """Generate initial tag candidates from keywords."""
+        try:
+            candidates = []
+            
+            # Method 1: Use ImprovedTagGenerator if available
+            if self.improved_tag_generator:
+                try:
+                    cluster_embeddings = self._get_cluster_embeddings(cluster_texts)
+                    for i in range(min(3, len(keyword_cluster))):
+                        subset = keyword_cluster[:i+3]  # Varying subset sizes
+                        tag = self.improved_tag_generator.generate_tag_from_keywords(subset, cluster_embeddings)
+                        if tag and tag not in candidates:
+                            candidates.append(tag.strip())
+                except Exception as e:
+                    self.logger.debug(f"ImprovedTagGenerator failed: {e}")
+            
+            # Method 2: Direct keyword usage
+            for keyword, score in keyword_cluster[:5]:
+                clean_keyword = keyword.strip().title()
+                if clean_keyword and clean_keyword not in candidates:
+                    candidates.append(clean_keyword)
+            
+            # Method 3: Simple combinations
+            if len(keyword_cluster) >= 2:
+                kw1, kw2 = keyword_cluster[0][0].strip().title(), keyword_cluster[1][0].strip().title()
+                combinations = [
+                    f"{kw1} {kw2}",
+                    f"{kw1}_{kw2}",
+                    f"{kw1} & {kw2}"
+                ]
+                for combo in combinations:
+                    if combo not in candidates and len(combo) <= 30:
+                        candidates.append(combo)
+            
+            # Remove duplicates and empty candidates
+            unique_candidates = []
+            seen = set()
+            for candidate in candidates:
+                if candidate and candidate.strip() and candidate.lower() not in seen:
+                    seen.add(candidate.lower())
+                    unique_candidates.append(candidate)
+            
+            return unique_candidates[:10]  # Limit candidates
+            
+        except Exception as e:
+            self.logger.warning(f"Error generating tag candidates: {e}")
+            return ['Community']
+    
+    def _create_fallback_result(self, reason: str) -> Dict[str, Any]:
+        """Create fallback result when generation fails."""
+        return {
+            'tag': 'Community',
+            'quality_score': 0.3,
+            'issues': [reason],
+            'is_high_quality': False,
+            'generation_method': 'fallback',
+            'candidates_evaluated': 0,
+            'filters_passed': {}
+        }
     
     def generate_natural_tag_from_semantic_group(self, keyword_cluster: List[Tuple[str, float]], 
                                                 profile_context: Optional[List[str]] = None) -> Dict[str, Any]:
@@ -266,13 +824,13 @@ class TagGeneratorService:
             'generation_strategies_used': {'fallback': len(fallback_candidates)}
         }
     
-    def _get_cluster_embeddings(self, profile_context: Optional[List[str]] = None) -> Optional[List[List[float]]]:
-        """Get cluster embeddings from profile context."""
+    def _get_cluster_embeddings(self, cluster_texts: Optional[List[str]] = None) -> Optional[List[List[float]]]:
+        """Get cluster embeddings from cluster texts."""
         try:
-            if not profile_context or not self.embedding_model:
+            if not cluster_texts or not self.embedding_model:
                 return None
             
-            embeddings = self.embedding_model.encode(profile_context)
+            embeddings = self.embedding_model.encode(cluster_texts)
             if hasattr(embeddings, 'tolist'):
                 return embeddings.tolist()
             return embeddings
@@ -352,195 +910,15 @@ class TagGeneratorService:
             self.logger.warning(f"Error with improved tag generator: {e}")
             return self._generate_fallback_tag(keyword_cluster)
     
-    def _generate_fallback_tag(self, keyword_cluster: List[Tuple[str, float]]) -> str:
-        """Generate intelligent fallback tag using keywords."""
-        try:
-            if not keyword_cluster:
-                return "Tech Community"  # More descriptive default
-            
-            # Extract keywords and prioritize by score
-            keywords = [kw for kw, _ in keyword_cluster[:3]]  # Top 3 keywords
-            
-            if len(keywords) == 1:
-                keyword = keywords[0].strip().title()
-                # Add context to single keywords
-                if len(keyword) > 0:
-                    return f"{keyword} Enthusiasts" if len(keyword) < 8 else keyword
-                else:
-                    return "Tech Community"
-            elif len(keywords) == 2:
-                kw1, kw2 = keywords[0].title(), keywords[1].title()
-                # Create meaningful combinations
-                return f"{kw1} & {kw2}" if len(f"{kw1} & {kw2}") < 20 else kw1
-            else:
-                # For multiple keywords, use the highest scoring one with context
-                primary = keywords[0].strip().title()
-                return f"{primary} Community" if len(primary) < 12 else primary
-                
-        except Exception as e:
-            self.logger.warning(f"Error in fallback tag generation: {e}")
-            return "Tech Community"
+    # _generate_fallback_tag supprimée - remplacée par le nouveau pipeline de validation
     
-    def generate_tag_variations(self, keyword_cluster: List[Tuple[str, float]]) -> List[str]:
-        """Generate multiple tag variations for a keyword cluster."""
-        try:
-            if not keyword_cluster:
-                return ["Community"]
-            
-            keywords = [kw for kw, _ in keyword_cluster[:5]]
-            variations = []
-            
-            # Single keyword variations
-            if keywords:
-                primary = keywords[0].strip()
-                variations.extend([
-                    primary.title(),
-                    primary.replace(' ', '_').title(),
-                    primary.replace('_', ' ').title()
-                ])
-            
-            # Compound variations for multiple keywords
-            if len(keywords) >= 2:
-                secondary = keywords[1].strip()
-                variations.extend([
-                    f"{primary.title()}_{secondary.title()}",
-                    f"{primary.title()} & {secondary.title()}",
-                    f"{primary.title()}-{secondary.title()}"
-                ])
-            
-            # Remove duplicates while preserving order
-            seen = set()
-            unique_variations = []
-            for var in variations:
-                if var not in seen and var.strip():
-                    seen.add(var)
-                    unique_variations.append(var)
-            
-            return unique_variations[:5] if unique_variations else ["Community"]
-            
-        except Exception as e:
-            self.logger.warning(f"Error generating tag variations: {e}")
-            return ["Community"]
+    # generate_tag_variations supprimée - remplacée par le nouveau pipeline
     
-    def select_best_tag(self, keyword_cluster: List[Tuple[str, float]], 
-                       profile_embeddings: Optional[List[List[float]]] = None) -> str:
-        """Select the best tag from available options using semantic analysis."""
-        try:
-            # Generate variations
-            variations = self.generate_tag_variations(keyword_cluster)
-            
-            if not variations:
-                return "Community"
-            
-            if len(variations) == 1:
-                return variations[0]
-            
-            # If we have profile embeddings, score variations by semantic similarity
-            if profile_embeddings and self.embedding_model:
-                return self._score_tag_variations(variations, profile_embeddings)
-            
-            # Otherwise, return the first (primary) variation
-            return variations[0]
-            
-        except Exception as e:
-            self.logger.warning(f"Error selecting best tag: {e}")
-            return self._generate_fallback_tag(keyword_cluster)
+    # select_best_tag supprimée - remplacée par le nouveau pipeline
     
-    def _score_tag_variations(self, variations: List[str], 
-                            profile_embeddings: List[List[float]]) -> str:
-        """Score tag variations by semantic similarity to profile cluster."""
-        try:
-            import numpy as np
-            
-            # Calculate profile centroid
-            profile_centroid = np.mean(profile_embeddings, axis=0)
-            profile_centroid = profile_centroid / np.linalg.norm(profile_centroid)
-            
-            best_tag = variations[0]
-            best_score = -1
-            
-            for tag in variations:
-                try:
-                    # Get tag embedding
-                    tag_embedding = self.embedding_model.encode([tag])[0]
-                    tag_embedding = np.array(tag_embedding)
-                    tag_embedding = tag_embedding / np.linalg.norm(tag_embedding)
-                    
-                    # Calculate similarity
-                    similarity = np.dot(tag_embedding, profile_centroid)
-                    
-                    if similarity > best_score:
-                        best_score = similarity
-                        best_tag = tag
-                        
-                except Exception as e:
-                    self.logger.debug(f"Error scoring tag '{tag}': {e}")
-                    continue
-            
-            return best_tag
-            
-        except Exception as e:
-            self.logger.warning(f"Error scoring tag variations: {e}")
-            return variations[0] if variations else "Community"
+    # _score_tag_variations supprimée - remplacée par le nouveau pipeline
     
-    def validate_tag_quality(self, tag: str, keyword_cluster: List[Tuple[str, float]]) -> Dict[str, Any]:
-        """Validate the quality of a generated tag."""
-        try:
-            quality_score = 0.0
-            issues = []
-            
-            # Check tag length
-            if 5 <= len(tag) <= 30:
-                quality_score += 0.2
-            else:
-                issues.append(f"Tag length ({len(tag)}) not optimal (5-30 chars)")
-            
-            # Check for generic terms
-            generic_terms = {'general', 'misc', 'unknown', 'other', 'mixed', 'community'}
-            if not any(generic in tag.lower() for generic in generic_terms):
-                quality_score += 0.3
-            else:
-                issues.append("Contains generic terms")
-            
-            # Check keyword relevance
-            if keyword_cluster:
-                keywords = [kw.lower() for kw, _ in keyword_cluster[:3]]
-                tag_words = tag.lower().replace('_', ' ').split()
-                
-                if any(word in keywords for word in tag_words):
-                    quality_score += 0.3
-                else:
-                    issues.append("Tag words not found in top keywords")
-            
-            # Check formatting
-            if tag.replace('_', '').replace(' ', '').isalpha():
-                quality_score += 0.1
-            else:
-                issues.append("Contains non-alphabetic characters")
-            
-            # Check capitalization
-            if tag[0].isupper() and not tag.isupper():
-                quality_score += 0.1
-            else:
-                issues.append("Improper capitalization")
-            
-            return {
-                'tag': tag,
-                'quality_score': min(quality_score, 1.0),
-                'issues': issues,
-                'is_high_quality': quality_score >= 0.7,
-                'keyword_count': len(keyword_cluster),
-                'primary_keywords': [kw for kw, _ in keyword_cluster[:3]]
-            }
-            
-        except Exception as e:
-            self.logger.warning(f"Error validating tag quality: {e}")
-            return {
-                'tag': tag,
-                'quality_score': 0.0,
-                'issues': ['Validation error'],
-                'is_high_quality': False
-            }
+    # Ancienne validate_tag_quality supprimée - remplacée par la nouvelle API
     
     def get_generation_summary(self, generated_tags: List[str], 
                              keyword_clusters: List[List[Tuple[str, float]]]) -> Dict[str, Any]:
@@ -553,11 +931,11 @@ class TagGeneratorService:
                     'high_quality_count': 0
                 }
             
-            # Validate each tag
+            # Validate each tag using the new API
             validations = []
             for i, tag in enumerate(generated_tags):
                 cluster = keyword_clusters[i] if i < len(keyword_clusters) else []
-                validation = self.validate_tag_quality(tag, cluster)
+                validation = self.validate_tag_quality(tag, cluster, generated_tags)
                 validations.append(validation)
             
             quality_scores = [v['quality_score'] for v in validations]
@@ -598,105 +976,11 @@ class TagGeneratorService:
             self.logger.debug(f"Error analyzing common issues: {e}")
             return {}
     
-    def _generate_semantic_variations(self, keywords: List[str]) -> List[str]:
-        """Generate semantic variations using related terms and synonyms."""
-        try:
-            variations = []
-            
-            # Common semantic patterns for different domains
-            semantic_patterns = {
-                'tech': ['Tech', 'Digital', 'Innovation', 'Solutions'],
-                'business': ['Pro', 'Enterprise', 'Commercial', 'Industry'],
-                'creative': ['Artists', 'Creators', 'Designers', 'Visuals'],
-                'social': ['Community', 'Network', 'Circle', 'Group'],
-                'academic': ['Research', 'Study', 'Academic', 'Science']
-            }
-            
-            for keyword in keywords[:3]:  # Limit to top 3 keywords
-                keyword_lower = keyword.lower()
-                
-                # Generate variations based on keyword content
-                for domain, suffixes in semantic_patterns.items():
-                    if any(term in keyword_lower for term in [domain, domain[:-1]]):  # Match domain
-                        for suffix in suffixes:
-                            variations.extend([
-                                f"{keyword.title()}_{suffix}",
-                                f"{suffix}_{keyword.title()}",
-                                f"{keyword.title()}{suffix}"
-                            ])
-                
-                # Generic semantic variations
-                variations.extend([
-                    f"{keyword.title()}_Experts",
-                    f"{keyword.title()}_Enthusiasts", 
-                    f"{keyword.title()}_Collective",
-                    f"Modern_{keyword.title()}",
-                    f"Digital_{keyword.title()}",
-                    f"{keyword.title()}_Hub"
-                ])
-            
-            return variations[:15]  # Limit semantic variations
-            
-        except Exception as e:
-            self.logger.debug(f"Error generating semantic variations: {e}")
-            return []
+
     
-    def _generate_contextual_variations(self, keywords: List[str], profile_context: List[str]) -> List[str]:
-        """Generate contextual variations based on profile context."""
-        try:
-            variations = []
-            
-            # Analyze profile context for common themes
-            context_text = ' '.join(profile_context[:20]).lower()  # Limit for performance
-            
-            # Context-based modifiers
-            if 'entrepreneur' in context_text or 'startup' in context_text:
-                modifiers = ['Startup', 'Entrepreneur', 'Innovation']
-            elif 'developer' in context_text or 'programming' in context_text:
-                modifiers = ['Dev', 'Code', 'Tech']
-            elif 'design' in context_text or 'creative' in context_text:
-                modifiers = ['Design', 'Creative', 'Visual']
-            elif 'research' in context_text or 'academic' in context_text:
-                modifiers = ['Research', 'Academic', 'Study']
-            else:
-                modifiers = ['Professional', 'Community', 'Network']
-            
-            for keyword in keywords:
-                for modifier in modifiers:
-                    variations.extend([
-                        f"{modifier}_{keyword.title()}",
-                        f"{keyword.title()}_{modifier}",
-                        f"{modifier}{keyword.title()}"
-                    ])
-            
-            return variations[:12]  # Limit contextual variations
-            
-        except Exception as e:
-            self.logger.debug(f"Error generating contextual variations: {e}")
-            return []
+
     
-    def _generate_with_improved_generator(self, keyword_cluster: List[Tuple[str, float]], 
-                                        profile_context: Optional[List[str]] = None) -> str:
-        """Generate tag using the improved tag generator."""
-        try:
-            # Convert profile context to embeddings if available
-            cluster_embeddings = None
-            if profile_context and self.embedding_model:
-                try:
-                    cluster_embeddings = self.embedding_model.encode(profile_context)
-                    if hasattr(cluster_embeddings, 'tolist'):
-                        cluster_embeddings = cluster_embeddings.tolist()
-                except Exception as e:
-                    self.logger.debug(f"Error encoding profile context: {e}")
-            
-            tag = self.improved_tag_generator.generate_tag_from_keywords(
-                keyword_cluster, cluster_embeddings
-            )
-            return tag
-            
-        except Exception as e:
-            self.logger.warning(f"Error with improved tag generator: {e}")
-            return self._generate_fallback_tag(keyword_cluster)
+
     
     def _get_fallback_candidates(self) -> List[str]:
         """Get intelligent fallback candidates when all else fails."""

@@ -576,6 +576,104 @@ export class AIService {
   }
 
   /**
+   * Génère un tag combiné basé sur les word embeddings (plus robuste que WordNet)
+   * Calcule le centroïde des embeddings des tags et trouve le mot le plus proche
+   */
+  public async generateCombinedTagByEmbeddings(tags: string[], vocabulary?: string[]): Promise<string> {
+    try {
+      console.log(`🧠 Analyzing ${tags.length} tags using word embeddings...`)
+
+      if (tags.length === 0) return 'Mixed Community'
+      if (tags.length === 1) return tags[0]
+
+      // 1. Obtenir les embeddings de tous les tags
+      const tagEmbeddings: number[][] = []
+      const validTags: string[] = []
+
+      for (const tag of tags) {
+        const embedding = await this.getEmbedding(tag.toLowerCase().trim())
+        if (embedding.length > 0) {
+          tagEmbeddings.push(embedding)
+          validTags.push(tag)
+        }
+      }
+
+      console.log(`📊 Got embeddings for ${tagEmbeddings.length}/${tags.length} tags`)
+
+      if (tagEmbeddings.length === 0) {
+        console.log('⚠️ No valid embeddings found, using fallback')
+        return tags[0]
+      }
+
+      // 2. Calculer le centroïde (moyenne des embeddings)
+      const centroid = this.averageVectors(tagEmbeddings)
+      console.log(`🎯 Calculated centroid with ${centroid.length} dimensions`)
+
+      // 3. Définir le vocabulaire de recherche
+      const searchWords = vocabulary && vocabulary.length > 0 ? vocabulary : this.getDefaultVocabulary().concat(validTags)
+      console.log(`🔍 Searching among ${searchWords.length} candidate words`)
+
+      // 4. Trouver le mot le plus proche du centroïde
+      let bestWord = validTags[0]
+      let bestScore = -Infinity
+
+      for (const word of searchWords) {
+        const wordEmbedding = await this.getEmbedding(word.toLowerCase().trim())
+        if (wordEmbedding.length === centroid.length) {
+          const score = this.cosineSimilarity(centroid, wordEmbedding)
+          if (score > bestScore) {
+            bestScore = score
+            bestWord = word
+          }
+        }
+      }
+
+      console.log(`🏆 Best match: "${bestWord}" (similarity: ${bestScore.toFixed(3)})`)
+
+      // Capitaliser la première lettre du résultat
+      return bestWord.charAt(0).toUpperCase() + bestWord.slice(1)
+
+    } catch (error) {
+      console.error('Error in generateCombinedTagByEmbeddings:', error)
+      // Fallback vers le tag le plus long
+      return tags.reduce((longest, current) =>
+        current.length > longest.length ? current : longest
+      )
+    }
+  }
+
+  /**
+   * Vocabulaire par défaut pour la recherche sémantique
+   * Inclut des termes généraux et des domaines professionnels courants
+   */
+  private getDefaultVocabulary(): string[] {
+    return [
+      // Termes généraux
+      'community', 'people', 'users', 'members', 'group', 'audience', 'network',
+
+      // Domaines techniques
+      'technology', 'developer', 'engineering', 'software', 'programming', 'coding',
+      'data', 'science', 'analytics', 'research', 'innovation', 'digital',
+
+      // Domaines créatifs
+      'creative', 'design', 'art', 'content', 'media', 'writing', 'photography',
+      'marketing', 'brand', 'communication', 'storytelling',
+
+      // Domaines business
+      'business', 'entrepreneur', 'startup', 'professional', 'industry', 'corporate',
+      'finance', 'investment', 'management', 'leadership', 'strategy',
+
+      // Domaines sociaux
+      'social', 'culture', 'lifestyle', 'health', 'education', 'learning',
+      'activism', 'politics', 'environment', 'sustainability',
+
+      // Termes de niche
+      'gaming', 'sports', 'music', 'travel', 'food', 'fashion', 'fitness',
+      'productivity', 'mindfulness', 'innovation', 'collaboration'
+    ]
+  }
+
+  /**
    * Extrait les mots significatifs des tags (supprime les mots vides, la ponctuation, etc.)
    */
   private extractSignificantWords(tags: string[]): string[] {
@@ -611,12 +709,12 @@ export class AIService {
   private isValidWordForWordNet(word: string): boolean {
     try {
       const problematicWords = new Set([
-        'writer', 
+        'writer',
         'affiliate',
-        'api', 'url', 'http', 'https', 'www', 
-        'bitcoin', 'crypto', 'nft', 
+        'api', 'url', 'http', 'https', 'www',
+        'bitcoin', 'crypto', 'nft',
         'instagram', 'twitter', 'facebook', 'tiktok',
-        'bot', 'ai', 'ml', 'ux', 'ui' 
+        'bot', 'ai', 'ml', 'ux', 'ui'
       ])
 
       if (!word || word.length < 3 || word.length > 20) {

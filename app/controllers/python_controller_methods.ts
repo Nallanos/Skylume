@@ -679,13 +679,16 @@ export default class PythonControllerMethods {
                 return
             }
 
-            console.log(`Création incrémentale de ${JSON.stringify(batchResults.clustersData)} clusters pour l'analyse ${analysis.id}`)
+            console.log(`Création incrémentale de ${batchResults.clustersData.length} clusters pour l'analyse ${analysis.id}`)
             const clustersData = batchResults.clustersData.map((cluster: any) => {
                 console.log(`DEBUG: Processing cluster from Python:`, {
                     tag: cluster.tag,
                     size: cluster.size,
                     cohesion: cluster.cohesion,
-                    persistence: cluster.persistence
+                    persistence: cluster.persistence,
+                    robustness_level: cluster.robustness_level,
+                    robustness_tag: cluster.robustness_tag,
+                    pipeline_step: cluster.pipeline_step
                 })
 
                 const result = {
@@ -695,7 +698,14 @@ export default class PythonControllerMethods {
                     embedding: cluster.centroid || cluster.embedding || cluster.embeddings || [],
                     size: cluster.size || 0,
                     cohesion: cluster.cohesion !== undefined ? cluster.cohesion : null,
-                    persistence: cluster.persistence !== undefined ? cluster.persistence : null
+                    persistence: cluster.persistence !== undefined ? cluster.persistence : null,
+                    // 🔥 CORRECTION: Inclure toutes les données de robustesse
+                    robustnessLevel: cluster.robustness_level,
+                    robustnessTag: cluster.robustness_tag,
+                    pipelineStep: cluster.pipeline_step,
+                    clusteringMethod: cluster.clustering_method,
+                    skipTagging: cluster.skip_tagging || false,
+                    processingStatus: cluster.processing_status || 'processed'
                 }
 
                 console.log(`DEBUG: Mapped cluster data:`, result)

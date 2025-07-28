@@ -156,6 +156,21 @@ class MainOrchestrator:
             # LDA topic modeler for enhanced clustering
             self.lda_topic_modeler = DependencyFactory.get_lda_topic_modeler(logger=self.logger)
             
+            # KeyBERT tagger for LDA-based tagging
+            try:
+                from ai_service.services.taggers.keybert_tagger import KeyBERTTagger
+                self.keybert_tagger = KeyBERTTagger(
+                    embedding_model=self.embedding_model,
+                    text_cleaner=self.text_cleaner
+                )
+                self.logger.info("✅ KeyBERT tagger initialized for LDA-based tagging")
+            except ImportError as e:
+                self.logger.warning(f"⚠️ KeyBERT not available: {e} - will use fallback tagging")
+                self.keybert_tagger = None
+            except Exception as e:
+                self.logger.error(f"❌ Error initializing KeyBERT tagger: {e}")
+                self.keybert_tagger = None
+            
             # Step 3: Keyword extraction
             self.keyword_extractor = DependencyFactory.get_semantic_keyword_extractor(
                 embedding_model=self.embedding_model,
@@ -472,11 +487,11 @@ class MainOrchestrator:
                 if hasattr(self.profile_clusterer, 'set_lda_topic_modeler'):
                     self.profile_clusterer.set_lda_topic_modeler(self.lda_topic_modeler)
                 
-                profile_clusters = self.profile_clusterer.cluster_profiles_with_graduated_pipeline(
+                # Use the NEW multi-method clustering pipeline
+                profile_clusters = self.profile_clusterer.cluster_profiles_with_multi_method_pipeline(
                     processed_data['profile_embeddings'],
                     processed_data['valid_profiles'],
                     profile_processor=self.profile_processor,
-                    cohesion_threshold=0.5,
                     min_cluster_size=3,
                 )
             else:
@@ -509,80 +524,18 @@ class MainOrchestrator:
                     
                     self.logger.info(f"🔄 Processing cluster {i+1}/{len(profile_clusters)}")
                     
-                    # STEP 3: PHASE 4 Enhanced Keyword Extraction for Maximum Tag Candidates
-                    cluster_texts = self._extract_cluster_texts(cluster_data['profiles'])
+                    # NOUVEAU TAGGING BASÉ SUR LDA + KEYBERT
+                    cluster_tag_result = self._generate_lda_based_tag(i, cluster_data)
                     
-                    def timeout_handler(signum, frame):
-                        raise TimeoutError("Keyword extraction timeout")
-                    
-                    try:
-                        # Set 30-second timeout for keyword extraction
-                        old_handler = signal.signal(signal.SIGALRM, timeout_handler)
-                        signal.alarm(30)
-                        
-                        keywords = self.keyword_extractor.extract_semantic_keywords(cluster_texts, top_n=120)
-                        
-                        signal.alarm(0)
-                        signal.signal(signal.SIGALRM, old_handler)
-                        
-                    except (TimeoutError, Exception) as e:
-                        # Clear timeout and restore handler
-                        signal.alarm(0)
-                        if 'old_handler' in locals():
-                            signal.signal(signal.SIGALRM, old_handler)
-                        
-                        self.logger.warning(f"⚠️ Keyword extraction failed for cluster {i+1}: {e}")
-                        
-                        # FALLBACK: Use generic keywords since all profiles have bio
-                        keywords = [("community", 0.5), ("users", 0.4)]
-                    
-                    # All profiles now have meaningful bio, no need for supplemental keywords
-                    if len(keywords) < 30:  # If we don't have enough keywords, log it
-                        self.logger.info(f"🔄 Only {len(keywords)} keywords extracted for cluster {i+1}")
-                    
-                    if not keywords:
-                        self.logger.warning(f"No keywords extracted for cluster {i+1}")
-                        continue
-                    
-                    # Steps 4 & 5: Keyword Clustering and Coherence Validation
-                    keyword_clusters, validated_clusters = self._cluster_and_validate_keywords(i, keywords, cluster_data['embedding'])
-
-                    # Steps 6 & 7: OPTIMIZED Tag Generation - Generate only 1 primary tag per cluster
-                    final_validated_clusters = self._generate_single_optimal_tag_for_cluster(
-                        i, keywords, keyword_clusters, validated_clusters, cluster_data
-                    )
-                    
-                    for final_cluster in final_validated_clusters:
-                        profiles = cluster_data.get('profiles', [])
-                        handles = self._extract_profile_handles(profiles)
-                        final_cluster['handles'] = handles
-                        final_cluster['size'] = len(profiles)
-                        
-                        # Convertir l'embedding en liste si c'est un ndarray
-                        embedding = cluster_data.get('embedding', [])
-                        if hasattr(embedding, 'tolist'):
-                            embedding = embedding.tolist()
-                        final_cluster['embedding'] = embedding
-                        
-                        final_cluster['tag'] = final_cluster.get('tag') or (keywords[0][0] if keywords else "Community")
-                        # Ajouter la cohésion
-                        cohesion = cluster_data.get('cohesion', 0.0)
-                        final_cluster['cohesion'] = cohesion
-                        # Ajouter la persistence pondérée si disponible
-                        raw_persistence = cluster_data.get('persistence')
-                        if raw_persistence is not None:
-                            final_cluster['persistence'] = self._calculate_weighted_persistence(raw_persistence, cohesion)
-                        else:
-                            final_cluster['persistence'] = None
-                    
-                    final_clusters.extend(final_validated_clusters)
+                    # Construire le cluster final avec toutes les données
+                    final_cluster = self._build_final_cluster(cluster_data, cluster_tag_result)
+                    final_clusters.append(final_cluster)
                     
                     # Log cluster details for debugging
-                    for idx, final_cluster in enumerate(final_validated_clusters):
-                        cluster_size = final_cluster.get('size', 0)
-                        handles_count = len(final_cluster.get('handles', []))
-                        embedding_status = "OK" if final_cluster.get('embedding') else "NULL"
-                        self.logger.info(f"Final cluster {idx+1}: size={cluster_size}, handles={handles_count}, embedding={embedding_status}, tag='{final_cluster.get('tag', 'unknown')}'")
+                    cluster_size = final_cluster.get('size', 0)
+                    handles_count = len(final_cluster.get('handles', []))
+                    embedding_status = "OK" if final_cluster.get('embedding') else "NULL"
+                    self.logger.info(f"Final cluster {i+1}: size={cluster_size}, handles={handles_count}, embedding={embedding_status}, tag='{final_cluster.get('tag', 'unknown')}'")
                     
                 except Exception as e:
                     self.logger.error(f"❌ Error processing cluster {i+1}: {e}")
@@ -616,209 +569,219 @@ class MainOrchestrator:
             
             # Nettoyer tous les ndarrays avant de retourner les résultats
             cleaned_final_clusters = self._clean_ndarrays_from_results(final_clusters)
+        except Exception as e:
+            self.logger.error(f"❌ Error in modular semantic clustering pipeline: {e}")
+            cleaned_final_clusters = []
+        return cleaned_final_clusters
+
+    def _generate_lda_based_tag(self, cluster_index: int, cluster_data: Dict) -> Dict:
+        """
+        Génère un tag pour un cluster en utilisant les topics LDA et le nouveau pipeline de validation.
+        
+        Args:
+            cluster_index: Index du cluster
+            cluster_data: Données du cluster avec les informations LDA
             
-            return cleaned_final_clusters
+        Returns:
+            Dictionnaire avec tag et mots-clés
+        """
+        # Vérifier si le cluster doit être ignoré pour le tagging
+        if cluster_data.get('skip_tagging', False):
+            robustness_tag = cluster_data.get('robustness_tag', 'Cannot Determine')
+            self.logger.info(f"⚠️ Skipping cluster {cluster_index+1} - {robustness_tag}")
+            return {
+                'tag': robustness_tag.replace('🔴 ', '').replace('🟠 ', '').replace('🟡 ', '').replace('🟢 ', ''),
+                'keywords': [],
+                'tagging_method': 'skipped',
+                'validation_status': 'skip_tagging',
+                'quality_score': 0.0,
+                'is_high_quality': False
+            }
+        
+        try:
+            # Récupérer les topics LDA du cluster
+            lda_topics = cluster_data.get('lda_topics', [])
+            n_topics = cluster_data.get('lda_n_topics', 0)
             
-        except Exception as e:
-            self.logger.error(f"❌ Critical error in modular pipeline: {e}")
-            return []
-
-    def _cluster_and_validate_keywords(self, cluster_index: int, keywords: List[Tuple[str, float]], cluster_embedding: List[float]):
-        """
-        Orchestrates Step 4 (Keyword Clustering) and Step 5 (Coherence Validation).
-        Includes fallback logic for each step.
-        """
-        # STEP 4: Keyword Clustering with timeout protection
-        try:
-            self.logger.info(f"🔄 Starting keyword clustering for cluster {cluster_index+1}")
-            keyword_texts = [kw for kw, _ in keywords]
-            keyword_embeddings = self.embedding_model.encode(keyword_texts)
-            if hasattr(keyword_embeddings, 'tolist'):
-                keyword_embeddings = keyword_embeddings.tolist()
-            keyword_clusters = self.keyword_clusterer.cluster_keywords_semantically(keywords, keyword_embeddings)
-            self.logger.info(f"✅ Keyword clustering complete for cluster {cluster_index+1}")
-        except Exception as e:
-            self.logger.warning(f"⚠️ Keyword clustering failed for cluster {cluster_index+1}: {e} (USING FALLBACK: all keywords as one cluster)")
-            keyword_clusters = [keywords] # FALLBACK
-
-        # STEP 5: Coherence Validation
-        try:
-            self.logger.info(f"🔄 Starting coherence validation for cluster {cluster_index+1}")
-            validated_clusters = self.coherence_validator.validate_profile_keyword_coherence(
-                cluster_embedding, keyword_clusters
-            )
-            self.logger.info(f"✅ Coherence validation complete for cluster {cluster_index+1}")
-        except Exception as e:
-            self.logger.warning(f"⚠️ Coherence validation failed for cluster {cluster_index+1}: {e} (USING FALLBACK: using keyword clusters as validated clusters)")
-            validated_clusters = keyword_clusters # FALLBACK
-            
-        return keyword_clusters, validated_clusters
-
-    def _generate_and_validate_tags_for_cluster(self, cluster_index: int, keywords: List[Tuple[str, float]], keyword_clusters: List, validated_clusters: List, cluster_data: Dict) -> List[Dict]:
-        """
-        Orchestrates Step 6 (Tag Generation) and Step 7 (Optimization & Validation) for a single cluster.
-        This method isolates the logic for creating and refining tags.
-        """
-        # STEP 6: Tag Generation
-        try:
-            self.logger.info(f"🔄 Starting tag generation for cluster {cluster_index+1}")
-            cluster_tags = []
-            for j, validated_cluster in enumerate(validated_clusters):
-                try:
-                    tag = self.tag_generator_service.generate_natural_tag_from_semantic_group(
-                        validated_cluster, cluster_data['embedding']
-                    )
-                    cluster_tags.append(tag)
-                    self.logger.debug(f"Generated tag {j+1}/{len(validated_clusters)} for cluster {cluster_index+1}")
-                except Exception as tag_error:
-                    self.logger.warning(f"Tag generation failed for sub-cluster {j+1}: {tag_error} (USING FALLBACK: fallback tag generation)")
-                    # FALLBACK: Use TagGeneratorService fallback
-                    try:
-                        profile_handles = self._extract_profile_handles(cluster_data.get('profiles', []))
-                        fallback_tag_result = self.tag_generator_service._create_fallback_tag_candidates()
-                        fallback_tag = {
-                            "tag": fallback_tag_result['tag'], 
-                            "keywords": validated_cluster[:5],
-                            "handles": profile_handles
-                        }
-                        cluster_tags.append(fallback_tag)
-                    except Exception as fallback_error:
-                        self.logger.warning(f"Even fallback tag generation failed: {fallback_error} (USING ULTIMATE FALLBACK: first keyword or 'Community')")
-                        primary_keyword = validated_cluster[0][0] if validated_clusters else "Community"
-                        fallback_tag = {"tag": primary_keyword.title(), "keywords": validated_cluster[:5]}
-                        cluster_tags.append(fallback_tag)
-            self.logger.info(f"✅ Tag generation complete for cluster {cluster_index+1}: {len(cluster_tags)} tags")
-        except Exception as e:
-            self.logger.warning(f"⚠️ Tag generation failed for cluster {cluster_index+1}: {e} (USING FALLBACK: fallback tag for all)")
-            # FALLBACK: Use TagGeneratorService fallback for all
-            try:
-                profile_handles = self._extract_profile_handles(cluster_data.get('profiles', []))
-                fallback_tag_result = self.tag_generator_service._create_fallback_tag_candidates()
-                cluster_tags = [{"tag": fallback_tag_result['tag'], "keywords": keywords[:5], "handles": profile_handles}]
-            except Exception as fallback_error:
-                self.logger.warning(f"Ultimate fallback tag generation failed: {fallback_error} (USING ULTIMATE FALLBACK: first keyword or 'Community')")
-                primary_keyword = keywords[0][0] if keywords else "Community"
-                cluster_tags = [{"tag": primary_keyword.title(), "keywords": keywords[:5]}]
-
-        # STEP 7: Multi-Scale Optimization and Final Validation
-        try:
-            self.logger.info(f"🔄 Starting multi-scale optimization for cluster {cluster_index+1}")
-            optimized_clusters = self.multi_scale_optimizer.optimize_tags_multi_scale([{
-                'profiles': cluster_data['profiles'],
-                'embedding': cluster_data['embedding'],  
-                'keywords': keywords,
-                'keyword_clusters': keyword_clusters,
-                'raw_tags': cluster_tags
-            }], cluster_data['embedding']) #FIX: Pass correct profile embeddings
-            self.logger.info(f"✅ Multi-scale optimization complete for cluster {cluster_index+1}")
-        except Exception as e:
-            self.logger.warning(f"⚠️ Multi-scale optimization failed for cluster {cluster_index+1}: {e}")
-            optimized_clusters = cluster_tags # Fallback
-
-        # PHASE 3: Conditional validation
-        try:
-            if len(optimized_clusters) == 1:
-                self.logger.info("🔄 PHASE 3: Single tag detected, skipping full validation")
-                single_cluster = optimized_clusters[0]
-                try:
-                    if 'quality_score' not in single_cluster:
-                        single_cluster['quality_score'] = self.tag_validator._calculate_tag_quality_score(single_cluster)
-                except Exception as score_error:
-                    self.logger.warning(f"Quality score calculation failed: {score_error}")
-                    single_cluster['quality_score'] = 0.5
+            # Préparer les mots-clés à partir des topics LDA
+            keyword_cluster = []
+            if lda_topics and len(lda_topics) > 0:
+                # Combiner les top mots de tous les topics LDA avec des scores artificiels
+                for i, topic_words in enumerate(lda_topics):
+                    # Prendre les 10 top mots de chaque topic avec scores décroissants
+                    top_words = topic_words[:10] if len(topic_words) >= 10 else topic_words
+                    for j, word in enumerate(top_words):
+                        # Score artificiel décroissant : topic 0 > topic 1, mot 0 > mot 1
+                        score = 0.9 - (i * 0.1) - (j * 0.05)
+                        keyword_cluster.append((word, max(score, 0.1)))
                 
-                single_cluster['ranking_score'] = single_cluster.get('quality_score', 0.5)
-                single_cluster['validation_status'] = 'single_tag_skip'
-                final_validated_clusters = optimized_clusters
-            else:
-                self.logger.info(f"🔄 PHASE 3: Multiple tags ({len(optimized_clusters)}), using full validation")
+                self.logger.debug(f"🎯 Prepared {len(keyword_cluster)} keywords from {len(lda_topics)} LDA topics for cluster {cluster_index+1}")
+            
+            # Extraire les textes des profils pour le contexte sémantique
+            profiles = cluster_data.get('profiles', [])
+            cluster_texts = []
+            if profiles and self.profile_processor:
                 try:
-                    final_validated_clusters = self.tag_validator.rank_and_validate_final_tags(optimized_clusters)
-                except Exception as validation_error:
-                    self.logger.warning(f"Full validation failed: {validation_error}")
-                    for cluster in optimized_clusters: # Fallback
-                        cluster['quality_score'] = 0.5
-                        cluster['ranking_score'] = 0.5
-                        cluster['validation_status'] = 'fallback'
-                    final_validated_clusters = optimized_clusters
-        except Exception as e:
-            self.logger.warning(f"⚠️ Validation step failed for cluster {cluster_index+1}: {e}")
-            final_validated_clusters = optimized_clusters # Ultimate fallback
-
-        return final_validated_clusters
-
-    def _generate_single_optimal_tag_for_cluster(self, cluster_index: int, keywords: List[Tuple[str, float]], keyword_clusters: List, validated_clusters: List, cluster_data: Dict) -> List[Dict]:
-        """
-        OPTIMIZED: Generate only ONE optimal tag per cluster for maximum performance.
-        Bypasses the expensive multi-tag generation and validation pipeline.
-        """
-        try:
-            self.logger.info(f"🔄 OPTIMIZED: Generating single optimal tag for cluster {cluster_index+1}")
+                    cluster_texts = self.profile_processor.extract_cluster_texts(profiles)
+                    # Limiter pour les performances
+                    cluster_texts = cluster_texts[:10] if len(cluster_texts) > 10 else cluster_texts
+                except Exception as e:
+                    self.logger.warning(f"⚠️ Failed to extract cluster texts: {e}")
+                    cluster_texts = []
             
-            # Use the best keyword cluster for tag generation
-            best_cluster = validated_clusters[0] if validated_clusters else keywords[:5]
-            
-            # Generate ONE high-quality tag using ImprovedTagGenerator
-            try:
-                if self.improved_tag_generator and best_cluster:
-                    cluster_embeddings = [cluster_data.get('embedding', [])]
-                    optimal_tag = self.improved_tag_generator.generate_tag_from_keywords(
-                        best_cluster, cluster_embeddings
-                    )
-                    
-                    if optimal_tag and optimal_tag.strip():
-                        final_cluster = {
-                            'tag': optimal_tag,
-                            'keywords': best_cluster[:5],
-                            'quality_score': 0.8,  # High default score for optimized generation
-                            'ranking_score': 0.8,
-                            'validation_status': 'optimized_single_tag',
-                            'generation_method': 'improved_tag_generator_optimized'
-                        }
-                        
-                        self.logger.info(f"✅ OPTIMIZED: Generated optimal tag '{optimal_tag}' for cluster {cluster_index+1}")
-                        return [final_cluster]
+            # Utiliser le nouveau pipeline de génération et validation
+            if hasattr(self, 'tag_generator_service') and self.tag_generator_service:
+                # TODO: Implémenter la collecte de tous les tags pour la fréquence
+                all_tags = getattr(self, '_current_session_tags', [])
                 
-            except Exception as e:
-                self.logger.warning(f"ImprovedTagGenerator failed: {e}")
-            
-            # Fallback: Use first keyword as tag
-            if keywords:
-                fallback_tag = keywords[0][0].title()
-                final_cluster = {
-                    'tag': fallback_tag,
-                    'keywords': keywords[:5],
-                    'quality_score': 0.6,
-                    'ranking_score': 0.6,
-                    'validation_status': 'optimized_fallback',
-                    'generation_method': 'keyword_fallback_optimized'
+                tag_result = self.tag_generator_service.generate_and_filter_tags(
+                    keyword_cluster=keyword_cluster,
+                    cluster_texts=cluster_texts,  # Utilise les textes au lieu des handles
+                    all_tags=all_tags
+                )
+                
+                # Stocker le tag généré pour la session
+                if not hasattr(self, '_current_session_tags'):
+                    self._current_session_tags = []
+                self._current_session_tags.append(tag_result['tag'])
+                
+                # Logger la qualité du tag
+                quality_info = f"quality={tag_result['quality_score']:.2f}"
+                if not tag_result['is_high_quality']:
+                    quality_info += f", issues={tag_result['issues']}"
+                
+                self.logger.info(f"✅ Generated tag '{tag_result['tag']}' for cluster {cluster_index+1} ({quality_info})")
+                
+                return {
+                    'tag': tag_result['tag'],
+                    'keywords': keyword_cluster[:10],  # Garder les top mots-clés
+                    'tagging_method': tag_result['generation_method'],
+                    'quality_score': tag_result['quality_score'],
+                    'is_high_quality': tag_result['is_high_quality'],
+                    'validation_issues': tag_result['issues'],
+                    'filters_passed': tag_result['filters_passed'],
+                    'lda_topics_used': len(lda_topics)
                 }
-                
-                self.logger.info(f"✅ OPTIMIZED: Used fallback tag '{fallback_tag}' for cluster {cluster_index+1}")
-                return [final_cluster]
             
-            # Ultimate fallback
-            final_cluster = {
+            # Fallback si le service n'est pas disponible
+            self.logger.warning(f"⚠️ TagGeneratorService not available for cluster {cluster_index+1}, using simple fallback")
+            
+            if keyword_cluster:
+                fallback_tag = keyword_cluster[0][0].title()
+                return {
+                    'tag': fallback_tag,
+                    'keywords': keyword_cluster[:10],
+                    'tagging_method': 'simple_fallback',
+                    'quality_score': 0.3,
+                    'is_high_quality': False,
+                    'lda_topics_used': len(lda_topics)
+                }
+            
+            # Fallback complet
+            return {
                 'tag': 'Community',
                 'keywords': [],
-                'quality_score': 0.5,
-                'ranking_score': 0.5,
-                'validation_status': 'optimized_ultimate_fallback',
-                'generation_method': 'ultimate_fallback_optimized'
+                'tagging_method': 'generic_fallback',
+                'quality_score': 0.2,
+                'is_high_quality': False,
+                'lda_topics_used': 0
             }
             
-            self.logger.info(f"✅ OPTIMIZED: Used ultimate fallback 'Community' for cluster {cluster_index+1}")
-            return [final_cluster]
-            
         except Exception as e:
-            self.logger.error(f"❌ Error in optimized tag generation for cluster {cluster_index+1}: {e}")
-            return [{
-                'tag': 'Error_Community',
+            self.logger.error(f"❌ Error in LDA-based tagging for cluster {cluster_index+1}: {e}")
+            return {
+                'tag': 'Community',
                 'keywords': [],
-                'quality_score': 0.3,
-                'ranking_score': 0.3,
-                'validation_status': 'error_fallback'
-            }]
+                'tagging_method': 'error_fallback',
+                'quality_score': 0.1,
+                'is_high_quality': False,
+                'error': str(e)
+            }
+
+    def _build_final_cluster(self, cluster_data: Dict, tag_result: Dict) -> Dict:
+        """
+        Construit le cluster final avec toutes les données nécessaires.
+        
+        Args:
+            cluster_data: Données brutes du cluster
+            tag_result: Résultat du tagging
+            
+        Returns:
+            Cluster final formaté
+        """
+        profiles = cluster_data.get('profiles', [])
+        handles = self._extract_profile_handles(profiles)
+        
+        # Convertir l'embedding en liste si c'est un ndarray
+        embedding = cluster_data.get('embedding', [])
+        if hasattr(embedding, 'tolist'):
+            embedding = embedding.tolist()
+        
+        # Calculer la persistence pondérée
+        cohesion = cluster_data.get('cohesion', 0.0)
+        
+        final_cluster = {
+            'handles': handles,
+            'size': len(profiles),
+            'profiles': profiles,
+            'embedding': embedding,
+            'tag': tag_result.get('tag', 'Community'),
+            'keywords': tag_result.get('keywords', []),
+            'cohesion': cohesion,
+            
+            # Données de robustesse propagées
+            'robustness_level': cluster_data.get('robustness_level'),
+            'robustness_tag': cluster_data.get('robustness_tag'),
+            'pipeline_step': cluster_data.get('pipeline_step'),
+            'skip_tagging': cluster_data.get('skip_tagging', False),
+            'processing_status': cluster_data.get('processing_status', 'processed'),
+            'clustering_method': cluster_data.get('clustering_method', 'HDBSCAN'),
+            
+            # Informations de tagging
+            'tagging_method': tag_result.get('tagging_method', 'unknown'),
+            'lda_topics_used': tag_result.get('lda_topics_used', 0),
+            'validation_status': tag_result.get('validation_status', 'processed'),
+            
+            # Nouvelles informations de qualité des tags
+            'tag_quality_score': tag_result.get('quality_score', 0.0),
+            'tag_is_high_quality': tag_result.get('is_high_quality', False),
+            'tag_validation_issues': tag_result.get('validation_issues', []),
+            'tag_filters_passed': tag_result.get('filters_passed', [])
+        }
+        
+        return final_cluster
+            
+
+    def _extract_cluster_texts(self, cluster_profiles: List[dict]) -> List[str]:
+        """Extract text content from cluster profiles."""
+        cluster_texts = []
+        for profile in cluster_profiles:
+            description = self._get_profile_field(profile, 'description')
+            handle = self._get_profile_field(profile, 'handle')
+            
+            if description and isinstance(description, str) and description.strip():
+                cluster_texts.append(description)
+            elif handle and isinstance(handle, str) and handle.strip():
+                cluster_texts.append(handle.replace('.bsky.social', '').replace('.', ' '))
+            else:
+                cluster_texts.append("")
+        
+        return cluster_texts
+    
+    def _get_profile_field(self, profile: dict, field: str) -> str:
+        """Safely extract field from profile object or dictionary."""
+        try:
+            # Try object attribute access first
+            if hasattr(profile, field):
+                return getattr(profile, field)
+            # Try dictionary access
+            elif isinstance(profile, dict) and field in profile:
+                return profile[field]
+            else:
+                return None
+        except Exception:
+            return None
+    
     
     def _extract_cluster_texts(self, cluster_profiles: List[dict]) -> List[str]:
         """Extract text content from cluster profiles."""
@@ -859,7 +822,6 @@ class MainOrchestrator:
                 handles.append(handle)
         return handles
     
-    def _calculate_centroid_embedding(self, embeddings: List[List[float]]) -> List[float]:
         """Calculate centroid embedding from multiple embeddings."""
         try:
             if not embeddings or not embeddings[0]:
@@ -883,39 +845,6 @@ class MainOrchestrator:
         except Exception as e:
             self.logger.warning(f"Error calculating centroid embedding: {e}")
             return embeddings[0] if embeddings else []
-    
-    def _calculate_weighted_persistence(self, persistence: float, cohesion: float) -> float:
-        """
-        Calcule une persistence pondérée en fonction de la cohésion.
-        
-        Nouvelle formule adaptée aux valeurs HDBSCAN : cohésion typique 0.1-0.4
-        - Cohésion 0.1 : coeff = 0.85 (réduction de 15%)
-        - Cohésion 0.4 : coeff = 0.94 (réduction de 6%)
-        
-        Args:
-            persistence: Valeur de persistence HDBSCAN (généralement 0.5-1.0)
-            cohesion: Valeur de cohésion HDBSCAN (typiquement 0.1-0.4)
-            
-        Returns:
-            Persistence pondérée ajustée
-        """
-        if persistence is None or cohesion is None:
-            return persistence
-        
-        # Nouvelle formule adaptée aux valeurs HDBSCAN réelles
-        # coeff = 0.8 + (cohesion × 0.5) pour cohésion 0.0-0.4 → coeff 0.8-1.0
-        coeff = 0.8 + (cohesion * 0.5)  # Coeff entre 0.8 et 1.0
-        
-        # Limiter le coefficient à 1.0 maximum
-        coeff = min(1.0, coeff)
-        
-        # Application du coefficient
-        weighted_persistence = persistence * coeff
-        
-        self.logger.debug(f"Weighted persistence: {persistence:.3f} * {coeff:.3f} = {weighted_persistence:.3f} (cohesion: {cohesion:.3f})")
-        
-        return weighted_persistence
-
     def _create_noise_cluster(self, trash_profiles: List[Any]) -> Dict[str, Any]:
         """
         Create a noise cluster for profiles without meaningful bio.

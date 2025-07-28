@@ -100,8 +100,8 @@ export default class FollowerAnalysisService {
         // Trier par distance (plus proche en premier)
         distances.sort((a, b) => a.distance - b.distance)
 
-        // Seuil de similarité minimum pour l'assignation (70%)
-        const MIN_SIMILARITY_THRESHOLD = 0.70
+        // Seuil de similarité minimum pour l'assignation (55%)
+        const MIN_SIMILARITY_THRESHOLD = 0.55
 
         if (distances.length > 0 && distances[0].similarity >= MIN_SIMILARITY_THRESHOLD) {
             // Assigner au SuperCluster le plus proche
@@ -369,27 +369,45 @@ export default class FollowerAnalysisService {
     }
 
     /**
-     * Génère un tag combiné à partir de plusieurs tags de clusters en utilisant WordNet
+     * Génère un tag combiné à partir de plusieurs tags de clusters
+     * Utilise en priorité les embeddings (plus robuste), avec fallback sur WordNet
      */
     private async generateCombinedTag(tags: string[]): Promise<string> {
+        // 1. Essayer la méthode basée sur les embeddings (plus robuste)
         try {
-            // Utiliser le service AI avec WordNet pour une analyse sémantique sophistiquée
+            console.log(`🧠 Attempting embedding-based tag generation for: ${tags.join(', ')}`)
+            const embeddingTag = await this.targetAudienceService.generateCombinedTagByEmbeddings(tags)
+            if (embeddingTag && embeddingTag.trim().length > 0) {
+                console.log(`✅ Embedding-based tag generated: "${embeddingTag}"`)
+                return embeddingTag.trim()
+            }
+        } catch (error) {
+            console.warn('🔄 Embedding-based tag generation failed:', error)
+        }
+
+        // 2. Fallback sur WordNet (méthode originale)
+        try {
+            console.log(`🔬 Falling back to WordNet-based tag generation...`)
             const aiGeneratedTag = await this.targetAudienceService.generateCombinedClusterTag(tags)
             if (aiGeneratedTag && aiGeneratedTag.trim().length > 0) {
+                console.log(`✅ WordNet-based tag generated: "${aiGeneratedTag}"`)
                 return aiGeneratedTag.trim()
             }
         } catch (error) {
-            console.warn('Failed to generate AI-based combined tag:', error)
+            console.warn('🔄 WordNet-based tag generation failed:', error)
         }
 
-        // Fallback: utiliser le tag le plus long ou le plus descriptif
+        // 3. Fallback final : utiliser le tag le plus long ou le plus descriptif
+        console.log(`🔄 Using fallback: longest tag selection`)
         const validTags = tags.filter(tag => tag && tag.trim().length > 0)
         if (validTags.length === 0) return 'Mixed Community'
 
         // Retourner le tag le plus long (généralement plus descriptif)
-        return validTags.reduce((longest, current) =>
+        const longestTag = validTags.reduce((longest, current) =>
             current.length > longest.length ? current : longest
         )
+        console.log(`📝 Fallback tag selected: "${longestTag}"`)
+        return longestTag
     }
 }
 
