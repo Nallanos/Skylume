@@ -10,6 +10,9 @@ export default class extends BaseSchema {
       table.json('keywords_cursor').notNullable()
       table.string('user_id').notNullable()
       table.string('account_handle').notNullable().references('accounts.handle')
+      
+      table.timestamp('created_at')
+      table.timestamp('updated_at')
     })
   }
 

@@ -1,15 +1,17 @@
 import { BaseSchema } from '@adonisjs/lucid/schema'
 
 export default class extends BaseSchema {
-  protected tableName = 'accounts'
+  protected tableName = 'users'
 
   async up() {
     this.schema.alterTable(this.tableName, (table) => {
-      table.integer('number_of_followers').defaultTo(0)
+      table.integer('posts_per_day').defaultTo(3).notNullable()
     })
   }
 
   async down() {
-    this.schema.dropTable(this.tableName)
+    this.schema.alterTable(this.tableName, (table) => {
+      table.dropColumn('posts_per_day')
+    })
   }
 }

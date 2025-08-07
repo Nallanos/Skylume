@@ -122,6 +122,15 @@ class DependencyFactory:
             
             if use_cache:
                 DependencyFactory._embedding_model_cache = model
+
+            try:
+                # Test the model with a simple encoding
+                test_text = "This is a test sentence."
+                model.encode(test_text, batch_size=1)
+                DependencyFactory._logger.info("✅ Embedding model passed initial test encoding")
+            except Exception as e:
+                DependencyFactory._logger.warning(f"⚠️ Initial test encoding failed: {e}")
+                raise RuntimeError(f"Embedding model failed initial test encoding: {e}")
             return model
             
         except Exception as e:

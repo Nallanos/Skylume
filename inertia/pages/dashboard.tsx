@@ -166,8 +166,11 @@ function Dashboard({ accounts }: DashboardProps) {
                 </div>
               </CardContent>
               <CardFooter className="pt-0 pb-4">
-                <Button asChild variant="outline" className="w-full">
-                  <a href="/add/schedule">Schedule</a>
+                <Button asChild size="sm" variant="outline" className="w-full">
+                  <a href="/add/schedule">
+                    <Plus className="h-4 w-4 mr-2 transition-transform group-hover:rotate-90" />
+                    Schedule
+                  </a>
                 </Button>
               </CardFooter>
             </Card>
@@ -183,8 +186,11 @@ function Dashboard({ accounts }: DashboardProps) {
                 </div>
               </CardContent>
               <CardFooter className="pt-0 pb-4">
-                <Button asChild variant="outline" className="w-full">
-                  <a href="/add/campaign">Create</a>
+                <Button asChild size="sm" variant="outline" className="w-full">
+                  <a href="/add/campaign">
+                    <Plus className="h-4 w-4 mr-2 transition-transform group-hover:rotate-90" />
+                    Create
+                  </a>
                 </Button>
               </CardFooter>
             </Card>
@@ -200,8 +206,11 @@ function Dashboard({ accounts }: DashboardProps) {
                 </div>
               </CardContent>
               <CardFooter className="pt-0 pb-4">
-                <Button asChild variant="outline" className="w-full">
-                  <a href="/feed">Manage</a>
+                <Button asChild size="sm" variant="outline" className="w-full">
+                  <a href="/feed">
+                    <Users className="h-4 w-4 mr-2" />
+                    Manage
+                  </a>
                 </Button>
               </CardFooter>
             </Card>
@@ -217,8 +226,11 @@ function Dashboard({ accounts }: DashboardProps) {
                 </div>
               </CardContent>
               <CardFooter className="pt-0 pb-4">
-                <Button asChild variant="outline" className="w-full">
-                  <a href="/analytics">View</a>
+                <Button asChild size="sm" variant="outline" className="w-full">
+                  <a href="/analytics">
+                    <BarChart2 className="h-4 w-4 mr-2" />
+                    View
+                  </a>
                 </Button>
               </CardFooter>
             </Card>

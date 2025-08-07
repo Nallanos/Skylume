@@ -318,4 +318,60 @@ export default class AccountController {
       return response.redirect().back()
     }
   }
+
+  /**
+   * API endpoint pour rafraîchir les stats sans rechargement de page
+   */
+  public async refreshStatsApi({ params, response, auth }: HttpContext) {
+    try {
+      const user = await auth.authenticate()
+      if (!user) {
+        return response.status(401).json({ error: 'Unauthorized' })
+      }
+
+      const accountId = params.id
+
+      const account = await Account.query()
+        .where('id', accountId)
+        .andWhere('userId', user.id)
+        .first()
+
+      if (!account) {
+        return response.status(404).json({ error: 'Account not found' })
+      }
+
+      const accountService = await this.account_manager.getOrCreateAccountService(account)
+
+      // Établir la session
+      await accountService.createOrResumeSession(account)
+
+      // Mettre à jour les statistiques
+      await accountService.updateAccountStats(account)
+
+      // Invalider le cache analytics
+      try {
+        await this.cacheManager.delete(`analytics:basic:${accountId}`)
+        console.log(`Cache invalidé pour le compte ${account.handle}`)
+      } catch (cacheError) {
+        console.warn('Échec d\'invalidation du cache:', cacheError)
+      }
+
+      // Retourner les nouvelles données
+      await account.refresh()
+      
+      return response.json({
+        success: true,
+        account: {
+          id: account.id,
+          handle: account.handle,
+          followersCount: account.followers_count,
+          postsCount: account.posts_count,
+          isRateLimited: account.isRateLimited
+        }
+      })
+    } catch (err: any) {
+      console.error("Error refreshing account stats via API:", err)
+      return response.status(500).json({ error: 'Failed to refresh account statistics' })
+    }
+  }
 }

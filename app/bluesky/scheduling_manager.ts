@@ -4,7 +4,7 @@ import handle from '../jobs/schedule_job.js'
 import env from '#start/env'
 import crypto from 'crypto'
 import { inject } from '@adonisjs/core'
-import type AccountManager  from '#services/account_manager'
+import AccountManager from '#services/account_manager'
 import Account from '#models/account'
 
 
@@ -70,6 +70,13 @@ export class SchedulingQueueManager {
         try {
             const scheduleTime = new Date(scheduling.scheduleTime)
             const delay = scheduleTime.getTime() - Date.now()
+            
+            // Ne pas créer de job pour les dates passées
+            if (delay <= 0) {
+                console.warn(`[WARNING] Schedule ${scheduling.id} is in the past, skipping job creation`)
+                return
+            }
+
             const job = await this.queue.add(
                 'schedule',
                 { schedule_id: scheduling.id },
@@ -78,25 +85,40 @@ export class SchedulingQueueManager {
                     jobId: crypto.randomBytes(16).toString('hex'),
                 }
             )
+            
             if (job.id) {
                 scheduling.jobId = job.id
                 await scheduling.save()
+                console.log(`[INFO] Created job ${job.id} for schedule ${scheduling.id}`)
             } else {
                 throw new Error(`No job ID found for schedule ${scheduling.id}`)
             }
         } catch (err) {
             console.error(`[ERROR] Failed to create job for schedule ${scheduling.id}:`, err)
+            throw err
         }
     }
 
     /**
      * Supprime un job existant
      */
-    public async removeJob(scheduleId: string): Promise<void> {
+    public async removeJob(jobId: string): Promise<void> {
         try {
-            await this.queue.remove(scheduleId)
+            if (!jobId) {
+                console.warn(`[WARNING] No job ID provided for removal`)
+                return
+            }
+            
+            const job = await this.queue.getJob(jobId)
+            if (job) {
+                await job.remove()
+                console.log(`[INFO] Removed job ${jobId}`)
+            } else {
+                console.warn(`[WARNING] Job ${jobId} not found in queue`)
+            }
         } catch (err) {
-            console.error(`[ERROR] Failed to remove job for schedule ${scheduleId}:`, err)
+            console.error(`[ERROR] Failed to remove job ${jobId}:`, err)
+            // Ne pas rethrow l'erreur pour éviter de bloquer les autres opérations
         }
     }
 
@@ -105,13 +127,16 @@ export class SchedulingQueueManager {
      */
     public async updateJob(scheduling: Scheduling): Promise<void> {
         try {
-            if (!scheduling.jobId) {
-                throw new Error(`No job ID found for schedule ${scheduling.id}`)
+            // Supprimer l'ancien job s'il existe
+            if (scheduling.jobId) {
+                await this.removeJob(scheduling.jobId)
             }
-            await this.removeJob(scheduling.jobId)
+            
+            // Créer le nouveau job
             await this.createOneJob(scheduling)
         } catch (err) {
             console.error(`[ERROR] Failed to update job for schedule ${scheduling.id}:`, err)
+            throw err
         }
     }
 }

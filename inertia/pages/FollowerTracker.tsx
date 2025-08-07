@@ -1,33 +1,24 @@
 import { Head, Link, router } from '@inertiajs/react'
 import Layout from '../components/Layout'
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react'
+import { useState, useEffect, useMemo, useCallback, useRef, memo } from 'react'
 import {
   Users,
   X,
   ArrowLeftRight,
   Heart,
-  Search,
-  Filter,
   ChevronLeft,
   ChevronRight,
   UserPlus,
   UserMinus,
   MoreHorizontal,
   Eye,
-  Tag,
   RefreshCw,
+  Settings,
 } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
 import { Input } from '../components/ui/input'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '../components/ui/select'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -39,6 +30,157 @@ import { toast } from 'sonner'
 import BatchProgressBar from '../components/BatchProgressBar'
 import BatchStatusBadge from '../components/BatchStatusBadge'
 import BatchActions from '../components/BatchActions'
+import RelationshipEvolutionChart from '../components/RelationshipEvolutionChart'
+import FollowerTrackerSkeleton from '../components/FollowerTrackerSkeleton'
+
+// Composant mémorisé pour un follower individuel
+const FollowerItem = memo(({
+  follower,
+  isSelected,
+  isHovered,
+  statusConfig,
+  onSelectFollower,
+  onMouseEnter,
+  onMouseLeave,
+  onBatchAction
+}: {
+  follower: FollowerWithStatus
+  isSelected: boolean
+  isHovered: boolean
+  statusConfig: any
+  onSelectFollower: (did: string) => void
+  onMouseEnter: (did: string) => void
+  onMouseLeave: () => void
+  onBatchAction: (action: 'follow' | 'unfollow', dids: string[]) => void
+}) => {
+  const config = statusConfig[follower.status]
+  
+  const handleSelect = useCallback(() => {
+    onSelectFollower(follower.did)
+  }, [onSelectFollower, follower.did])
+
+  const handleMouseEnter = useCallback(() => {
+    onMouseEnter(follower.did)
+  }, [onMouseEnter, follower.did])
+
+  const handleFollowAction = useCallback((action: 'follow' | 'unfollow') => {
+    onBatchAction(action, [follower.did])
+  }, [onBatchAction, follower.did])
+
+  return (
+    <div
+      className={`flex items-center gap-4 p-4 rounded-lg border transition-all hover:shadow-sm ${
+        isSelected ? 'border-primary bg-primary/5' : 'border-border'
+      }`}
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      {/* Checkbox */}
+      <Checkbox
+        checked={isSelected}
+        onCheckedChange={handleSelect}
+      />
+
+      {/* Avatar */}
+      <div className="relative">
+        <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+          {follower.avatar ? (
+            <img
+              src={follower.avatar}
+              alt={follower.handle}
+              className="w-full h-full object-cover"
+              loading="lazy"
+            />
+          ) : (
+            <Users className="h-6 w-6 text-muted-foreground" />
+          )}
+        </div>
+      </div>
+
+      {/* User Info */}
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-2 mb-1">
+          <h3 className="font-semibold truncate">
+            {follower.displayName || follower.handle}
+          </h3>
+          <Badge variant="secondary" className={config.color}>
+            {config.label}
+          </Badge>
+        </div>
+
+        <p className="text-sm text-muted-foreground mb-1">
+          <a
+            href={`https://bsky.app/profile/${follower.handle}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="hover:text-blue-600 dark:hover:text-blue-400 hover:underline transition-colors"
+          >
+            @{follower.handle}
+          </a>
+        </p>
+
+        {follower.description && (
+          <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
+            {follower.description}
+          </p>
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-2">
+        {isHovered && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon">
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem
+                onClick={() =>
+                  window.open(
+                    `https://bsky.app/profile/${follower.handle}`,
+                    '_blank'
+                  )
+                }
+              >
+                <Eye className="h-4 w-4 mr-2" />
+                View Profile
+              </DropdownMenuItem>
+              {follower.status === 'i_follow_only' && (
+                <DropdownMenuItem
+                  onClick={() => handleFollowAction('unfollow')}
+                  className="text-destructive"
+                >
+                  <UserMinus className="h-4 w-4 mr-2" />
+                  Unfollow
+                </DropdownMenuItem>
+              )}
+              {follower.status === 'they_follow_only' && (
+                <DropdownMenuItem
+                  onClick={() => handleFollowAction('follow')}
+                  className="text-green-600"
+                >
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Follow Back
+                </DropdownMenuItem>
+              )}
+              {follower.status === 'mutual' && (
+                <DropdownMenuItem
+                  onClick={() => handleFollowAction('unfollow')}
+                  className="text-destructive"
+                >
+                  <UserMinus className="h-4 w-4 mr-2" />
+                  Unfollow
+                </DropdownMenuItem>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </div>
+    </div>
+  )
+})
 
 interface FollowerWithStatus {
   did: string
@@ -68,7 +210,13 @@ interface FollowerTrackerProps {
     mutual: number
     they_follow_only: number
     i_follow_only: number
-  }
+  } | null
+  relationshipHistory?: {
+    date: string
+    mutual: number
+    i_follow_only: number
+    they_follow_only: number
+  }[]
   pagination?: {
     currentPage: number
     totalPages: number
@@ -76,26 +224,44 @@ interface FollowerTrackerProps {
     hasNextPage: boolean
     hasPrevPage: boolean
     loadedAll?: boolean
-  }
-  filters?: {
-    current: string
-    search: string
-  }
+  } | null
+  isLoading?: boolean
   error?: string
 }
 
-export default function FollowerTracker({
-  followers,
+const FollowerTracker = memo(function FollowerTracker({
+  followers: initialFollowers,
   account,
-  relationshipCounts,
-  pagination,
-  filters,
+  relationshipCounts: initialRelationshipCounts,
+  relationshipHistory: initialRelationshipHistory,
+  pagination: initialPagination,
+  isLoading: initialLoading = false,
   error,
 }: FollowerTrackerProps) {
+  // Data state - using props directly since we don't do automatic loading
+  const [followers] = useState<FollowerWithStatus[]>(initialFollowers)
+  const [relationshipCounts] = useState(initialRelationshipCounts)
+  const [relationshipHistory] = useState(initialRelationshipHistory || [])
+  const [pagination] = useState(initialPagination)
+  const [dataLoading] = useState(initialLoading)
+  
+  // UI state  
   const [selectedFollowers, setSelectedFollowers] = useState<Set<string>>(new Set())
-  const [isLoading, setIsLoading] = useState(false)
+  const [batchLoading, setBatchLoading] = useState(false)
   const [hoveredUser, setHoveredUser] = useState<string | null>(null)
-  const [labelFilter, setLabelFilter] = useState<string>('all-labels')
+  const [filters, setFilters] = useState<{
+    status: string[]
+    labels: string[]
+    search: string
+    followersRange: { min: number | null, max: number | null }
+    followingRange: { min: number | null, max: number | null }
+  }>({
+    status: [],
+    labels: [],
+    search: '',
+    followersRange: { min: null, max: null },
+    followingRange: { min: null, max: null }
+  })
   const [loadingAll, setLoadingAll] = useState(false)
   const [batchProgress, setBatchProgress] = useState<{
     action: 'follow' | 'unfollow' | null
@@ -109,12 +275,14 @@ export default function FollowerTracker({
     startTime?: number
   }>({ action: null, jobId: null, total: 0, completed: 0, successful: 0, failed: 0, status: null })
   const [refreshingCache, setRefreshingCache] = useState(false)
-  const [clientSearch, setClientSearch] = useState('')
-  const [virtualStart, setVirtualStart] = useState(0)
+  const [virtualStart] = useState(0)
   const [virtualEnd, setVirtualEnd] = useState(50) // Initial render window
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null)
   const hasCheckedActiveJobs = useRef(false)
   const batchProgressRef = useRef(batchProgress)
+
+  // No automatic data loading - only load when user explicitly requests it
+  // Removed the useEffect that automatically loaded data on mount
 
   // Check if all data is loaded
   const allDataLoaded = pagination?.loadedAll || false
@@ -123,14 +291,41 @@ export default function FollowerTracker({
   const filteredFollowers = useMemo(() => {
     let filtered = followers
 
-    // Apply label filter
-    if (labelFilter && labelFilter !== 'all-labels') {
-      filtered = filtered.filter((follower) => follower.labels?.includes(labelFilter) || false)
+    // Apply status filters (can be multiple)
+    if (filters.status.length > 0) {
+      filtered = filtered.filter((follower) => filters.status.includes(follower.status))
     }
 
-    // Apply client-side search (real-time)
-    if (clientSearch.trim()) {
-      const searchLower = clientSearch.toLowerCase()
+    // Apply label filters (can be multiple)
+    if (filters.labels.length > 0) {
+      filtered = filtered.filter((follower) => 
+        filters.labels.some((label: string) => follower.labels?.includes(label))
+      )
+    }
+
+    // Apply followers count range filter
+    if (filters.followersRange.min !== null || filters.followersRange.max !== null) {
+      filtered = filtered.filter((follower) => {
+        const count = follower.followersCount || 0
+        const passesMin = filters.followersRange.min === null || count >= filters.followersRange.min
+        const passesMax = filters.followersRange.max === null || count <= filters.followersRange.max
+        return passesMin && passesMax
+      })
+    }
+
+    // Apply following count range filter
+    if (filters.followingRange.min !== null || filters.followingRange.max !== null) {
+      filtered = filtered.filter((follower) => {
+        const count = follower.followingCount || 0
+        const passesMin = filters.followingRange.min === null || count >= filters.followingRange.min
+        const passesMax = filters.followingRange.max === null || count <= filters.followingRange.max
+        return passesMin && passesMax
+      })
+    }
+
+    // Apply search filter
+    if (filters.search.trim()) {
+      const searchLower = filters.search.toLowerCase()
       filtered = filtered.filter(
         (follower) =>
           follower.handle.toLowerCase().includes(searchLower) ||
@@ -140,7 +335,7 @@ export default function FollowerTracker({
     }
 
     return filtered
-  }, [followers, labelFilter, clientSearch])
+  }, [followers, filters])
 
   // Virtual scrolling - only render visible items
   const virtualizedFollowers = useMemo(() => {
@@ -160,12 +355,15 @@ export default function FollowerTracker({
     [filteredFollowers.length, virtualEnd]
   )
 
-  // Get unique labels from all followers
-  const allLabels = Array.from(
-    new Set(
-      followers.flatMap((f) => f.labels || []).filter((label) => label && label.trim() !== '')
-    )
-  ).sort()
+  // Get unique labels from all followers - mémorisé pour éviter les recalculs
+  const allLabels = useMemo(() => 
+    Array.from(
+      new Set(
+        followers.flatMap((f) => f.labels || []).filter((label) => label && label.trim() !== '')
+      )
+    ).sort(),
+    [followers]
+  )
 
   // Status configurations
   const statusConfig = {
@@ -189,43 +387,76 @@ export default function FollowerTracker({
     },
   }
 
-  const filterOptions = [
-    {
-      value: 'all',
-      label: 'All Relationships',
-      count: relationshipCounts?.all || followers.length,
-    },
-    {
-      value: 'mutual',
-      label: 'Mutual Follows',
-      count: relationshipCounts?.mutual || followers.filter((f) => f.status === 'mutual').length,
-    },
-    {
-      value: 'they_follow_only',
-      label: 'They Follow Me',
-      count:
-        relationshipCounts?.they_follow_only ||
-        followers.filter((f) => f.status === 'they_follow_only').length,
-    },
-    {
-      value: 'i_follow_only',
-      label: 'I Follow Them',
-      count:
-        relationshipCounts?.i_follow_only ||
-        followers.filter((f) => f.status === 'i_follow_only').length,
-    },
-  ]
+  // Filter management functions
+  const toggleStatusFilter = useCallback((status: string) => {
+    setFilters(prev => ({
+      ...prev,
+      status: prev.status.includes(status) 
+        ? prev.status.filter(s => s !== status)
+        : [...prev.status, status]
+    }))
+  }, [])
 
-  const handleLoadAll = () => {
+  const toggleLabelFilter = useCallback((label: string) => {
+    setFilters(prev => ({
+      ...prev,
+      labels: prev.labels.includes(label) 
+        ? prev.labels.filter(l => l !== label)
+        : [...prev.labels, label]
+    }))
+  }, [])
+
+  const updateSearchFilter = useCallback((search: string) => {
+    setFilters(prev => ({
+      ...prev,
+      search
+    }))
+  }, [])
+
+  const updateFollowersRange = useCallback((min: number | null, max: number | null) => {
+    setFilters(prev => ({
+      ...prev,
+      followersRange: { min, max }
+    }))
+  }, [])
+
+  const updateFollowingRange = useCallback((min: number | null, max: number | null) => {
+    setFilters(prev => ({
+      ...prev,
+      followingRange: { min, max }
+    }))
+  }, [])
+
+  const clearAllFilters = useCallback(() => {
+    setFilters({
+      status: [],
+      labels: [],
+      search: '',
+      followersRange: { min: null, max: null },
+      followingRange: { min: null, max: null }
+    })
+  }, [])
+
+  // Count active filters
+  const activeFiltersCount = useMemo(() => {
+    let count = 0
+    if (filters.status.length > 0) count++
+    if (filters.labels.length > 0) count++
+    if (filters.search.trim()) count++
+    if (filters.followersRange.min !== null || filters.followersRange.max !== null) count++
+    if (filters.followingRange.min !== null || filters.followingRange.max !== null) count++
+    return count
+  }, [filters])
+
+  const handleLoadAll = useCallback(() => {
     setLoadingAll(true)
     toast.info('Loading all followers... This may take a moment for large accounts.', {
       duration: 3000,
     })
-    const params = new URLSearchParams(window.location.search)
-    params.set('loadAll', 'true')
 
+    // Use the dedicated load-all endpoint instead of adding parameters
     router.get(
-      `${window.location.pathname}?${params.toString()}`,
+      `/accounts/${account?.id}/follower-tracker/load-all`,
       {},
       {
         onFinish: () => {
@@ -246,18 +477,18 @@ export default function FollowerTracker({
         },
       }
     )
-  }
+  }, [account?.id, relationshipCounts?.all, followers.length])
 
-  const handleSelectAll = () => {
+  const handleSelectAll = useCallback(() => {
     const currentFollowers = filteredFollowers
     if (selectedFollowers.size === currentFollowers.length) {
       setSelectedFollowers(new Set())
     } else {
       setSelectedFollowers(new Set(currentFollowers.map((f) => f.did)))
     }
-  }
+  }, [filteredFollowers, selectedFollowers.size])
 
-  const handleSelectFollower = (did: string) => {
+  const handleSelectFollower = useCallback((did: string) => {
     const newSelected = new Set(selectedFollowers)
     if (newSelected.has(did)) {
       newSelected.delete(did)
@@ -265,9 +496,9 @@ export default function FollowerTracker({
       newSelected.add(did)
     }
     setSelectedFollowers(newSelected)
-  }
+  }, [selectedFollowers])
 
-  const handleBatchAction = async (action: 'follow' | 'unfollow') => {
+  const handleBatchAction = useCallback(async (action: 'follow' | 'unfollow') => {
     if (selectedFollowers.size === 0) {
       toast.error('Please select users first')
       return
@@ -293,7 +524,7 @@ export default function FollowerTracker({
       return
     }
 
-    setIsLoading(true)
+    setBatchLoading(true)
 
     const selectedCount = validUserDids.length
     const actionText = action === 'follow' ? 'following' : 'unfollowing'
@@ -344,9 +575,15 @@ export default function FollowerTracker({
       console.error(`Batch ${action} error:`, error)
       toast.error(`Failed to start ${action} job. Please try again.`)
     } finally {
-      setIsLoading(false)
+      setBatchLoading(false)
     }
-  }
+  }, [selectedFollowers, filteredFollowers, account?.id])
+
+  // Fonction pour gérer les actions batch depuis FollowerItem
+  const handleSingleAction = useCallback((action: 'follow' | 'unfollow', dids: string[]) => {
+    setSelectedFollowers(new Set(dids))
+    handleBatchAction(action)
+  }, [handleBatchAction])
 
   // Progress polling function
   const startProgressPolling = useCallback(
@@ -487,32 +724,21 @@ export default function FollowerTracker({
     [account?.id]
   )
 
-  const handleFilterChange = (newFilter: string) => {
-    const params = new URLSearchParams(window.location.search)
-    if (newFilter !== 'all') {
-      params.set('filter', newFilter)
-    } else {
-      params.delete('filter')
-    }
-    params.set('page', '1') // Reset to first page
-    router.get(`${window.location.pathname}?${params.toString()}`)
-  }
-
-  const handlePageChange = (page: number) => {
+  const handlePageChange = useCallback((page: number) => {
     const params = new URLSearchParams(window.location.search)
     params.set('page', page.toString())
     router.get(`${window.location.pathname}?${params.toString()}`)
-  }
+  }, [])
 
-  const formatNumber = (num?: number) => {
+  const formatNumber = useCallback((num?: number) => {
     if (!num) return '0'
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`
     return num.toString()
-  }
+  }, [])
 
-  // Refresh cache function
-  const handleRefreshCache = async () => {
+  // Refresh cache function - optimisée
+  const handleRefreshCache = useCallback(async () => {
     setRefreshingCache(true)
     toast.info('Refreshing follower data... This will fetch the latest information.')
 
@@ -541,22 +767,22 @@ export default function FollowerTracker({
     } finally {
       setRefreshingCache(false)
     }
-  }
+  }, [account?.id])
 
-  // Utility functions for batch actions
-  const getFollowableCount = () => {
+  // Utility functions for batch actions - mémorisées
+  const getFollowableCount = useCallback(() => {
     return Array.from(selectedFollowers).filter((did) => {
       const follower = filteredFollowers.find((f) => f.did === did)
       return follower?.status === 'they_follow_only'
     }).length
-  }
+  }, [selectedFollowers, filteredFollowers])
 
-  const getUnfollowableCount = () => {
+  const getUnfollowableCount = useCallback(() => {
     return Array.from(selectedFollowers).filter((did) => {
       const follower = filteredFollowers.find((f) => f.did === did)
       return follower?.status === 'i_follow_only' || follower?.status === 'mutual'
     }).length
-  }
+  }, [selectedFollowers, filteredFollowers])
 
   // Check for active jobs on component mount
   useEffect(() => {
@@ -616,6 +842,27 @@ export default function FollowerTracker({
   useEffect(() => {
     batchProgressRef.current = batchProgress
   }, [batchProgress])
+
+  // Show skeleton loading state
+  if (dataLoading) {
+    return (
+      <Layout
+        user={null}
+        account={
+          account
+            ? {
+                id: account.id,
+                handle: account.handle,
+                followersCount: account.followersCount,
+              }
+            : undefined
+        }
+      >
+        <Head title="Follower Tracker" />
+        <FollowerTrackerSkeleton />
+      </Layout>
+    )
+  }
 
   if (error) {
     return (
@@ -687,9 +934,6 @@ export default function FollowerTracker({
               Please wait while we fetch all follower relationships. This may take a moment for
               accounts with many followers.
             </p>
-            <div className="w-full bg-muted rounded-full h-2">
-              <div className="bg-primary h-2 rounded-full animate-pulse w-2/3"></div>
-            </div>
           </div>
         </div>
       )}
@@ -788,6 +1032,16 @@ export default function FollowerTracker({
           })}
         </div>
 
+        {/* Relationship Evolution Chart */}
+        <RelationshipEvolutionChart 
+          relationshipHistory={relationshipHistory}
+          currentCounts={{
+            mutual: relationshipCounts?.mutual || followers.filter(f => f.status === 'mutual').length,
+            i_follow_only: relationshipCounts?.i_follow_only || followers.filter(f => f.status === 'i_follow_only').length,
+            they_follow_only: relationshipCounts?.they_follow_only || followers.filter(f => f.status === 'they_follow_only').length,
+          }}
+        />
+
         {/* Controls */}
         <Card>
           <CardContent className="pt-6">
@@ -797,50 +1051,146 @@ export default function FollowerTracker({
                 <div className="flex gap-2 flex-1">
                   <Input
                     placeholder="Search followers..."
-                    value={clientSearch}
-                    onChange={(e) => setClientSearch(e.target.value)}
+                    value={filters.search}
+                    onChange={(e) => updateSearchFilter(e.target.value)}
                     className="flex-1"
                   />
                   <Button
-                    onClick={() => setClientSearch('')}
+                    onClick={() => updateSearchFilter('')}
                     variant="outline"
                     size="icon"
-                    disabled={!clientSearch}
+                    disabled={!filters.search}
                   >
                     <X className="h-4 w-4" />
                   </Button>
                 </div>
                 <div className="flex gap-2">
-                  <Select value={filters?.current || 'all'} onValueChange={handleFilterChange}>
-                    <SelectTrigger className="w-full sm:w-[200px]">
-                      <Filter className="h-4 w-4 mr-2" />
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {filterOptions.map((option) => (
-                        <SelectItem key={option.value} value={option.value}>
-                          {option.label} ({option.count})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  {/* Filters Button */}
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="relative">
+                        <Settings className="h-4 w-4 mr-2" />
+                        Filters
+                        {activeFiltersCount > 0 && (
+                          <Badge variant="secondary" className="ml-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                            {activeFiltersCount}
+                          </Badge>
+                        )}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end" className="w-80">
+                      <div className="p-4 space-y-4">
+                        {/* Status Filters */}
+                        <div>
+                          <label className="text-sm font-medium mb-2 block">Relationship Status</label>
+                          <div className="space-y-2">
+                            {Object.entries(statusConfig).map(([status, config]) => (
+                              <div key={status} className="flex items-center space-x-2">
+                                <Checkbox
+                                  id={`status-${status}`}
+                                  checked={filters.status.includes(status)}
+                                  onCheckedChange={() => toggleStatusFilter(status)}
+                                />
+                                <label htmlFor={`status-${status}`} className="text-sm cursor-pointer">
+                                  {config.label}
+                                </label>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
 
-                  {allLabels.length > 0 && (
-                    <Select value={labelFilter} onValueChange={setLabelFilter}>
-                      <SelectTrigger className="w-full sm:w-[140px]">
-                        <Tag className="h-4 w-4 mr-2" />
-                        <SelectValue placeholder="Label" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="all-labels">All Labels</SelectItem>
-                        {allLabels.map((label) => (
-                          <SelectItem key={label} value={label}>
-                            {label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
+                        {/* Label Filters */}
+                        {allLabels.length > 0 && (
+                          <div>
+                            <label className="text-sm font-medium mb-2 block">Labels</label>
+                            <div className="max-h-32 overflow-y-auto space-y-2">
+                              {allLabels.map((label) => (
+                                <div key={label} className="flex items-center space-x-2">
+                                  <Checkbox
+                                    id={`label-${label}`}
+                                    checked={filters.labels.includes(label)}
+                                    onCheckedChange={() => toggleLabelFilter(label)}
+                                  />
+                                  <label htmlFor={`label-${label}`} className="text-sm cursor-pointer">
+                                    {label}
+                                  </label>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Followers Range */}
+                        <div>
+                          <label className="text-sm font-medium mb-2 block">Followers Count</label>
+                          <div className="flex gap-2 items-center">
+                            <Input
+                              type="number"
+                              placeholder="Min"
+                              value={filters.followersRange.min || ''}
+                              onChange={(e) => updateFollowersRange(
+                                e.target.value ? parseInt(e.target.value) : null,
+                                filters.followersRange.max
+                              )}
+                              className="w-20"
+                            />
+                            <span className="text-sm text-muted-foreground">to</span>
+                            <Input
+                              type="number"
+                              placeholder="Max"
+                              value={filters.followersRange.max || ''}
+                              onChange={(e) => updateFollowersRange(
+                                filters.followersRange.min,
+                                e.target.value ? parseInt(e.target.value) : null
+                              )}
+                              className="w-20"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Following Range */}
+                        <div>
+                          <label className="text-sm font-medium mb-2 block">Following Count</label>
+                          <div className="flex gap-2 items-center">
+                            <Input
+                              type="number"
+                              placeholder="Min"
+                              value={filters.followingRange.min || ''}
+                              onChange={(e) => updateFollowingRange(
+                                e.target.value ? parseInt(e.target.value) : null,
+                                filters.followingRange.max
+                              )}
+                              className="w-20"
+                            />
+                            <span className="text-sm text-muted-foreground">to</span>
+                            <Input
+                              type="number"
+                              placeholder="Max"
+                              value={filters.followingRange.max || ''}
+                              onChange={(e) => updateFollowingRange(
+                                filters.followingRange.min,
+                                e.target.value ? parseInt(e.target.value) : null
+                              )}
+                              className="w-20"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Clear Filters */}
+                        <div className="pt-2 border-t">
+                          <Button
+                            onClick={clearAllFilters}
+                            variant="outline"
+                            size="sm"
+                            className="w-full"
+                            disabled={activeFiltersCount === 0}
+                          >
+                            Clear All Filters
+                          </Button>
+                        </div>
+                      </div>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </div>
 
@@ -905,7 +1255,7 @@ export default function FollowerTracker({
               {/* Batch Actions */}
               <BatchActions
                 selectedCount={selectedFollowers.size}
-                isLoading={isLoading}
+                isLoading={batchLoading}
                 followableCount={getFollowableCount()}
                 unfollowableCount={getUnfollowableCount()}
                 onBatchFollow={() => handleBatchAction('follow')}
@@ -915,6 +1265,102 @@ export default function FollowerTracker({
             </div>
           </CardContent>
         </Card>
+
+        {/* Active Filters Display */}
+        {activeFiltersCount > 0 && (
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex flex-wrap gap-2 items-center">
+                <span className="text-sm font-medium text-muted-foreground">Active filters:</span>
+                
+                {/* Status filters */}
+                {filters.status.map((status: string) => (
+                  <Badge key={status} variant="secondary" className="flex items-center gap-1">
+                    {statusConfig[status as keyof typeof statusConfig]?.emoji} {statusConfig[status as keyof typeof statusConfig]?.label}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-4 w-4 p-0 hover:bg-transparent"
+                      onClick={() => toggleStatusFilter(status)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </Badge>
+                ))}
+
+                {/* Label filters */}
+                {filters.labels.map((label: string) => (
+                  <Badge key={label} variant="secondary" className="flex items-center gap-1">
+                    🏷️ {label}
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-4 w-4 p-0 hover:bg-transparent"
+                      onClick={() => toggleLabelFilter(label)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </Badge>
+                ))}
+
+                {/* Search filter */}
+                {filters.search && (
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    🔍 "{filters.search}"
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-4 w-4 p-0 hover:bg-transparent"
+                      onClick={() => updateSearchFilter('')}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </Badge>
+                )}
+
+                {/* Followers range filter */}
+                {(filters.followersRange.min !== null || filters.followersRange.max !== null) && (
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    👥 {filters.followersRange.min || 0}-{filters.followersRange.max || '∞'} followers
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-4 w-4 p-0 hover:bg-transparent"
+                      onClick={() => updateFollowersRange(null, null)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </Badge>
+                )}
+
+                {/* Following range filter */}
+                {(filters.followingRange.min !== null || filters.followingRange.max !== null) && (
+                  <Badge variant="secondary" className="flex items-center gap-1">
+                    ➡️ {filters.followingRange.min || 0}-{filters.followingRange.max || '∞'} following
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-4 w-4 p-0 hover:bg-transparent"
+                      onClick={() => updateFollowingRange(null, null)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </Badge>
+                )}
+
+                {/* Clear all button */}
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={clearAllFilters}
+                  className="ml-2"
+                >
+                  Clear All
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Followers List */}
         <Card>
@@ -936,16 +1382,17 @@ export default function FollowerTracker({
               <div className="text-center py-12">
                 <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <h3 className="text-lg font-semibold mb-2">
-                  {loadingAll ? 'Loading followers...' : 'No followers found'}
+                  {loadingAll ? 'Loading followers...' : 'No follower data loaded'}
                 </h3>
                 <p className="text-muted-foreground">
                   {loadingAll
                     ? 'Please wait while we load all your follower data.'
-                    : clientSearch ||
-                        filters?.search ||
-                        (labelFilter && labelFilter !== 'all-labels')
+                    : filters.search ||
+                        activeFiltersCount > 0
                       ? 'Try adjusting your search terms or filters'
-                      : 'This account has no followers yet'}
+                      : followers.length === 0 && !relationshipCounts 
+                        ? 'Click "Load All Data" to fetch and analyze your follower relationships'
+                        : 'No results match your current filters'}
                 </p>
                 {!allDataLoaded && !loadingAll && (
                   <Button onClick={handleLoadAll} className="mt-4" variant="outline">
@@ -959,7 +1406,7 @@ export default function FollowerTracker({
                 {/* Performance Info */}
                 <div className="flex items-center justify-between mb-4 p-3 bg-muted/30 rounded-lg">
                   <div className="text-sm text-muted-foreground">
-                    {clientSearch
+                    {filters.search || activeFiltersCount > 0
                       ? `${filteredFollowers.length} results found`
                       : `${virtualizedFollowers.length} of ${filteredFollowers.length} loaded`}
                   </div>
@@ -972,134 +1419,19 @@ export default function FollowerTracker({
 
                 {/* Virtualized List Container */}
                 <div className="space-y-3 max-h-[600px] overflow-y-auto" onScroll={handleScroll}>
-                  {virtualizedFollowers.map((follower) => {
-                    const config = statusConfig[follower.status]
-                    const isSelected = selectedFollowers.has(follower.did)
-
-                    return (
-                      <div
-                        key={follower.did}
-                        className={`flex items-center gap-4 p-4 rounded-lg border transition-all hover:shadow-sm ${
-                          isSelected ? 'border-primary bg-primary/5' : 'border-border'
-                        }`}
-                        onMouseEnter={() => setHoveredUser(follower.did)}
-                        onMouseLeave={() => setHoveredUser(null)}
-                      >
-                        {/* Checkbox */}
-                        <Checkbox
-                          checked={isSelected}
-                          onCheckedChange={() => handleSelectFollower(follower.did)}
-                        />
-
-                        {/* Avatar */}
-                        <div className="relative">
-                          <div className="w-12 h-12 rounded-full bg-muted flex items-center justify-center overflow-hidden">
-                            {follower.avatar ? (
-                              <img
-                                src={follower.avatar}
-                                alt={follower.handle}
-                                className="w-full h-full object-cover"
-                                loading="lazy"
-                              />
-                            ) : (
-                              <Users className="h-6 w-6 text-muted-foreground" />
-                            )}
-                          </div>
-                        </div>
-
-                        {/* User Info */}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <h3 className="font-semibold truncate">
-                              {follower.displayName || follower.handle}
-                            </h3>
-                            <Badge variant="secondary" className={config.color}>
-                              {config.label}
-                            </Badge>
-                          </div>
-
-                          <p className="text-sm text-muted-foreground mb-1">
-                            <a
-                              href={`https://bsky.app/profile/${follower.handle}`}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="hover:text-blue-600 dark:hover:text-blue-400 hover:underline transition-colors"
-                            >
-                              @{follower.handle}
-                            </a>
-                          </p>
-
-                          {follower.description && (
-                            <p className="text-sm text-muted-foreground line-clamp-2 mb-2">
-                              {follower.description}
-                            </p>
-                          )}
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex items-center gap-2">
-                          {hoveredUser === follower.did && (
-                            <DropdownMenu>
-                              <DropdownMenuTrigger asChild>
-                                <Button variant="ghost" size="icon">
-                                  <MoreHorizontal className="h-4 w-4" />
-                                </Button>
-                              </DropdownMenuTrigger>
-                              <DropdownMenuContent align="end">
-                                <DropdownMenuItem
-                                  onClick={() =>
-                                    window.open(
-                                      `https://bsky.app/profile/${follower.handle}`,
-                                      '_blank'
-                                    )
-                                  }
-                                >
-                                  <Eye className="h-4 w-4 mr-2" />
-                                  View Profile
-                                </DropdownMenuItem>
-                                {follower.status === 'i_follow_only' && (
-                                  <DropdownMenuItem
-                                    onClick={() => {
-                                      setSelectedFollowers(new Set([follower.did]))
-                                      handleBatchAction('unfollow')
-                                    }}
-                                    className="text-destructive"
-                                  >
-                                    <UserMinus className="h-4 w-4 mr-2" />
-                                    Unfollow
-                                  </DropdownMenuItem>
-                                )}
-                                {follower.status === 'they_follow_only' && (
-                                  <DropdownMenuItem
-                                    onClick={() => {
-                                      setSelectedFollowers(new Set([follower.did]))
-                                      handleBatchAction('follow')
-                                    }}
-                                    className="text-green-600"
-                                  >
-                                    <UserPlus className="h-4 w-4 mr-2" />
-                                    Follow Back
-                                  </DropdownMenuItem>
-                                )}
-                                {follower.status === 'mutual' && (
-                                  <DropdownMenuItem
-                                    onClick={() => {
-                                      setSelectedFollowers(new Set([follower.did]))
-                                      handleBatchAction('unfollow')
-                                    }}
-                                    className="text-destructive"
-                                  >
-                                    <UserMinus className="h-4 w-4 mr-2" />
-                                    Unfollow
-                                  </DropdownMenuItem>
-                                )}
-                              </DropdownMenuContent>
-                            </DropdownMenu>
-                          )}
-                        </div>
-                      </div>
-                    )
-                  })}
+                  {virtualizedFollowers.map((follower) => (
+                    <FollowerItem
+                      key={follower.did}
+                      follower={follower}
+                      isSelected={selectedFollowers.has(follower.did)}
+                      isHovered={hoveredUser === follower.did}
+                      statusConfig={statusConfig}
+                      onSelectFollower={handleSelectFollower}
+                      onMouseEnter={setHoveredUser}
+                      onMouseLeave={() => setHoveredUser(null)}
+                      onBatchAction={handleSingleAction}
+                    />
+                  ))}
 
                   {/* Load more indicator */}
                   {virtualEnd < filteredFollowers.length && (
@@ -1171,4 +1503,6 @@ export default function FollowerTracker({
       </div>
     </Layout>
   )
-}
+})
+
+export default FollowerTracker

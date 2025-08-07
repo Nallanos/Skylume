@@ -2,6 +2,7 @@ import { BaseModel, belongsTo, column, computed, hasMany } from '@adonisjs/lucid
 import type { BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 import User from './user.js'
 import Feed from './feed.js'
+import RelationshipHistory from './relationship_history.js'
 import type { AtpSessionData } from '@atproto/api'
 export default class Account extends BaseModel {
   @column({ isPrimary: true })
@@ -76,6 +77,9 @@ export default class Account extends BaseModel {
 
   @hasMany(() => Feed, { foreignKey: 'account_id' })
   declare feed: HasMany<typeof Feed>
+
+  @hasMany(() => RelationshipHistory, { foreignKey: 'account_id' })
+  declare relationshipHistories: HasMany<typeof RelationshipHistory>
 
   @belongsTo(() => User)
   declare user: BelongsTo<typeof User>

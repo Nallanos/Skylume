@@ -17,16 +17,29 @@ const handle = async (data: ScheduleJobPayload, account_service: AccountService)
         const account = await Account.findOrFail(schedule.account_id)
 
         if (!account) {
-            throw new Error(`Account not found for ID: ${schedule.account.id}`);
+            throw new Error(`Account not found for ID: ${schedule.account_id}`);
         }
+
+        console.log(`[INFO] Processing schedule ${schedule.id} for account ${account.handle}`)
 
         await account_service.createOrResumeSession(account);
         await account_service.post(account, schedule.message).then(async () => {
             schedule.status = "posted"
             await schedule.save()
+            console.log(`[INFO] Successfully posted schedule ${schedule.id}`)
         })
     } catch (err) {
-        console.error("[ERROR] Error in BotJob:", err);
+        console.error("[ERROR] Error in ScheduleJob:", err);
+        // Marquer le schedule comme échoué
+        try {
+            const schedule = await Scheduling.find(data.schedule_id);
+            if (schedule) {
+                schedule.status = "failed"
+                await schedule.save()
+            }
+        } catch (updateErr) {
+            console.error("[ERROR] Failed to update schedule status:", updateErr);
+        }
     }
 }
 

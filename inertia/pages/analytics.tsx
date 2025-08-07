@@ -4,7 +4,7 @@ import PublicationCalendar from '../components/PublicationCalendar'
 import FollowersGrowthChart from '../components/FollowersGrowthChart'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
-import { TrendingUp, Users, Heart, Repeat, MessageCircle } from 'lucide-react'
+import { TrendingUp, Users, Heart, Repeat, MessageCircle, RefreshCw } from 'lucide-react'
 import { Link } from '@inertiajs/react'
 interface Post {
   text: string
@@ -35,9 +35,12 @@ interface AnalyticsProps {
   posting_days: { date: string; count: number }[]
   all_posts: Post[]
   account: Account
+  cached?: boolean
+  updating?: boolean
+  lastRefresh?: string
 }
 
-function Analytics({ followers_history, posting_days, all_posts, account }: AnalyticsProps) {
+function Analytics({ followers_history, posting_days, all_posts, account, cached, updating, lastRefresh }: AnalyticsProps) {
   const { props } = usePage()
   const user = props.user as User
 
@@ -63,6 +66,11 @@ function Analytics({ followers_history, posting_days, all_posts, account }: Anal
     .sort((a, b) => b.weighted_engagement_rate - a.weighted_engagement_rate)
     .slice(0, 5)
 
+  const formatRefreshTime = (refreshTime: string) => {
+    const date = new Date(refreshTime)
+    return date.toLocaleString()
+  }
+
   return (
     <>
       <Head title={`Analytics - @${account.handle}`} />
@@ -80,9 +88,18 @@ function Analytics({ followers_history, posting_days, all_posts, account }: Anal
             </div>
 
             <div className="flex space-x-3 items-center">
-              <Button variant="outline" asChild>
-                <Link href={`/analytics/${account.id}/audience`}>Advanced Audience Analysis</Link>
-              </Button>
+              {cached && lastRefresh && (
+                <div className="text-xs text-muted-foreground">
+                  {updating ? (
+                    <span className="flex items-center gap-1">
+                      <RefreshCw className="h-3 w-3 animate-spin" />
+                      Updating data...
+                    </span>
+                  ) : (
+                    <span>Last updated: {formatRefreshTime(lastRefresh)}</span>
+                  )}
+                </div>
+              )}
             </div>
           </div>
 

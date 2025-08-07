@@ -1,21 +1,14 @@
-import os
-import warnings
-from sentence_transformers import SentenceTransformer, util
 from typing import List, Union, Dict, Any
 import numpy as np
+from sentence_transformers import SentenceTransformer, util
 from ai_service.models.interfaces.embedding_model import EmbeddingModel
-
-# Configuration des variables d'environnement et suppression des avertissements
-os.environ.setdefault('TRANSFORMERS_OFFLINE', '0')
-warnings.filterwarnings('ignore', category=FutureWarning, message='.*TRANSFORMERS_CACHE.*')
-warnings.filterwarnings('ignore', category=FutureWarning, module='transformers.utils.hub')
 
 class TransformerEmbedder(EmbeddingModel):
     """
     Implémentation d'un modèle d'embedding utilisant Sentence Transformers
     """
     
-    def __init__(self, model_name: str = "sentence-transformers/all-mpnet-base-v2", normalize: bool = True):
+    def __init__(self, model_name: str):
         """
         Initialise le modèle d'embedding
         
@@ -23,9 +16,10 @@ class TransformerEmbedder(EmbeddingModel):
             model_name: Nom du modèle Sentence Transformers à utiliser
             normalize: Si True, normalise les embeddings
         """
-        self.model = SentenceTransformer(model_name)
-        self.normalize = normalize
-        
+        try:
+            self.model = SentenceTransformer(model_name)
+        except Exception as e:
+            raise RuntimeError(f"Failed to load SentenceTransformer model '{model_name}': {e}")
     def encode(self, texts: Union[str, List[str]], batch_size: int = 32) -> List[List[float]]:
         """
         Encode un texte ou une liste de textes en vecteurs d'embedding
@@ -37,18 +31,22 @@ class TransformerEmbedder(EmbeddingModel):
         Returns:
             Une liste de vecteurs d'embedding
         """
-        embeddings = self.model.encode(
-            texts, 
-            batch_size=batch_size, 
-            convert_to_numpy=True, 
-            normalize_embeddings=self.normalize
-        )
+        try:
+            embeddings = self.model.encode(
+                texts, 
+                batch_size=batch_size, 
+                convert_to_numpy=True, 
+                normalize_embeddings=True,
+                show_progress_bar=False
+            )
         
-        # Assurer que le résultat est une liste de listes
-        if isinstance(texts, str):
-            return [embeddings.tolist()]
-        
-        return embeddings.tolist()
+            if isinstance(texts, str):
+                return [embeddings.tolist()]
+            
+            return embeddings.tolist()
+        except Exception as e:
+            print("❌ Error during encoding:", e)
+            raise RuntimeError(f"Failed to encode texts: {e}")
     
     def get_similarity(self, embedding1: List[float], embedding2: List[float]) -> float:
         """

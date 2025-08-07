@@ -26,11 +26,13 @@ interface Account {
 
 interface AccountCardProps {
   account: Account
+  onAccountUpdate?: (updatedAccount: Account) => void
 }
 
-function AccountCard({ account }: AccountCardProps) {
+function AccountCard({ account, onAccountUpdate }: AccountCardProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
+  const [localAccount, setLocalAccount] = useState(account)
 
   // Format metrics for better display
   const formatNumber = (num: number) => {
@@ -39,17 +41,50 @@ function AccountCard({ account }: AccountCardProps) {
   }
 
   const handleDelete = async () => {
-    await router.post('/dashboard/accounts/delete', { id: account.id })
+    await router.post('/dashboard/accounts/delete', { id: localAccount.id })
   }
 
   const refreshStats = async () => {
     setIsRefreshing(true)
     try {
-      await router.get(`/account/${account.id}/refresh-stats`)
+      const response = await fetch(`/api/account/${localAccount.id}/refresh-stats`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success && data.account) {
+          // Mettre à jour l'état local
+          const updatedAccount = { ...localAccount, ...data.account }
+          setLocalAccount(updatedAccount)
+          
+          // Notifier le composant parent si une callback est fournie
+          if (onAccountUpdate) {
+            onAccountUpdate(updatedAccount)
+          }
+          
+          console.log('Stats refreshed successfully')
+        }
+      } else {
+        console.error('Failed to refresh stats:', response.statusText)
+        // Fallback vers l'ancienne méthode en cas d'erreur
+        await router.get(`/account/${localAccount.id}/refresh-stats`)
+      }
     } catch (error) {
       console.error('Error refreshing stats:', error)
+      // Fallback vers l'ancienne méthode en cas d'erreur
+      try {
+        await router.get(`/account/${localAccount.id}/refresh-stats`)
+      } catch (fallbackError) {
+        console.error('Fallback refresh also failed:', fallbackError)
+      }
+    } finally {
+      setIsRefreshing(false)
     }
-    // The page will reload after the request completes
   }
 
   return (
@@ -59,15 +94,15 @@ function AccountCard({ account }: AccountCardProps) {
         <div className="flex items-center justify-between mb-6 p-4">
           <div className="min-w-0 flex gap-4 mr-4">
             <div className="flex items-center gap-2 mb-1">
-              <h3 className="font-semibold truncate text-lg text-foreground">{account.handle}</h3>
-              {account.displayName && (
+              <h3 className="font-semibold truncate text-lg text-foreground">{localAccount.handle}</h3>
+              {localAccount.displayName && (
                 <span className="text-sm text-muted-foreground truncate">
-                  ({account.displayName})
+                  ({localAccount.displayName})
                 </span>
               )}
             </div>
             <div className="flex items-center gap-2">
-              {account.isRateLimited ? (
+              {localAccount.isRateLimited ? (
                 <Badge variant="destructive" className="text-xs px-2 py-1 font-medium">
                   <Shield className="h-3 w-3 mr-1.5" />
                   Rate Limited
@@ -100,7 +135,7 @@ function AccountCard({ account }: AccountCardProps) {
         </div>
 
         {/* Rate Limited Warning */}
-        {account.isRateLimited && (
+        {localAccount.isRateLimited && (
           <p className="text-xs text-destructive mb-4 px-1">
             Rate limited, our application can no longer interact with your Bluesky account. For more
             information, check
@@ -123,7 +158,7 @@ function AccountCard({ account }: AccountCardProps) {
               Followers
             </span>
             <span className="font-bold text-lg text-foreground">
-              {formatNumber(account.followersCount || 0)}
+              {formatNumber(localAccount.followersCount || 0)}
             </span>
           </div>
           <div className="flex flex-col items-center text-center border-x border-border/30">
@@ -131,7 +166,7 @@ function AccountCard({ account }: AccountCardProps) {
               Posts
             </span>
             <span className="font-bold text-lg text-foreground">
-              {formatNumber(account.postsCount || 0)}
+              {formatNumber(localAccount.postsCount || 0)}
             </span>
           </div>
           <div className="flex flex-col items-center text-center">
@@ -139,7 +174,7 @@ function AccountCard({ account }: AccountCardProps) {
               Engagement
             </span>
             <span className="font-bold text-lg text-foreground">
-              {account.engagementRate || '0%'}
+              {localAccount.engagementRate || '0%'}
             </span>
           </div>
         </div>
@@ -154,7 +189,7 @@ function AccountCard({ account }: AccountCardProps) {
             className="h-8 px-3 border-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/5 hover:text-blue-700 dark:hover:text-blue-300 hover:border-blue-500/30"
             asChild
           >
-            <a href={`/analytics/${account.id}/`}>
+            <a href={`/analytics/${localAccount.id}/`}>
               <BarChart3 className="h-3.5 w-3.5 mr-1.5" />
               Stats
             </a>
@@ -165,18 +200,7 @@ function AccountCard({ account }: AccountCardProps) {
             className="h-8 px-3 border-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/5 hover:text-blue-700 dark:hover:text-blue-300 hover:border-blue-500/30"
             asChild
           >
-            <a href={`/analytics/${account.id}/audience`}>
-              <Users className="h-3.5 w-3.5 mr-1.5" />
-              Audience
-            </a>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 px-3 border-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/5 hover:text-blue-700 dark:hover:text-blue-300 hover:border-blue-500/30"
-            asChild
-          >
-            <a href={`/accounts/${account.id}/follower-tracker`}>
+            <a href={`/accounts/${localAccount.id}/follower-tracker`}>
               <Users className="h-3.5 w-3.5 mr-1.5" />
               Tracker
             </a>
@@ -187,7 +211,7 @@ function AccountCard({ account }: AccountCardProps) {
             className="h-8 px-3 border-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/5 hover:text-blue-700 dark:hover:text-blue-300 hover:border-blue-500/30"
             asChild
           >
-            <a href={`/add/schedule?account_id=${account.id}`}>
+            <a href={`/add/schedule?account_id=${localAccount.id}`}>
               <Calendar className="h-3.5 w-3.5 mr-1.5" />
               Schedule
             </a>
@@ -208,7 +232,7 @@ function AccountCard({ account }: AccountCardProps) {
             <DialogHeader>
               <DialogTitle>Are you sure?</DialogTitle>
               <DialogDescription>
-                Are you sure you want to delete the @{account.handle} account? This action is
+                Are you sure you want to delete the @{localAccount.handle} account? This action is
                 irreversible.
               </DialogDescription>
             </DialogHeader>

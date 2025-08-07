@@ -298,10 +298,18 @@ export class AIService {
       const embedding = tensor.tolist()[0];
       this.embeddingsCache.set(cacheKey, embedding);
       return embedding;
-    } catch (err) {
-      console.error("Error while getting embedding", err);
-      return [];
+    } catch (error) {
+      console.error("Error getting embedding:", error);
+      throw error;
     }
+  }
+
+  /**
+   * Méthode publique pour générer des embeddings
+   */
+  public async generateEmbedding(text: string): Promise<number[]> {
+    await AIService.modelPromise; // Attendre que le modèle soit initialisé
+    return await this.getEmbedding(text);
   }
 
   public async getTargetedAudience(

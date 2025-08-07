@@ -1,4 +1,5 @@
 import { defineConfig } from '@adonisjs/shield'
+import env from '#start/env'
 
 const shieldConfig = defineConfig({
   /**
@@ -6,8 +7,46 @@ const shieldConfig = defineConfig({
    * to learn more
    */
   csp: {
-    enabled: false,
-    directives: {},
+    enabled: true,
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: [
+        "'self'",
+        "'unsafe-inline'", // Nécessaire pour Inertia.js
+        'https://js.stripe.com',
+        'https://checkout.stripe.com'
+      ],
+      styleSrc: [
+        "'self'",
+        "'unsafe-inline'", // Nécessaire pour les styles inline de Tailwind
+        'https://fonts.googleapis.com'
+      ],
+      fontSrc: [
+        "'self'",
+        'https://fonts.gstatic.com',
+        'data:'
+      ],
+      imgSrc: [
+        "'self'",
+        'data:',
+        'https:',
+        'blob:'
+      ],
+      connectSrc: [
+        "'self'",
+        'https://api.stripe.com',
+        'wss://bsky.social',
+        'https://bsky.social'
+      ],
+      frameSrc: [
+        "'self'",
+        'https://js.stripe.com',
+        'https://hooks.stripe.com'
+      ],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"]
+    },
     reportOnly: false,
   },
 
@@ -16,8 +55,11 @@ const shieldConfig = defineConfig({
    * to learn more
    */
   csrf: {
-    enabled: false,
-    exceptRoutes: [],
+    enabled: true,
+    exceptRoutes: [
+      '/stripe/webhook', // Exception pour les webhooks Stripe
+      '/api/python/*' // Exception pour l'API Python interne
+    ],
     enableXsrfCookie: true,
     methods: ['POST', 'PUT', 'PATCH', 'DELETE'],
   },

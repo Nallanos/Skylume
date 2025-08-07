@@ -1,8 +1,13 @@
-import { BaseModel, column, computed, manyToMany, belongsTo } from '@adonisjs/lucid/orm'
+import { BaseModel, column, manyToMany, belongsTo, hasMany } from '@adonisjs/lucid/orm'
+import { DateTime } from 'luxon'
 import Convo from './convo.js'
 import User from './user.js'
 import Account from './account.js'
-import type { ManyToMany, BelongsTo } from '@adonisjs/lucid/types/relations'
+import FollowerCampaign from './follower_campaign.js'
+import type { ManyToMany, BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
+
+type AnalysisStatus = 'pending' | 'in_progress' | 'completed' | 'failed'
+
 export default class DmCampaign extends BaseModel {
   @column({ isPrimary: true })
   declare id: number
@@ -35,12 +40,66 @@ export default class DmCampaign extends BaseModel {
   declare keywords: string
 
   @column()
+  declare excludeKeywords: string | null
+
+  @column()
   declare followersCursor: string | undefined
 
-  @computed()
-  get parsed_keywords(): string {
-    return JSON.parse(this.keywords)
-  }
+  // Nouveaux champs pour l'analyse
+  @column()
+  declare analysisStatus: AnalysisStatus
+
+  @column()
+  declare totalFollowersAnalyzed: number
+
+  @column()
+  declare interestedFollowers: number
+
+  @column()
+  declare moderatelyInterestedFollowers: number
+
+  @column()
+  declare notInterestedFollowers: number
+
+  @column()
+  declare cannotDetermineFollowers: number
+
+  @column()
+  declare excludedFollowers: number
+
+  @column()
+  declare targetCount: number
+
+  @column()
+  declare keywordsEmbeddings: string | null
+
+  @column()
+  declare excludeKeywordsEmbeddings: string | null
+
+  // Seuils personnalisables pour la classification
+  @column()
+  declare interestedThreshold: number
+
+  @column()
+  declare moderatelyInterestedThreshold: number
+
+  @column.dateTime()
+  declare analysisStartedAt: DateTime | null
+
+  @column.dateTime()
+  declare analysisCompletedAt: DateTime | null
+
+  @column.dateTime()
+  declare executionStartedAt: DateTime | null
+
+  @column.dateTime()
+  declare executionCompletedAt: DateTime | null
+
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
 
   @manyToMany(() => Convo)
   declare convos: ManyToMany<typeof Convo>
@@ -50,4 +109,7 @@ export default class DmCampaign extends BaseModel {
 
   @belongsTo(() => User, { foreignKey: 'account_id' })
   declare user: BelongsTo<typeof User>
+
+  @hasMany(() => FollowerCampaign, { foreignKey: 'dm_campaign_id' })
+  declare followerCampaigns: HasMany<typeof FollowerCampaign>
 }

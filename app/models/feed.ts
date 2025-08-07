@@ -1,3 +1,4 @@
+import { DateTime } from 'luxon'
 import { BaseModel, column } from '@adonisjs/lucid/orm'
 
 export default class Feed extends BaseModel {
@@ -15,4 +16,16 @@ export default class Feed extends BaseModel {
 
   @column()
   declare accountHandle: string
+
+  @column()
+  declare isProcessing: boolean
+
+  @column()
+  declare lastProcessedAt: DateTime | null
+
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
 }

@@ -50,7 +50,7 @@ export default class AnalyticsController {
 
     /**
      * Affiche la page d'analytics de base avec les données nécessaires
-     * Optimisé pour de meilleures performances
+     * Optimisé pour de meilleures performances avec système de cache intelligent
      */
     public async basicAnalytics({ inertia, auth, params, response }: HttpContext) {
         const user = await auth.authenticate()
@@ -60,19 +60,29 @@ export default class AnalyticsController {
 
         const accountId = params.id
         const cacheKey = `analytics:basic:${accountId}`
+        const lastRefreshKey = `analytics:last_refresh:${accountId}`
 
+        // Vérifier si les données sont en cache et encore valides
         const cachedData = await this.cacheManager.get(cacheKey) as AnalyticsData | null
-        if (cachedData) {
-            console.log('Utilisation des données en cache pour analytics')
+        const lastRefresh = await this.cacheManager.get(lastRefreshKey) as string | null
+        
+        const now = DateTime.now()
+        const cacheValidDuration = 300 // 5 minutes
+        const isCacheValid = cachedData && lastRefresh && 
+            now.diff(DateTime.fromISO(lastRefresh), 'seconds').seconds < cacheValidDuration
+
+        if (isCacheValid) {
+            console.log('Utilisation des données en cache pour analytics (cache valide)')
             const { followers_history, posting_days, all_posts, account } = cachedData
             return inertia.render('analytics', {
                 followers_history,
                 posting_days,
                 all_posts,
-                account
+                account,
+                cached: true,
+                lastRefresh
             })
         }
-
 
         let selectedAccount: Account | null = null
         try {
@@ -85,6 +95,75 @@ export default class AnalyticsController {
             console.error(`Account not found or access denied for ID ${accountId} and user ${user.id}`, error)
             return response.redirect('/dashboard')
         }
+
+        // Si le cache existe mais est expiré, on peut l'utiliser en attendant la mise à jour en arrière-plan
+        if (cachedData && !isCacheValid) {
+            console.log('Cache expiré, utilisation des données existantes et mise à jour en arrière-plan')
+            
+            // Déclencher la mise à jour en arrière-plan
+            this.updateAnalyticsDataInBackground(selectedAccount, cacheKey, lastRefreshKey)
+                .catch(err => console.error('Erreur lors de la mise à jour en arrière-plan:', err))
+
+            const { followers_history, posting_days, all_posts, account } = cachedData
+            return inertia.render('analytics', {
+                followers_history,
+                posting_days,
+                all_posts,
+                account,
+                cached: true,
+                updating: true,
+                lastRefresh
+            })
+        }
+
+        // Aucun cache disponible, charger les données immédiatement
+        console.log('Aucun cache disponible, chargement des données analytics...')
+        const analyticsData = await this.loadAnalyticsData(selectedAccount)
+        
+        // Mettre en cache les données fraîches
+        await Promise.all([
+            this.cacheManager.set(cacheKey, analyticsData, cacheValidDuration * 2), // Cache plus long que la validation
+            this.cacheManager.set(lastRefreshKey, now.toISO(), cacheValidDuration * 2)
+        ])
+
+        const { followers_history, posting_days, all_posts, account } = analyticsData
+        return inertia.render('analytics', {
+            followers_history,
+            posting_days,
+            all_posts,
+            account,
+            cached: false,
+            lastRefresh: now.toISO()
+        })
+    }
+
+    /**
+     * Met à jour les données analytics en arrière-plan
+     */
+    private async updateAnalyticsDataInBackground(
+        selectedAccount: Account, 
+        cacheKey: string, 
+        lastRefreshKey: string
+    ): Promise<void> {
+        try {
+            const analyticsData = await this.loadAnalyticsData(selectedAccount)
+            const now = DateTime.now()
+            
+            await Promise.all([
+                this.cacheManager.set(cacheKey, analyticsData, 600), // 10 minutes de cache
+                this.cacheManager.set(lastRefreshKey, now.toISO(), 600)
+            ])
+            
+            console.log(`Analytics data updated in background for account ${selectedAccount.handle}`)
+        } catch (error) {
+            console.error('Erreur lors de la mise à jour en arrière-plan:', error)
+        }
+    }
+
+    /**
+     * Charge les données analytics depuis la base de données
+     */
+    private async loadAnalyticsData(selectedAccount: Account): Promise<AnalyticsData> {
 
         const account_service = await this.account_manager.getOrCreateAccountService(selectedAccount)
         await account_service.updateAccountStats(selectedAccount)
@@ -215,21 +294,12 @@ export default class AnalyticsController {
         // Trier par taux d'engagement pondéré (plus précis)
         all_posts.sort((a, b) => b.weighted_engagement_rate - a.weighted_engagement_rate)
 
-        const responseData: AnalyticsData = {
+        return {
             followers_history,
             posting_days,
             all_posts,
             account: selectedAccount
         }
-
-        await this.cacheManager.set(cacheKey, responseData, 300)
-
-        return inertia.render('analytics', {
-            followers_history,
-            posting_days,
-            all_posts,
-            account: selectedAccount
-        })
     }
 
     /**

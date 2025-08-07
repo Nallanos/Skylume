@@ -1,17 +1,19 @@
 import { BaseSchema } from '@adonisjs/lucid/schema'
 
 export default class extends BaseSchema {
-  protected tableName = 'analysis_audiences'
+  protected tableName = 'feeds'
 
   async up() {
     this.schema.alterTable(this.tableName, (table) => {
-      table.string('account_handle').nullable().after('account_id')
+      table.boolean('is_processing').defaultTo(false)
+      table.timestamp('last_processed_at').nullable()
     })
   }
 
   async down() {
     this.schema.alterTable(this.tableName, (table) => {
-      table.dropColumn('account_handle')
+      table.dropColumn('is_processing')
+      table.dropColumn('last_processed_at')
     })
   }
 }

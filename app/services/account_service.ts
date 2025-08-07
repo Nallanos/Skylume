@@ -385,7 +385,6 @@ export default class AccountService {
 
         while (retries < maxRetries) {
             try {
-                await this.createOrResumeSession(account)
                 if (!account.at_session) throw new Error("Session non définie")
 
                 const res = await this.agent.com.atproto.server.getServiceAuth(
@@ -414,7 +413,6 @@ export default class AccountService {
 
         while (retries < maxRetries) {
             try {
-                await this.createOrResumeSession(account)
                 if (!account.at_session) throw new Error("Session non définie")
 
                 const res = await this.agent.com.atproto.server.getServiceAuth(
@@ -443,7 +441,6 @@ export default class AccountService {
 
         while (retries < maxRetries) {
             try {
-                await this.createOrResumeSession(account)
                 if (!account.at_session) throw new Error("Session non définie")
 
                 const res = await this.agent.com.atproto.server.getServiceAuth(

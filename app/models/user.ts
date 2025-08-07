@@ -35,6 +35,9 @@ export default class User extends compose(BaseModel, AuthFinder) {
   @column()
   declare postScheduled: number
 
+  @column()
+  declare postsPerDay: number
+
   @column({ serializeAs: null })
   declare password: string
 

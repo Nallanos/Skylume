@@ -10,17 +10,19 @@
 import router from '@adonisjs/core/services/router'
 import server from '@adonisjs/core/services/server'
 
+// Démarrer le service de scheduling
+
 /**
  * The error handler is used to convert an exception
  * to a HTTP response.
- */
+*/
 server.errorHandler(() => import('#exceptions/handler'))
 
 /**
  * The server middleware stack runs middleware on all the HTTP
  * requests, even if there is no route registered for
  * the request URL.
- */
+*/
 server.use([
   () => import('#middleware/container_bindings_middleware'),
   () => import('@adonisjs/static/static_middleware'),
@@ -33,8 +35,9 @@ server.use([
 /**
  * The router middleware stack runs middleware on all the HTTP
  * requests with a registered route.
- */
+*/
 router.use([
+  () => import('#middleware/security_headers_middleware'),
   () => import('@adonisjs/core/bodyparser_middleware'),
   () => import('@adonisjs/session/session_middleware'),
   () => import('@adonisjs/shield/shield_middleware'),
@@ -44,10 +47,13 @@ router.use([
 /**
  * Named middleware collection must be explicitly assigned to
  * the routes or the routes group.
- */
+*/
 export const middleware = router.named({
   guest: () => import('#middleware/guest_middleware'),
   auth: () => import('#middleware/auth_middleware'),
   api_auth: () => import('#middleware/api_auth_middleware'),
-  json_validation: () => import('#middleware/json_validation_middleware')
+  json_validation: () => import('#middleware/json_validation_middleware'),
+  rate_limit: () => import('#middleware/rate_limit_middleware')
 })
+
+import './scheduling_worker.js'

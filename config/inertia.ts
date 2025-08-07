@@ -34,7 +34,7 @@ const inertiaConfig = defineConfig({
           marketing_consent: user.marketing_consent,
           createdAt: user.createdAt,
           updatedAt: user.updatedAt,
-          // Ajouter les nouvelles statistiques
+          postsPerDay: user.postsPerDay,
           scheduledCount: user.scheduledCount,
           followersCount: user.followersCount,
           followersGrowth: user.followersGrowth,

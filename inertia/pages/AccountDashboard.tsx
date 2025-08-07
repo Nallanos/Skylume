@@ -44,12 +44,39 @@ function AccountDashboard({ account, posting_days = [] }: AccountDashboardProps)
 
   const handleRefreshStats = async () => {
     try {
-      const response = await fetch(`/account/${account.id}/refresh-stats`)
+      // Utiliser la nouvelle API de refresh
+      const response = await fetch(`/api/account/${account.id}/refresh-stats`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      })
+      
       if (response.ok) {
-        window.location.reload()
+        const data = await response.json()
+        if (data.success) {
+          // Recharger la page avec les nouvelles données
+          window.location.reload()
+        }
+      } else {
+        // Fallback vers l'ancienne méthode
+        const fallbackResponse = await fetch(`/account/${account.id}/refresh-stats`)
+        if (fallbackResponse.ok) {
+          window.location.reload()
+        }
       }
     } catch (error) {
       console.error('Error refreshing stats:', error)
+      // Fallback vers l'ancienne méthode en cas d'erreur
+      try {
+        const response = await fetch(`/account/${account.id}/refresh-stats`)
+        if (response.ok) {
+          window.location.reload()
+        }
+      } catch (fallbackError) {
+        console.error('Fallback refresh also failed:', fallbackError)
+      }
     }
   }
 

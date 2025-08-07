@@ -2,6 +2,7 @@ import { BaseModel, belongsTo, column } from '@adonisjs/lucid/orm'
 import Account from './account.js'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 import User from './user.js'
+import { DateTime } from 'luxon'
 
 export default class Scheduling extends BaseModel {
   @column({ isPrimary: true })
@@ -13,8 +14,8 @@ export default class Scheduling extends BaseModel {
   @column()
   declare message: string
 
-  @column()
-  declare scheduleTime: string
+  @column.dateTime()
+  declare scheduleTime: DateTime
 
   @column()
   declare userId: string
@@ -25,7 +26,16 @@ export default class Scheduling extends BaseModel {
   @column()
   declare jobId: string
 
-  @belongsTo(() => Account)
+  @column({ serialize: (value: string) => value ? JSON.parse(value) : [] })
+  declare images: string
+
+  @column.dateTime({ autoCreate: true })
+  declare createdAt: DateTime
+
+  @column.dateTime({ autoCreate: true, autoUpdate: true })
+  declare updatedAt: DateTime
+
+  @belongsTo(() => Account, { foreignKey: 'account_id' })
   declare account: BelongsTo<typeof Account>
 
   @belongsTo(() => User, { foreignKey: 'userId' })

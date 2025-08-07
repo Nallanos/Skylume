@@ -1,20 +1,22 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Head, usePage, router } from '@inertiajs/react'
 import Layout from '../components/Layout'
+import AddFeed from '../components/AddFeed'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
-import { Input } from '../components/ui/input'
-import { Label } from '../components/ui/label'
-import { Plus, Loader, Trash2, Hash, Users } from 'lucide-react'
+import { Plus, Trash2, Hash } from 'lucide-react'
 
 interface Feed {
   id: number
-  account_id: number
-  keywords: string
-  createdAt: string
+  account_id: string
+  keywordsCursor: { [key: string]: string | null }
+  userId: string
+  accountHandle: string
+  createdAt?: string
   account?: {
+    id: string
     handle: string
-    displayName: string
+    displayName?: string
   }
 }
 
@@ -39,29 +41,14 @@ function Feeds({ feeds = [] }: FeedsProps) {
   const user = props.user as User
   const accounts = user.account || []
 
-  const [selectedAccount, setSelectedAccount] = useState('')
-  const [keywords, setKeywords] = useState('')
-  const [isLoading, setIsLoading] = useState(false)
   const [showCreateFeed, setShowCreateFeed] = useState(feeds.length === 0)
 
-  async function createFeed() {
-    if (!selectedAccount || !keywords) return
-
-    setIsLoading(true)
-    try {
-      await router.post('/feed/create', {
-        account_id: selectedAccount,
-        keywords,
-      })
+  // Reset showCreateFeed when feeds change (after successful creation)
+  useEffect(() => {
+    if (feeds.length > 0 && showCreateFeed) {
       setShowCreateFeed(false)
-      setSelectedAccount('')
-      setKeywords('')
-    } catch (error) {
-      console.error('Error creating feed:', error)
-    } finally {
-      setIsLoading(false)
     }
-  }
+  }, [feeds.length, showCreateFeed])
 
   async function deleteFeed(feedId: number) {
     if (!confirm('Are you sure you want to delete this feed?')) return
@@ -74,83 +61,11 @@ function Feeds({ feeds = [] }: FeedsProps) {
       <>
         <Head title="Feeds" />
         <Layout user={user}>
-          <div className="max-w-4xl mx-auto">
-            <header className="mb-12 text-center">
-              <div className="w-16 h-16 rounded-full bg-blue-600 dark:bg-blue-500 flex items-center justify-center text-white mb-6 mx-auto">
-                <Hash className="h-8 w-8" />
-              </div>
-              <h1 className="text-3xl font-bold text-blue-600 dark:text-blue-400 mb-4">
-                Create Your First Feed
-              </h1>
-              <p className="text-muted-foreground max-w-2xl mx-auto">
-                Create custom feeds to track specific keywords and hashtags across Bluesky. Monitor
-                conversations, competitors, and trends that matter to your brand.
-              </p>
-            </header>
-
-            <Card className="max-w-2xl mx-auto">
-              <CardHeader>
-                <CardTitle>Create Feed</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <Label htmlFor="account">Select Account</Label>
-                  <select
-                    id="account"
-                    className="w-full p-2 border rounded-md bg-background"
-                    value={selectedAccount}
-                    onChange={(e) => setSelectedAccount(e.target.value)}
-                  >
-                    <option value="">Choose an account</option>
-                    {accounts.map((account) => (
-                      <option key={account.id} value={account.id.toString()}>
-                        @{account.handle}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <Label htmlFor="keywords">Keywords</Label>
-                  <Input
-                    id="keywords"
-                    placeholder="e.g., bluesky, social media, #hashtag"
-                    value={keywords}
-                    onChange={(e) => setKeywords(e.target.value)}
-                  />
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Separate multiple keywords with commas
-                  </p>
-                </div>
-
-                <div className="flex gap-3">
-                  <Button
-                    onClick={createFeed}
-                    disabled={isLoading || !selectedAccount || !keywords}
-                    className="flex-1"
-                  >
-                    {isLoading ? (
-                      <>
-                        <Loader className="h-4 w-4 mr-2 animate-spin" />
-                        Creating...
-                      </>
-                    ) : (
-                      <>
-                        <Plus className="h-4 w-4 mr-2" />
-                        Create Feed
-                      </>
-                    )}
-                  </Button>
-
-                  {feeds.length > 0 && (
-                    <Button variant="outline" onClick={() => setShowCreateFeed(false)}>
-                      Cancel
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
+          <AddFeed 
+            accounts={accounts}
+            isFirstFeed={feeds.length === 0}
+            onCancel={feeds.length > 0 ? () => setShowCreateFeed(false) : undefined}
+          />
         </Layout>
       </>
     )
@@ -191,10 +106,10 @@ function Feeds({ feeds = [] }: FeedsProps) {
                       </div>
                       <div>
                         <CardTitle className="text-base">
-                          @{feed.account?.handle || 'Unknown'}
+                          @{feed.account?.handle || feed.accountHandle || 'Unknown'}
                         </CardTitle>
                         <p className="text-xs text-muted-foreground">
-                          Created {new Date(feed.createdAt).toLocaleDateString()}
+                          {feed.createdAt ? `Created ${new Date(feed.createdAt).toLocaleDateString()}` : 'Unknown date'}
                         </p>
                       </div>
                     </div>
@@ -213,9 +128,9 @@ function Feeds({ feeds = [] }: FeedsProps) {
                 <CardContent>
                   <div className="space-y-3">
                     <div>
-                      <Label className="text-xs">Keywords</Label>
+                      <div className="text-xs font-medium text-muted-foreground mb-1">Keywords</div>
                       <div className="flex flex-wrap gap-1 mt-1">
-                        {feed.keywords.split(',').map((keyword, index) => (
+                        {Object.keys(feed.keywordsCursor || {}).map((keyword: string, index: number) => (
                           <span key={index} className="px-2 py-1 bg-muted rounded-md text-xs">
                             {keyword.trim()}
                           </span>

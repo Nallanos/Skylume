@@ -128,9 +128,9 @@ function Sidebar({ user, account }: SidebarProps) {
             </Link>
 
             <Link
-              href="/dm-campaigns"
+              href="/campaign"
               className={`flex items-center gap-3 rounded-md px-3 py-2.5 text-sm transition-all duration-150 ${
-                isActive('/dm-campaigns')
+                isActive('/campaign')
                   ? 'bg-blue-500/10 text-blue-950 dark:text-blue-500 font-semibold shadow-sm'
                   : 'text-blue-950 dark:text-blue-400 hover:bg-accent/50 hover:text-blue-900 dark:hover:text-blue-500 font-medium'
               }`}
