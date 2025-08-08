@@ -24,45 +24,17 @@ const Navigation = ({ darkMode, toggleTheme }: { darkMode: boolean; toggleTheme:
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
             <span className="text-white font-bold text-sm">BC</span>
           </div>
-          <span className="font-bold text-xl text-gray-900 dark:text-white">BlueSky Copilot</span>
+          <span className="font-bold text-xl text-gray-900 dark:text-white">BluePilot</span>
         </div>
       </div>
 
       {/* Navigation centrale */}
       <div className="hidden md:flex items-center space-x-8">
-        <div className="relative group">
-          <a
-            href="/product"
-            className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white font-medium flex items-center transition-colors"
-          >
-            Product
-            <svg className="w-4 h-4 ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M19 9l-7 7-7-7"
-              />
-            </svg>
-          </a>
-        </div>
         <a
           href="/pricing"
           className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white font-medium transition-colors"
         >
           Pricing
-        </a>
-        <a
-          href="/about"
-          className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white font-medium transition-colors"
-        >
-          About
-        </a>
-        <a
-          href="/help"
-          className="text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white font-medium transition-colors"
-        >
-          Help
         </a>
       </div>
 
@@ -111,7 +83,7 @@ const HeroSection = () => (
     <div className="max-w-4xl mb-8 relative z-10">
       <div className="mb-6 flex justify-center items-center gap-2">
         <div className="bg-blue-100 dark:bg-blue-900/30 px-4 py-2 rounded-full text-sm font-medium text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
-          🚀 Alpha Exclusive - Shape the Future
+          🎉 Completely Free Forever - No Credit Card Required
         </div>
       </div>
       <h1 className="text-4xl md:text-7xl font-bold mb-6 leading-tight text-gray-900 dark:text-white">
@@ -122,18 +94,18 @@ const HeroSection = () => (
         your bluesky audience
       </h1>
       <p className="text-lg md:text-2xl text-gray-600 dark:text-gray-300 mb-8">
-        Automate audience growth and monetization
+        Automate audience growth and monetization - All features free forever
       </p>
 
       <div className="flex flex-col md:flex-row justify-center gap-4 mb-4">
         <Button variant="cta" size="cta" onClick={() => (window.location.href = '/dashboard')}>
-          Try it for free
+          Get Started Free
           <ArrowRight className="w-5 h-5" />
         </Button>
       </div>
       <div className="text-center">
         <p className="text-gray-500 dark:text-gray-400 text-sm">
-          No credit card required - Get instant access
+          100% Free - All features included - No hidden costs
         </p>
       </div>
     </div>
@@ -273,12 +245,11 @@ const MonetizeSection = () => (
           <div className="flex items-center mb-4">
             <Brain className="h-8 w-8 text-purple-500 mr-3" />
             <h3 className="text-xl font-bold text-gray-800 dark:text-white">
-              AI Clustering Pipeline
+              Smart Audience Analysis
             </h3>
           </div>
           <p className="text-gray-600 dark:text-gray-300 mb-6">
-            Our UMAP algorithm analyzes your followers and automatically segments them into coherent
-            groups based on interests and behaviors.
+            Analyze your followers using advanced keyword matching and bio embedding technology to identify and target specific audience segments.
           </p>
           <div className="mb-6">
             <div className="text-center">
@@ -287,12 +258,12 @@ const MonetizeSection = () => (
                 onClick={() => (window.location.href = '/register')}
               >
                 <Target className="h-5 w-5 mr-2" />
-                Start AI Analysis
+                Start Analysis Free
               </Button>
             </div>
             <div className="text-center mt-2">
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Automatic segmentation into 5-10 audience groups
+                Smart keyword-based audience segmentation
               </p>
             </div>
           </div>
@@ -315,7 +286,7 @@ const MonetizeSection = () => (
                 onClick={() => (window.location.href = '/register')}
               >
                 <Zap className="h-5 w-5 mr-2" />
-                Create a Campaign
+                Create Campaign Free
               </Button>
             </div>
             <div className="text-center mt-2">
@@ -364,7 +335,7 @@ const VideoSection = () => (
             <li className="flex items-start gap-3">
               <CheckCircle className="w-6 h-6 text-blue-500 dark:text-blue-400 flex-shrink-0" />
               <span className="text-gray-600 dark:text-gray-300">
-                Deep audience analysis with AI-powered clustering
+                Smart audience analysis with keyword-based bio embeddings
               </span>
             </li>
             <li className="flex items-start gap-3">
@@ -376,13 +347,13 @@ const VideoSection = () => (
           </ul>
           <div className="flex flex-col md:flex-row justify-center gap-4 mb-4">
             <Button variant="cta" size="cta" onClick={() => (window.location.href = '/dashboard')}>
-              Try it for free
+              Get Started Free
               <ArrowRight className="w-5 h-5" />
             </Button>
           </div>
           <div className="text-center">
             <p className="text-gray-500 dark:text-gray-400 text-sm">
-              No credit card required - Get instant access
+              100% Free Forever - All features included
             </p>
           </div>
         </div>
@@ -590,7 +561,7 @@ function Home() {
 
   return (
     <>
-      <Head title="BlueSky Copilot - Social Media Management">
+      <Head title="BluePilot - Social Media Management">
         <script
           dangerouslySetInnerHTML={{
             __html: `

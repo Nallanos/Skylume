@@ -6,57 +6,22 @@ import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 function Pricing() {
   const plans = [
     {
-      name: 'Free',
+      name: 'Free Forever',
       price: '0',
       period: 'forever',
-      description: 'Perfect for getting started',
+      description: 'Everything you need, completely free',
       features: [
-        '1 Bluesky account',
-        '5 scheduled posts per month',
-        'Basic analytics',
-        'Community support',
-      ],
-      limitations: ['No advanced analytics', 'No bulk scheduling', 'No priority support'],
-      buttonText: 'Get Started',
-      buttonVariant: 'outline' as const,
-      popular: false,
-    },
-    {
-      name: 'Pro',
-      price: '9',
-      period: 'month',
-      description: 'For growing creators and businesses',
-      features: [
-        '5 Bluesky accounts',
+        'Unlimited Bluesky accounts',
         'Unlimited scheduled posts',
         'Advanced analytics',
         'Audience insights',
         'Bulk scheduling',
-        'Priority support',
+        'All premium features',
       ],
       limitations: [],
-      buttonText: 'Start Free Trial',
+      buttonText: 'Get Started',
       buttonVariant: 'default' as const,
       popular: true,
-    },
-    {
-      name: 'Enterprise',
-      price: '29',
-      period: 'month',
-      description: 'For teams and agencies',
-      features: [
-        'Unlimited accounts',
-        'Unlimited scheduled posts',
-        'Advanced analytics',
-        'Team collaboration',
-        'White-label options',
-        'Custom integrations',
-        'Dedicated support',
-      ],
-      limitations: [],
-      buttonText: 'Contact Sales',
-      buttonVariant: 'outline' as const,
-      popular: false,
     },
   ]
 
@@ -68,30 +33,25 @@ function Pricing() {
           {/* Header */}
           <div className="text-center mb-16">
             <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
-              Simple, Transparent Pricing
+              Completely Free
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Choose the perfect plan for your Bluesky management needs. All plans include our core
-              features with no hidden fees.
+              Access all features without any cost. No hidden fees, no premium tiers, just free access to everything.
             </p>
           </div>
 
           {/* Pricing Cards */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          <div className="flex justify-center max-w-md mx-auto">
             {plans.map((plan, index) => (
               <Card
                 key={index}
-                className={`relative transition-all duration-300 hover:shadow-xl ${
-                  plan.popular ? 'border-blue-500 shadow-lg scale-105' : 'hover:scale-105'
-                }`}
+                className="relative transition-all duration-300 hover:shadow-xl border-blue-500 shadow-lg w-full"
               >
-                {plan.popular && (
-                  <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                    <span className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-1 rounded-full text-sm font-medium">
-                      Most Popular
-                    </span>
-                  </div>
-                )}
+                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                  <span className="bg-gradient-to-r from-blue-500 to-purple-600 text-white px-4 py-1 rounded-full text-sm font-medium">
+                    Free
+                  </span>
+                </div>
 
                 <CardHeader className="text-center pb-8">
                   <CardTitle className="text-2xl font-bold">{plan.name}</CardTitle>
@@ -142,29 +102,27 @@ function Pricing() {
             <div className="space-y-6">
               <Card>
                 <CardContent className="p-6">
-                  <h3 className="font-semibold mb-2">Can I change plans anytime?</h3>
+                  <h3 className="font-semibold mb-2">Is everything really free?</h3>
                   <p className="text-muted-foreground">
-                    Yes! You can upgrade or downgrade your plan at any time. Changes take effect
-                    immediately and we'll prorate any differences.
+                    Yes! All features are completely free forever. No hidden costs, no premium tiers, no trial periods.
                   </p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardContent className="p-6">
-                  <h3 className="font-semibold mb-2">Is there a free trial?</h3>
+                  <h3 className="font-semibold mb-2">Do I need a credit card?</h3>
                   <p className="text-muted-foreground">
-                    The Pro plan comes with a 14-day free trial. No credit card required to start.
+                    No credit card required. Simply sign up and start using all features immediately.
                   </p>
                 </CardContent>
               </Card>
 
               <Card>
                 <CardContent className="p-6">
-                  <h3 className="font-semibold mb-2">What payment methods do you accept?</h3>
+                  <h3 className="font-semibold mb-2">How do you make money then?</h3>
                   <p className="text-muted-foreground">
-                    We accept all major credit cards (Visa, MasterCard, American Express) and PayPal
-                    for your convenience.
+                    We're currently in alpha and focused on building the best product. We believe in providing value first.
                   </p>
                 </CardContent>
               </Card>
@@ -175,12 +133,12 @@ function Pricing() {
           <div className="text-center mt-16">
             <h2 className="text-2xl font-bold mb-4">Ready to get started?</h2>
             <p className="text-muted-foreground mb-6">
-              Join thousands of creators who trust us with their Bluesky presence
+              Join creators who are already using our free platform
             </p>
             <div className="flex gap-4 justify-center">
-              <Button size="lg">Start Free Trial</Button>
+              <Button size="lg">Get Started Free</Button>
               <Button variant="outline" size="lg" asChild>
-                <a href="/contact-us">Contact Sales</a>
+                <a href="/dashboard">Try Now</a>
               </Button>
             </div>
           </div>
