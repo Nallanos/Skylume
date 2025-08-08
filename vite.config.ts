@@ -8,7 +8,10 @@ export default defineConfig({
   plugins: [
     react(),
     inertia({ ssr: { enabled: false } }),
-    adonisjs({ entrypoints: ['inertia/app/app.tsx'], reload: ['resources/views/**/*.edge'] })
+    adonisjs({ 
+      entrypoints: ['inertia/app/app.tsx'], 
+      reload: ['resources/views/**/*.edge'] 
+    })
   ],
 
   /**
@@ -21,14 +24,21 @@ export default defineConfig({
       '@': `${getDirname(import.meta.url)}/inertia/lib`,
       '@/components': `${getDirname(import.meta.url)}/inertia/components`,
       '@/utils': `${getDirname(import.meta.url)}/inertia/lib/utils`,
-      '@inertiajs/react': `${getDirname(import.meta.url)}/node_modules/@inertiajs/react/dist/index.js`
     },
   },
 
-  ssr: {
-    resolve: {
-      conditions: ['react-server', 'import', 'module', 'default'],
-    },
-    external: ['react', 'react-dom'],
+  server: {
+    allowedHosts: ['bluesky-bot.com'],
+    hmr: {
+      host: 'localhost'
+    }
+  },
+
+  build: {
+    outDir: 'public/assets',
+    manifest: true,
+    rollupOptions: {
+      input: 'inertia/app/app.tsx'
+    }
   },
 })

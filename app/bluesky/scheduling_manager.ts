@@ -68,7 +68,11 @@ export class SchedulingQueueManager {
      */
     public async createOneJob(scheduling: Scheduling): Promise<void> {
         try {
-            const scheduleTime = new Date(scheduling.scheduleTime)
+            const scheduleTimeISO = scheduling.scheduleTime.toISO()
+            if (!scheduleTimeISO) {
+                throw new Error(`Invalid schedule time for schedule ${scheduling.id}`)
+            }
+            const scheduleTime = new Date(scheduleTimeISO)
             const delay = scheduleTime.getTime() - Date.now()
             
             // Ne pas créer de job pour les dates passées

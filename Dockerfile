@@ -7,13 +7,13 @@ RUN apk add --no-cache python3 make g++
 FROM base AS deps
 WORKDIR /app
 ADD package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # Production only deps stage
 FROM base AS production-deps
 WORKDIR /app
 ADD package.json package-lock.json ./
-RUN npm ci --omit=dev 
+RUN npm ci --omit=dev --legacy-peer-deps
 
 # Build stage
 FROM base AS build

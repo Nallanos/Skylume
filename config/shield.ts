@@ -1,5 +1,4 @@
 import { defineConfig } from '@adonisjs/shield'
-import env from '#start/env'
 
 const shieldConfig = defineConfig({
   /**
@@ -14,16 +13,20 @@ const shieldConfig = defineConfig({
         "'self'",
         "'unsafe-inline'", // Nécessaire pour Inertia.js
         'https://js.stripe.com',
-        'https://checkout.stripe.com'
+        'https://checkout.stripe.com',
+        'https://www.googletagmanager.com',
+        'https://region1.google-analytics.com'
       ],
       styleSrc: [
         "'self'",
         "'unsafe-inline'", // Nécessaire pour les styles inline de Tailwind
-        'https://fonts.googleapis.com'
+        'https://fonts.googleapis.com',
+        'https://fonts.bunny.net'
       ],
       fontSrc: [
         "'self'",
         'https://fonts.gstatic.com',
+        'https://fonts.bunny.net',
         'data:'
       ],
       imgSrc: [
@@ -36,7 +39,12 @@ const shieldConfig = defineConfig({
         "'self'",
         'https://api.stripe.com',
         'wss://bsky.social',
-        'https://bsky.social'
+        'https://bsky.social',
+        'wss://bluesky-bot.com:24678',
+        'ws://bluesky-bot.com:24678',
+        'wss://localhost:24678',
+        'ws://localhost:24678',
+        'https://region1.google-analytics.com'
       ],
       frameSrc: [
         "'self'",
