@@ -6,6 +6,32 @@ import { createRoot } from 'react-dom/client'
 import { createInertiaApp } from '@inertiajs/react'
 import { resolvePageComponent } from '@adonisjs/inertia/helpers'
 import { router } from '@inertiajs/react'
+import axios from 'axios'
+
+// Configure axios to include CSRF token automatically
+const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+if (token) {
+  axios.defaults.headers.common['X-CSRF-TOKEN'] = token
+}
+
+// Configure fetch requests to include CSRF token
+const originalFetch = window.fetch
+window.fetch = function(input: RequestInfo | URL, init?: RequestInit) {
+  const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
+  if (token && init) {
+    init.headers = {
+      ...init.headers,
+      'X-CSRF-TOKEN': token
+    }
+  } else if (token && !init) {
+    init = {
+      headers: {
+        'X-CSRF-TOKEN': token
+      }
+    }
+  }
+  return originalFetch.call(this, input, init)
+}
 
 router.on('navigate', () => {
   const currentTheme =

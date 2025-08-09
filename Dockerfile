@@ -1,7 +1,13 @@
-FROM node:20.12.2-alpine3.18 AS base
+FROM node:20.12.2-bullseye-slim AS base
 
 # Install essential build tools for native dependencies
-RUN apk add --no-cache python3 make g++ 
+RUN apt-get update && apt-get install -y \
+    python3 \
+    python3-pip \
+    build-essential \
+    make \
+    g++ \
+    && rm -rf /var/lib/apt/lists/*
 
 # All deps stage
 FROM base AS deps

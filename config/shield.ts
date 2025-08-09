@@ -66,7 +66,9 @@ const shieldConfig = defineConfig({
     enabled: true,
     exceptRoutes: [
       '/stripe/webhook', // Exception pour les webhooks Stripe
-      '/api/python/*' // Exception pour l'API Python interne
+      '/api/python/*', // Exception pour l'API Python interne
+      '/internal/python/*', // Exception pour l'API Python interne
+      '/webhooks/*', // Exception pour tous les webhooks
     ],
     enableXsrfCookie: true,
     methods: ['POST', 'PUT', 'PATCH', 'DELETE'],

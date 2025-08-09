@@ -55,5 +55,3 @@ export const middleware = router.named({
   json_validation: () => import('#middleware/json_validation_middleware'),
   rate_limit: () => import('#middleware/rate_limit_middleware')
 })
-
-import './scheduling_worker.js'

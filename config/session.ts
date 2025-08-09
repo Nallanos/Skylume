@@ -26,7 +26,7 @@ const sessionConfig = defineConfig({
     path: '/',
     httpOnly: true,
     secure: app.inProduction, // HTTPS requis en production
-    sameSite: 'strict', // Protection CSRF renforcée
+    sameSite: 'lax', // Changed from 'strict' to 'lax' for better compatibility
   },
 
   /**
