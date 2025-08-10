@@ -9,7 +9,7 @@
 
 import router from '@adonisjs/core/services/router'
 import { middleware } from './kernel.js'
-// import SchedulingService from '#services/scheduling_service'
+import SchedulingService from '#services/scheduling_service'
 import Account from '#models/account'
 import Feed from '#models/feed'
 
@@ -536,316 +536,315 @@ router
 |
 */
 
-// ===== SCHEDULING CRUD OPERATIONS =====
-// router
-//   .post('/schedule/create', async ({ request, response, auth, session }) => {
-//     console.log('[DEBUG] schedulePost called')
-//     console.log('[DEBUG] Request body keys:', Object.keys(request.all()))
+router
+  .post('/schedule/create', async ({ request, response, auth, session }) => {
+    console.log('[DEBUG] schedulePost called')
+    console.log('[DEBUG] Request body keys:', Object.keys(request.all()))
 
-//     const user = auth.user
-//     if (!user) {
-//       console.log('[DEBUG] User not authenticated')
-//       return response.redirect('/dashboard')
-//     }
+    const user = auth.user
+    if (!user) {
+      console.log('[DEBUG] User not authenticated')
+      return response.redirect('/dashboard')
+    }
 
-//     // Importer Scheduling dynamiquement
-//     const { default: Scheduling } = await import('#models/scheduling')
+    // Importer Scheduling dynamiquement
+    const { default: Scheduling } = await import('#models/scheduling')
 
-//     const schedules = await Scheduling.query()
-//       .where('userId', user.id)
-//       .andWhere('status', 'pending')
+    const schedules = await Scheduling.query()
+      .where('userId', user.id)
+      .andWhere('status', 'pending')
 
-//     console.log('Current schedule count:', schedules.length)
+    console.log('Current schedule count:', schedules.length)
 
-//     if (schedules.length >= 5 && user.plan == 'free') {
-//       user.isScheduledLimitReached = true
-//       await user.save()
-//       session.flash('error', 'You have reached the free plan limit (5/5 posts)')
-//       return response.redirect('/schedule')
-//     }
+    if (schedules.length >= 5 && user.plan == 'free') {
+      user.isScheduledLimitReached = true
+      await user.save()
+      session.flash('error', 'You have reached the free plan limit (5/5 posts)')
+      return response.redirect('/schedule')
+    }
 
-//     const { account_handle, message, schedule_time } = request.all()
-//     console.log('[DEBUG] Extracted data:', { account_handle, message, schedule_time })
+    const { account_handle, message, schedule_time } = request.all()
+    console.log('[DEBUG] Extracted data:', { account_handle, message, schedule_time })
 
-//     // Validation
-//     if (!account_handle || !message || !schedule_time) {
-//       console.log('[DEBUG] Validation failed - missing fields')
-//       session.flash(
-//         'error',
-//         'Missing required fields: account_handle, message, and schedule_time are required'
-//       )
-//       return response.redirect('/schedule')
-//     }
+    // Validation
+    if (!account_handle || !message || !schedule_time) {
+      console.log('[DEBUG] Validation failed - missing fields')
+      session.flash(
+        'error',
+        'Missing required fields: account_handle, message, and schedule_time are required'
+      )
+      return response.redirect('/schedule')
+    }
 
-//     // Find account
-//     const account = await Account.findBy('handle', account_handle)
-//     console.log('[DEBUG] Found account:', account?.handle)
+    // Find account
+    const account = await Account.findBy('handle', account_handle)
+    console.log('[DEBUG] Found account:', account?.handle)
 
-//     if (!account) {
-//       console.log('[DEBUG] Account not found for handle:', account_handle)
-//       session.flash('error', 'Account not found')
-//       return response.redirect('/schedule')
-//     }
+    if (!account) {
+      console.log('[DEBUG] Account not found for handle:', account_handle)
+      session.flash('error', 'Account not found')
+      return response.redirect('/schedule')
+    }
 
-//     // Handle image uploads
-//     let imagePaths: string[] = []
-//     try {
-//       const images = request.files('images', {
-//         size: '10mb',
-//         extnames: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-//       })
+    // Handle image uploads
+    let imagePaths: string[] = []
+    try {
+      const images = request.files('images', {
+        size: '10mb',
+        extnames: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
+      })
 
-//       if (images && Array.isArray(images)) {
-//         console.log('[DEBUG] Processing', images.length, 'images')
+      if (images && Array.isArray(images)) {
+        console.log('[DEBUG] Processing', images.length, 'images')
 
-//         // Créer le répertoire uploads s'il n'existe pas
-//         const uploadsDir = 'public/uploads/schedules'
-//         const fs = await import('fs')
-//         if (!fs.existsSync(uploadsDir)) {
-//           fs.mkdirSync(uploadsDir, { recursive: true })
-//         }
+        // Créer le répertoire uploads s'il n'existe pas
+        const uploadsDir = 'public/uploads/schedules'
+        const fs = await import('fs')
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir, { recursive: true })
+        }
 
-//         for (const image of images) {
-//           if (image.isValid) {
-//             const fileName = `${user.id}_${Date.now()}_${image.clientName}`
-//             await image.move(uploadsDir, { name: fileName })
-//             imagePaths.push(`/uploads/schedules/${fileName}`)
-//             console.log('[DEBUG] Image saved:', fileName)
-//           }
-//         }
-//       }
-//     } catch (error) {
-//       console.error('[DEBUG] Error processing images:', error)
-//       // Continue without images if upload fails
-//     }
+        for (const image of images) {
+          if (image.isValid) {
+            const fileName = `${user.id}_${Date.now()}_${image.clientName}`
+            await image.move(uploadsDir, { name: fileName })
+            imagePaths.push(`/uploads/schedules/${fileName}`)
+            console.log('[DEBUG] Image saved:', fileName)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('[DEBUG] Error processing images:', error)
+      // Continue without images if upload fails
+    }
 
-//     try {
-//       console.log('[DEBUG] Creating schedule entry...')
-//       const scheduling = await Scheduling.create({
-//         userId: user.id,
-//         account_id: account.id,
-//         message: message,
-//         scheduleTime: schedule_time,
-//         status: 'pending',
-//         images: JSON.stringify(imagePaths),
-//       })
+    try {
+      console.log('[DEBUG] Creating schedule entry...')
+      const scheduling = await Scheduling.create({
+        userId: user.id,
+        account_id: account.id,
+        message: message,
+        scheduleTime: schedule_time,
+        status: 'pending',
+        images: JSON.stringify(imagePaths),
+      })
 
-//       console.log('[DEBUG] Schedule created with ID:', scheduling.id)
-//       console.log('[DEBUG] Images saved:', imagePaths.length, 'files')
+      console.log('[DEBUG] Schedule created with ID:', scheduling.id)
+      console.log('[DEBUG] Images saved:', imagePaths.length, 'files')
 
-//       // Ajouter à la queue BullMQ pour traitement automatique
-//       try {
-//         const jobId = await SchedulingService.schedulePost(scheduling)
-//         console.log(`[SCHEDULING] Job created with ID: ${jobId}`)
-//         session.flash(
-//           'success',
-//           `Post scheduled successfully${imagePaths.length > 0 ? ` with ${imagePaths.length} image(s)` : ''}! Job ID: ${jobId}`
-//         )
-//       } catch (queueError) {
-//         console.error('[SCHEDULING] Error adding to queue:', queueError)
-//         session.flash(
-//           'warning',
-//           `Post scheduled${imagePaths.length > 0 ? ` with ${imagePaths.length} image(s)` : ''} but may not be processed automatically. Please check logs.`
-//         )
-//       }
+      // Ajouter à la queue BullMQ pour traitement automatique
+      try {
+        const jobId = await SchedulingService.schedulePost(scheduling)
+        console.log(`[SCHEDULING] Job created with ID: ${jobId}`)
+        session.flash(
+          'success',
+          `Post scheduled successfully${imagePaths.length > 0 ? ` with ${imagePaths.length} image(s)` : ''}! Job ID: ${jobId}`
+        )
+      } catch (queueError) {
+        console.error('[SCHEDULING] Error adding to queue:', queueError)
+        session.flash(
+          'warning',
+          `Post scheduled${imagePaths.length > 0 ? ` with ${imagePaths.length} image(s)` : ''} but may not be processed automatically. Please check logs.`
+        )
+      }
 
-//       // Rediriger vers la page schedule avec succès
-//       return response.redirect('/schedule')
-//     } catch (error) {
-//       console.error('[DEBUG] Error creating schedule:', error)
-//       session.flash('error', 'An error occurred while scheduling the post. Please try again.')
-//       return response.redirect('/schedule')
-//     }
-//   })
-//   .use(middleware.auth())
+      // Rediriger vers la page schedule avec succès
+      return response.redirect('/schedule')
+    } catch (error) {
+      console.error('[DEBUG] Error creating schedule:', error)
+      session.flash('error', 'An error occurred while scheduling the post. Please try again.')
+      return response.redirect('/schedule')
+    }
+  })
+  .use(middleware.auth())
 
-// router
-//   .put('/schedule/delete', async ({ request, response, auth, session }) => {
-//     console.log('[DEBUG] deletePost called')
-//     console.log('[DEBUG] Request body:', request.all())
+router
+  .put('/schedule/delete', async ({ request, response, auth, session }) => {
+    console.log('[DEBUG] deletePost called')
+    console.log('[DEBUG] Request body:', request.all())
 
-//     const user = auth.user
-//     if (!user) {
-//       console.log('[DEBUG] User not authenticated')
-//       return response.redirect('/dashboard')
-//     }
+    const user = auth.user
+    if (!user) {
+      console.log('[DEBUG] User not authenticated')
+      return response.redirect('/dashboard')
+    }
 
-//     const { default: Scheduling } = await import('#models/scheduling')
-//     const { scheduleId } = request.all()
+    const { default: Scheduling } = await import('#models/scheduling')
+    const { scheduleId } = request.all()
 
-//     if (!scheduleId) {
-//       console.log('[DEBUG] Missing scheduleId')
-//       session.flash('error', 'Schedule ID is required')
-//       return response.redirect('/schedule')
-//     }
+    if (!scheduleId) {
+      console.log('[DEBUG] Missing scheduleId')
+      session.flash('error', 'Schedule ID is required')
+      return response.redirect('/schedule')
+    }
 
-//     try {
-//       const schedule = await Scheduling.query()
-//         .where('id', scheduleId)
-//         .where('userId', user.id)
-//         .first()
+    try {
+      const schedule = await Scheduling.query()
+        .where('id', scheduleId)
+        .where('userId', user.id)
+        .first()
 
-//       if (!schedule) {
-//         console.log('[DEBUG] Schedule not found or unauthorized')
-//         session.flash('error', 'Schedule not found')
-//         return response.redirect('/schedule')
-//       }
+      if (!schedule) {
+        console.log('[DEBUG] Schedule not found or unauthorized')
+        session.flash('error', 'Schedule not found')
+        return response.redirect('/schedule')
+      }
 
-//       // Annuler le job BullMQ s'il existe
-//       if (schedule.jobId) {
-//         try {
-//           await SchedulingService.cancelScheduledPost(schedule)
-//           console.log(`[SCHEDULING] Cancelled job ${schedule.jobId}`)
-//         } catch (cancelError) {
-//           console.error('[SCHEDULING] Error cancelling job:', cancelError)
-//           // Continue avec la suppression même si l'annulation échoue
-//         }
-//       }
+      // Annuler le job BullMQ s'il existe
+      if (schedule.jobId) {
+        try {
+          await SchedulingService.cancelScheduledPost(schedule)
+          console.log(`[SCHEDULING] Cancelled job ${schedule.jobId}`)
+        } catch (cancelError) {
+          console.error('[SCHEDULING] Error cancelling job:', cancelError)
+          // Continue avec la suppression même si l'annulation échoue
+        }
+      }
 
-//       await schedule.delete()
-//       console.log('[DEBUG] Schedule deleted successfully:', scheduleId)
+      await schedule.delete()
+      console.log('[DEBUG] Schedule deleted successfully:', scheduleId)
 
-//       session.flash('success', 'Schedule deleted successfully!')
-//       return response.redirect('/schedule')
-//     } catch (error) {
-//       console.error('[DEBUG] Error deleting schedule:', error)
-//       session.flash('error', 'An error occurred while deleting the schedule')
-//       return response.redirect('/schedule')
-//     }
-//   })
-//   .use(middleware.auth())
+      session.flash('success', 'Schedule deleted successfully!')
+      return response.redirect('/schedule')
+    } catch (error) {
+      console.error('[DEBUG] Error deleting schedule:', error)
+      session.flash('error', 'An error occurred while deleting the schedule')
+      return response.redirect('/schedule')
+    }
+  })
+  .use(middleware.auth())
 
-// router
-//   .put('/schedule/edit', async ({ request, response, auth, session }) => {
-//     console.log('[DEBUG] editPost called')
-//     console.log('[DEBUG] Request body:', request.all())
+router
+  .put('/schedule/edit', async ({ request, response, auth, session }) => {
+    console.log('[DEBUG] editPost called')
+    console.log('[DEBUG] Request body:', request.all())
 
-//     const user = auth.user
-//     if (!user) {
-//       console.log('[DEBUG] User not authenticated')
-//       return response.redirect('/dashboard')
-//     }
+    const user = auth.user
+    if (!user) {
+      console.log('[DEBUG] User not authenticated')
+      return response.redirect('/dashboard')
+    }
 
-//     const { default: Scheduling } = await import('#models/scheduling')
-//     const { scheduleId, message, schedule_time } = request.all()
+    const { default: Scheduling } = await import('#models/scheduling')
+    const { scheduleId, message, schedule_time } = request.all()
 
-//     if (!scheduleId || !message || !schedule_time) {
-//       console.log('[DEBUG] Missing required fields for edit')
-//       session.flash('error', 'Schedule ID, message, and schedule_time are required')
-//       return response.redirect('/schedule')
-//     }
+    if (!scheduleId || !message || !schedule_time) {
+      console.log('[DEBUG] Missing required fields for edit')
+      session.flash('error', 'Schedule ID, message, and schedule_time are required')
+      return response.redirect('/schedule')
+    }
 
-//     try {
-//       const schedule = await Scheduling.query()
-//         .where('id', scheduleId)
-//         .where('userId', user.id)
-//         .first()
+    try {
+      const schedule = await Scheduling.query()
+        .where('id', scheduleId)
+        .where('userId', user.id)
+        .first()
 
-//       if (!schedule) {
-//         console.log('[DEBUG] Schedule not found or unauthorized')
-//         session.flash('error', 'Schedule not found')
-//         return response.redirect('/schedule')
-//       }
+      if (!schedule) {
+        console.log('[DEBUG] Schedule not found or unauthorized')
+        session.flash('error', 'Schedule not found')
+        return response.redirect('/schedule')
+      }
 
-//       schedule.message = message
-//       schedule.scheduleTime = schedule_time
-//       await schedule.save()
+      schedule.message = message
+      schedule.scheduleTime = schedule_time
+      await schedule.save()
 
-//       console.log('[DEBUG] Schedule updated successfully:', scheduleId)
+      console.log('[DEBUG] Schedule updated successfully:', scheduleId)
 
-//       session.flash('success', 'Schedule updated successfully!')
-//       return response.redirect('/schedule')
-//     } catch (error) {
-//       console.error('[DEBUG] Error updating schedule:', error)
-//       session.flash('error', 'An error occurred while updating the schedule')
-//       return response.redirect('/schedule')
-//     }
-//   })
-//   .use(middleware.auth())
+      session.flash('success', 'Schedule updated successfully!')
+      return response.redirect('/schedule')
+    } catch (error) {
+      console.error('[DEBUG] Error updating schedule:', error)
+      session.flash('error', 'An error occurred while updating the schedule')
+      return response.redirect('/schedule')
+    }
+  })
+  .use(middleware.auth())
 
-// router
-//   .put('/schedule/editPostPerDay', async ({ request, response, auth, session }) => {
-//     console.log('[DEBUG] editPostPerDay called')
-//     console.log('[DEBUG] Request body:', request.all())
+router
+  .put('/schedule/editPostPerDay', async ({ request, response, auth, session }) => {
+    console.log('[DEBUG] editPostPerDay called')
+    console.log('[DEBUG] Request body:', request.all())
 
-//     const user = auth.user
-//     if (!user) {
-//       console.log('[DEBUG] User not authenticated')
-//       return response.redirect('/dashboard')
-//     }
+    const user = auth.user
+    if (!user) {
+      console.log('[DEBUG] User not authenticated')
+      return response.redirect('/dashboard')
+    }
 
-//     const { postsPerDay } = request.all()
+    const { postsPerDay } = request.all()
 
-//     if (!postsPerDay || isNaN(parseInt(postsPerDay))) {
-//       console.log('[DEBUG] Invalid postsPerDay value:', postsPerDay)
-//       session.flash('error', 'Valid posts per day count is required')
-//       return response.redirect('/schedule')
-//     }
+    if (!postsPerDay || isNaN(parseInt(postsPerDay))) {
+      console.log('[DEBUG] Invalid postsPerDay value:', postsPerDay)
+      session.flash('error', 'Valid posts per day count is required')
+      return response.redirect('/schedule')
+    }
 
-//     const postsPerDayNumber = parseInt(postsPerDay)
+    const postsPerDayNumber = parseInt(postsPerDay)
 
-//     // Validation: minimum 1, maximum 10 posts per day
-//     if (postsPerDayNumber < 1 || postsPerDayNumber > 10) {
-//       console.log('[DEBUG] Posts per day out of range:', postsPerDayNumber)
-//       session.flash('error', 'Posts per day must be between 1 and 10')
-//       return response.redirect('/schedule')
-//     }
+    // Validation: minimum 1, maximum 10 posts per day
+    if (postsPerDayNumber < 1 || postsPerDayNumber > 10) {
+      console.log('[DEBUG] Posts per day out of range:', postsPerDayNumber)
+      session.flash('error', 'Posts per day must be between 1 and 10')
+      return response.redirect('/schedule')
+    }
 
-//     try {
-//       user.postsPerDay = postsPerDayNumber
-//       await user.save()
+    try {
+      user.postsPerDay = postsPerDayNumber
+      await user.save()
 
-//       console.log('[DEBUG] User posts per day updated successfully:', postsPerDayNumber)
+      console.log('[DEBUG] User posts per day updated successfully:', postsPerDayNumber)
 
-//       session.flash('success', `Posts per day updated to ${postsPerDayNumber}!`)
-//       return response.redirect('/schedule')
-//     } catch (error) {
-//       console.error('[DEBUG] Error updating posts per day:', error)
-//       session.flash('error', 'An error occurred while updating posts per day setting')
-//       return response.redirect('/schedule')
-//     }
-//   })
-//   .use(middleware.auth())
+      session.flash('success', `Posts per day updated to ${postsPerDayNumber}!`)
+      return response.redirect('/schedule')
+    } catch (error) {
+      console.error('[DEBUG] Error updating posts per day:', error)
+      session.flash('error', 'An error occurred while updating posts per day setting')
+      return response.redirect('/schedule')
+    }
+  })
+  .use(middleware.auth())
 
-// // ===== QUEUE MANAGEMENT =====
-// router
-//   .get('/schedule/queue/stats', async ({ response, auth }) => {
-//     try {
-//       await auth.authenticate()
-//       const stats = await SchedulingService.getQueueStats()
-//       return response.json(stats)
-//     } catch (error) {
-//       console.error('Error getting queue stats:', error)
-//       return response.status(500).json({ error: 'Internal server error' })
-//     }
-//   })
-//   .use(middleware.auth())
+// ===== QUEUE MANAGEMENT =====
+router
+  .get('/schedule/queue/stats', async ({ response, auth }) => {
+    try {
+      await auth.authenticate()
+      const stats = await SchedulingService.getQueueStats()
+      return response.json(stats)
+    } catch (error) {
+      console.error('Error getting queue stats:', error)
+      return response.status(500).json({ error: 'Internal server error' })
+    }
+  })
+  .use(middleware.auth())
 
-// // ===== DEVELOPMENT / DEBUG =====
-// router
-//   .post('/schedule/test-publish/:id', async ({ params, response, auth }) => {
-//     try {
-//       await auth.authenticate()
+// ===== DEVELOPMENT / DEBUG =====
+router
+  .post('/schedule/test-publish/:id', async ({ params, response, auth }) => {
+    try {
+      await auth.authenticate()
 
-//       const { default: Scheduling } = await import('#models/scheduling')
+      const { default: Scheduling } = await import('#models/scheduling')
 
-//       const scheduling = await Scheduling.query().where('id', params.id).preload('account').first()
+      const scheduling = await Scheduling.query().where('id', params.id).preload('account').first()
 
-//       if (!scheduling) {
-//         return response.status(404).json({ error: 'Scheduling not found' })
-//       }
+      if (!scheduling) {
+        return response.status(404).json({ error: 'Scheduling not found' })
+      }
 
-//       // Tester manuellement la publication via le service privé
-//       // Note: Cette route est pour le développement seulement
-//       return response.json({
-//         message: 'Test publish functionality is available but requires access to private methods',
-//         scheduling_id: scheduling.id,
-//         account: scheduling.account.handle,
-//         status: scheduling.status,
-//       })
-//     } catch (error) {
-//       console.error('Error in test publish:', error)
-//       return response.status(500).json({ error: 'Internal server error' })
-//     }
-//   })
-//   .use(middleware.auth())
+      // Tester manuellement la publication via le service privé
+      // Note: Cette route est pour le développement seulement
+      return response.json({
+        message: 'Test publish functionality is available but requires access to private methods',
+        scheduling_id: scheduling.id,
+        account: scheduling.account.handle,
+        status: scheduling.status,
+      })
+    } catch (error) {
+      console.error('Error in test publish:', error)
+      return response.status(500).json({ error: 'Internal server error' })
+    }
+  })
+  .use(middleware.auth())
