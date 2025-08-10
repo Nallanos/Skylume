@@ -116,6 +116,7 @@ router.on('/account/:id/dashboard/loading').renderInertia('AccountDashboard').us
 
 const session_controller = () => import('#controllers/session_controller')
 const account_controller = () => import('#controllers/account_controller')
+const oauth_metadata_controller = () => import('#controllers/oauth_metadata_controller')
 const stripe_controller = () => import('#controllers/stripes_controller')
 const feed_controller = () => import('#controllers/feeds_controller')
 const analytics_controller = () => import('#controllers/analytics_controller')
@@ -134,6 +135,8 @@ const dm_campaigns_controller = () => import('#controllers/dm_campaigns_controll
 
 router.put('/logout', [session_controller, 'logout']).use(middleware.auth())
 router.delete('/delete', [session_controller, 'deleteUser']).use(middleware.auth())
+router.get('/session/status', [session_controller, 'status'])
+router.post('/session/refresh-oauth', [session_controller, 'refreshOAuth']).use(middleware.auth())
 
 /*
 |--------------------------------------------------------------------------
@@ -143,6 +146,12 @@ router.delete('/delete', [session_controller, 'deleteUser']).use(middleware.auth
 |
 */
 
+// OAuth routes
+router.get('/.well-known/oauth_client', [oauth_metadata_controller, 'metadata'])
+router.get('/oauth/initiate', [account_controller, 'initiateOAuth'])
+router.get('/oauth/callback', [account_controller, 'handleOAuthCallback'])
+
+// Traditional account management
 router.put('/account', [account_controller, 'createAccount'])
 router
   .post('/dashboard/accounts/delete', [account_controller, 'deleteAccount'])
