@@ -2,9 +2,18 @@ import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Button } from './ui/button'
 import { Input } from './ui/input'
 import { Alert, AlertTitle, AlertDescription } from './ui/alert'
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { router, usePage } from '@inertiajs/react'
-import { Key, ShieldCheck, Loader, UserPlus, AtSign } from 'lucide-react'
+import { Key, ShieldCheck, Loader, UserPlus, AtSign, User } from 'lucide-react'
+import { useHandleAutocomplete } from '../hooks/useHandleAutocomplete'
+
+interface Actor {
+  handle: string
+  displayName: string
+  avatar?: string
+  description?: string
+  followersCount: number
+}
 
 function AddAccount() {
   const [handle, setHandle] = useState('')
@@ -12,9 +21,71 @@ function AddAccount() {
   const [passwordType, setPasswordType] = useState<'app_password' | 'regular_password'>('app_password')
   const [rememberMe, setRememberMe] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [searchTimeout, setSearchTimeout] = useState<NodeJS.Timeout | null>(null)
+  
+  const inputRef = useRef<HTMLInputElement>(null)
+  const suggestionsRef = useRef<HTMLDivElement>(null)
+  
+  const { suggestions, isLoading: isSearching, searchHandles, clearSuggestions } = useHandleAutocomplete()
   
   const { props } = usePage()
   const errors = props.errors as Record<string, string> | undefined
+
+  // Handle input changes with debounced search
+  const handleInputChange = (value: string) => {
+    setHandle(value)
+    
+    // Clear existing timeout
+    if (searchTimeout) {
+      clearTimeout(searchTimeout)
+    }
+    
+    // Show suggestions dropdown
+    setShowSuggestions(true)
+    
+    // Debounce search
+    const timeout = setTimeout(() => {
+      searchHandles(value)
+    }, 300)
+    
+    setSearchTimeout(timeout)
+  }
+
+  // Handle suggestion selection
+  const handleSuggestionSelect = (suggestion: Actor) => {
+    setHandle(suggestion.handle)
+    setShowSuggestions(false)
+    clearSuggestions()
+  }
+
+  // Handle click outside to close suggestions
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        inputRef.current && 
+        suggestionsRef.current && 
+        !inputRef.current.contains(event.target as Node) &&
+        !suggestionsRef.current.contains(event.target as Node)
+      ) {
+        setShowSuggestions(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+    }
+  }, [])
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (searchTimeout) {
+        clearTimeout(searchTimeout)
+      }
+    }
+  }, [searchTimeout])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -31,11 +102,6 @@ function AddAccount() {
         onFinish: () => setIsLoading(false),
       }
     )
-  }
-
-  const handleOAuthLogin = () => {
-    setIsLoading(true)
-    window.location.href = '/oauth/initiate'
   }
 
   return (
@@ -100,19 +166,73 @@ function AddAccount() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Handle Input */}
-              <div className="space-y-2">
+              {/* Handle Input with Autocomplete */}
+              <div className="space-y-2 relative">
                 <label className="text-sm font-medium flex items-center gap-2">
                   <AtSign className="h-4 w-4" />
                   Bluesky Handle
                 </label>
-                <Input
-                  type="text"
-                  placeholder="yourname.bsky.social"
-                  value={handle}
-                  onChange={(e) => setHandle(e.target.value)}
-                  className="transition-all duration-200"
-                />
+                <div className="relative">
+                  <Input
+                    ref={inputRef}
+                    type="text"
+                    placeholder="yourname.bsky.social"
+                    value={handle}
+                    onChange={(e) => handleInputChange(e.target.value)}
+                    onFocus={() => {
+                      if (suggestions.length > 0) setShowSuggestions(true)
+                    }}
+                    className="transition-all duration-200"
+                  />
+                  {isSearching && (
+                    <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                      <Loader className="h-4 w-4 animate-spin text-gray-400" />
+                    </div>
+                  )}
+                </div>
+                
+                {/* Suggestions Dropdown */}
+                {showSuggestions && suggestions.length > 0 && (
+                  <div 
+                    ref={suggestionsRef}
+                    className="absolute z-50 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-600 rounded-md shadow-lg max-h-60 overflow-y-auto"
+                  >
+                    {suggestions.map((suggestion) => (
+                      <div
+                        key={suggestion.handle}
+                        onClick={() => handleSuggestionSelect(suggestion)}
+                        className="flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer border-b border-gray-100 dark:border-gray-600 last:border-b-0"
+                      >
+                        {suggestion.avatar ? (
+                          <img 
+                            src={suggestion.avatar} 
+                            alt={suggestion.displayName}
+                            className="w-8 h-8 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-gray-600 flex items-center justify-center">
+                            <User className="h-4 w-4 text-gray-500" />
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm truncate">
+                              {suggestion.displayName}
+                            </span>
+                          </div>
+                          <div className="text-xs text-gray-600 dark:text-gray-300 truncate">
+                            @{suggestion.handle}
+                          </div>
+                          {suggestion.description && (
+                            <div className="text-xs text-gray-500 dark:text-gray-400 truncate mt-1">
+                              {suggestion.description}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Password Type Selection */}
@@ -196,7 +316,7 @@ function AddAccount() {
               </Button>
 
               {/* Separator */}
-              <div className="relative">
+              {/* <div className="relative">
                 <div className="absolute inset-0 flex items-center">
                   <span className="w-full border-t" />
                 </div>
@@ -205,9 +325,9 @@ function AddAccount() {
                     Or
                   </span>
                 </div>
-              </div>
+              </div> */}
 
-              {/* OAuth Button */}
+              {/* OAuth Button
               <Button 
                 type="button"
                 onClick={handleOAuthLogin}
@@ -226,7 +346,7 @@ function AddAccount() {
                     Connect with Bluesky
                   </>
                 )}
-              </Button>
+              </Button> */}
             </form>
           </CardContent>
         </Card>

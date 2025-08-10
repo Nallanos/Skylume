@@ -12,13 +12,15 @@ import PostHistory from '#models/post_history'
 import AccountManager from '#services/account_manager'
 import { CacheManager } from '#services/cache_manager'
 import OAuthService from '#services/oauth_service'
+import OAuthApiService from '#services/oauth_api_service'
 
 @inject()
 export default class AccountController {
   constructor(
     protected account_manager: AccountManager, 
     protected cacheManager: CacheManager,
-    protected oauthService: OAuthService
+    protected oauthService: OAuthService,
+    protected oauthApiService: OAuthApiService
   ) { }
 
   /**
@@ -30,8 +32,8 @@ export default class AccountController {
       await this.oauthService.initiateAuthFlow({ response, session } as HttpContext)
     } catch (error) {
       console.error('OAuth initiation error:', error)
-      session.flash('errors.oauth', 'Failed to start OAuth flow. Please try again.')
-      return response.redirect().back()
+      session.flash('errors.oauth', `Failed to start OAuth flow: ${error.message}`)
+      return response.redirect('/dashboard')
     }
   }
 
@@ -46,21 +48,17 @@ export default class AccountController {
         return response.redirect('/add/account')
       }
 
-      // Get profile information using the access token
-      const agent = new AtpAgent({ service: "https://bsky.social" })
+      // For OAuth, we need to make direct API calls with DPoP tokens
+      // Cannot use resumeSession with OAuth tokens - they are different from session JWTs
       
-      // Set up agent with OAuth token - use resumeSession method
-      await agent.resumeSession({
-        accessJwt: oauthSessionData.accessToken,
-        refreshJwt: oauthSessionData.refreshToken || '',
-        did: oauthSessionData.did,
-        handle: '', 
-        active: true
-      })
-
-      // Fetch profile to get handle
-      const profile = await agent.getProfile({ actor: oauthSessionData.did })
-      const handle = profile.data.handle
+      // Get profile information using OAuth API service
+      const profileData = await this.oauthApiService.getProfile(
+        oauthSessionData.did, 
+        oauthSessionData.accessToken, 
+        oauthSessionData.dpopKeyPair
+      )
+      
+      const handle = profileData.handle || oauthSessionData.did
 
       let user: User | undefined
 
@@ -96,7 +94,15 @@ export default class AccountController {
 
       if (existingAccount) {
         // Update existing account with new OAuth session
-        existingAccount.session = JSON.stringify(oauthSessionData)
+        existingAccount.session = JSON.stringify({
+          type: 'oauth',
+          accessToken: oauthSessionData.accessToken,
+          refreshToken: oauthSessionData.refreshToken,
+          did: oauthSessionData.did,
+          expiresAt: oauthSessionData.expiresAt.toISOString(),
+          dpopKeyPair: oauthSessionData.dpopKeyPair,
+          metadata: oauthSessionData.metadata
+        })
         await existingAccount.save()
         
         session.flash('success', 'Account updated successfully with OAuth authentication.')
@@ -108,7 +114,15 @@ export default class AccountController {
         userId: user.id,
         handle: handle,
         did: oauthSessionData.did,
-        session: JSON.stringify(oauthSessionData),
+        session: JSON.stringify({
+          type: 'oauth',
+          accessToken: oauthSessionData.accessToken,
+          refreshToken: oauthSessionData.refreshToken,
+          did: oauthSessionData.did,
+          expiresAt: oauthSessionData.expiresAt.toISOString(),
+          dpopKeyPair: oauthSessionData.dpopKeyPair,
+          metadata: oauthSessionData.metadata
+        }),
         id: crypto.randomBytes(16).toString('hex'),
         seenNotificationAt: new Date().toISOString()
       }
@@ -135,22 +149,27 @@ export default class AccountController {
           recordedAt: DateTime.now()
         })
 
-        // Sync recent posts
-        const authorFeed = await agent.getAuthorFeed({ actor: account.handle, limit: 20 })
-        if (authorFeed?.data?.feed) {
-          for (const item of authorFeed.data.feed) {
-            const post = item.post
-            const postedAt = DateTime.fromISO(post.indexedAt)
+        // Sync recent posts using OAuth API service
+        const feedData = await this.oauthApiService.getUserPosts(
+          account.did,
+          oauthSessionData.accessToken,
+          oauthSessionData.dpopKeyPair,
+          20
+        )
+
+        if (feedData?.records) {
+          for (const record of feedData.records) {
+            const postedAt = DateTime.fromISO(record.value.createdAt)
 
             await PostHistory.create({
               accountId: account.id,
               userId: user.id,
-              postUri: post.uri,
-              postCid: post.cid,
-              text: post.record && typeof post.record === 'object' && 'text' in post.record ? String(post.record.text) : '',
-              likes: post.likeCount || 0,
-              reposts: post.repostCount || 0,
-              replies: post.replyCount || 0,
+              postUri: record.uri,
+              postCid: record.cid,
+              text: record.value.text || '',
+              likes: 0, // OAuth doesn't provide engagement metrics directly
+              reposts: 0,
+              replies: 0,
               views: 0,
               postedAt: postedAt
             })
@@ -398,13 +417,31 @@ export default class AccountController {
         return response.redirect().back()
       }
 
-      const accountService = await this.account_manager.getOrCreateAccountService(account)
+      // Check if this is an OAuth account
+      let sessionData = null;
+      if (account.session) {
+        try {
+          sessionData = JSON.parse(account.session);
+        } catch (e) {
+          console.error("Invalid session JSON for account:", account.handle);
+        }
+      }
 
-      // Établir la session
-      await accountService.createOrResumeSession(account)
+      let accountService = null;
 
-      // Mettre à jour les statistiques
-      await accountService.updateAccountStats(account)
+      if (sessionData?.type === 'oauth') {
+        // Handle OAuth account stats refresh
+        await this.refreshOAuthAccountStats(account, sessionData);
+      } else {
+        // Handle app password account stats refresh
+        accountService = await this.account_manager.getOrCreateAccountService(account)
+
+        // Établir la session
+        await accountService.createOrResumeSession(account)
+
+        // Mettre à jour les statistiques
+        await accountService.updateAccountStats(account)
+      }
 
       try {
         await this.cacheManager.delete(`analytics:basic:${accountId}`)
@@ -441,48 +478,50 @@ export default class AccountController {
         // Ne pas bloquer le rafraîchissement des stats en cas d'erreur
       }
 
-      // Synchroniser les posts récents
-      try {
-        // Récupérer les posts récents de l'utilisateur
-        const authorFeed = await accountService.agent.getAuthorFeed({ actor: account.handle, limit: 10 })
+      // Synchroniser les posts récents (only for app password accounts)
+      if (accountService) {
+        try {
+          // Récupérer les posts récents de l'utilisateur
+          const authorFeed = await accountService.agent.getAuthorFeed({ actor: account.handle, limit: 10 })
 
-        if (authorFeed && authorFeed.data && authorFeed.data.feed) {
-          for (const item of authorFeed.data.feed) {
-            const post = item.post
+          if (authorFeed && authorFeed.data && authorFeed.data.feed) {
+            for (const item of authorFeed.data.feed) {
+              const post = item.post
 
-            // Vérifier si le post existe déjà dans l'historique
-            const existingPost = await PostHistory.query()
-              .where('postUri', post.uri)
-              .first()
+              // Vérifier si le post existe déjà dans l'historique
+              const existingPost = await PostHistory.query()
+                .where('postUri', post.uri)
+                .first()
 
-            const postedAt = DateTime.fromISO(post.indexedAt)
+              const postedAt = DateTime.fromISO(post.indexedAt)
 
-            if (existingPost) {
-              // Mise à jour des statistiques du post existant
-              existingPost.likes = post.likeCount || 0
-              existingPost.reposts = post.repostCount || 0
-              existingPost.replies = post.replyCount || 0
-              await existingPost.save()
-            } else {
-              // Créer une nouvelle entrée d'historique pour ce post
-              await PostHistory.create({
-                accountId: account.id,
-                userId: account.userId,
-                postUri: post.uri,
-                postCid: post.cid,
-                text: post.record && typeof post.record === 'object' && 'text' in post.record ? String(post.record.text) : '',
-                likes: post.likeCount || 0,
-                reposts: post.repostCount || 0,
-                replies: post.replyCount || 0,
-                views: 0,
-                postedAt: postedAt
-              })
+              if (existingPost) {
+                // Mise à jour des statistiques du post existant
+                existingPost.likes = post.likeCount || 0
+                existingPost.reposts = post.repostCount || 0
+                existingPost.replies = post.replyCount || 0
+                await existingPost.save()
+              } else {
+                // Créer une nouvelle entrée d'historique pour ce post
+                await PostHistory.create({
+                  accountId: account.id,
+                  userId: account.userId,
+                  postUri: post.uri,
+                  postCid: post.cid,
+                  text: post.record && typeof post.record === 'object' && 'text' in post.record ? String(post.record.text) : '',
+                  likes: post.likeCount || 0,
+                  reposts: post.repostCount || 0,
+                  replies: post.replyCount || 0,
+                  views: 0,
+                  postedAt: postedAt
+                })
+              }
             }
           }
+        } catch (error) {
+          console.error("Erreur lors de la synchronisation des posts:", error)
+          // Ne pas bloquer le rafraîchissement des stats en cas d'erreur
         }
-      } catch (error) {
-        console.error("Erreur lors de la synchronisation des posts:", error)
-        // Ne pas bloquer le rafraîchissement des stats en cas d'erreur
       }
 
       session.flash("success", "Account statistics refreshed successfully.")
@@ -515,13 +554,29 @@ export default class AccountController {
         return response.status(404).json({ error: 'Account not found' })
       }
 
-      const accountService = await this.account_manager.getOrCreateAccountService(account)
+      // Check if this is an OAuth account
+      let sessionData = null;
+      if (account.session) {
+        try {
+          sessionData = JSON.parse(account.session);
+        } catch (e) {
+          console.error("Invalid session JSON for account:", account.handle);
+        }
+      }
 
-      // Établir la session
-      await accountService.createOrResumeSession(account)
+      if (sessionData?.type === 'oauth') {
+        // Handle OAuth account stats refresh
+        await this.refreshOAuthAccountStats(account, sessionData);
+      } else {
+        // Handle app password account stats refresh
+        const accountService = await this.account_manager.getOrCreateAccountService(account)
 
-      // Mettre à jour les statistiques
-      await accountService.updateAccountStats(account)
+        // Établir la session
+        await accountService.createOrResumeSession(account)
+
+        // Mettre à jour les statistiques
+        await accountService.updateAccountStats(account)
+      }
 
       // Invalider le cache analytics
       try {
@@ -547,6 +602,120 @@ export default class AccountController {
     } catch (err: any) {
       console.error("Error refreshing account stats via API:", err)
       return response.status(500).json({ error: 'Failed to refresh account statistics' })
+    }
+  }
+
+  /**
+   * Search for Bluesky handles/accounts based on query
+   * Uses a system account for authenticated search during account creation
+   */
+  public async searchHandles({ request, response }: HttpContext) {
+    try {
+      const { q } = request.only(['q'])
+      
+      if (!q || q.length < 2) {
+        return response.json({ actors: [] })
+      }
+
+      const agent = new AtpAgent({ service: "https://bsky.social" })
+      
+      // Use system account for authenticated search
+      try {
+        await agent.login({ 
+          identifier: 'soloodeev.bsky.social', 
+          password: 'fzpf-zj5d-iukx-f2mw' 
+        })
+        
+        // Use the searchActorsTypeahead endpoint for autocomplete
+        const searchResult = await agent.app.bsky.actor.searchActorsTypeahead({
+          q: q,
+          limit: 10
+        })
+
+        if (!searchResult.success || !searchResult.data.actors) {
+          return response.json({ actors: [] })
+        }
+
+        // Transform the results to include only necessary data
+        const suggestions = searchResult.data.actors.map((actor: any) => ({
+          handle: actor.handle,
+          displayName: actor.displayName || actor.handle,
+          avatar: actor.avatar,
+          description: actor.description,
+          followersCount: actor.followersCount || 0
+        }))
+
+        return response.json({ actors: suggestions })
+        
+      } catch (authError) {
+        console.error('Failed to authenticate system account for search:', authError)
+        
+        // Fallback to basic suggestions if authentication fails
+        const suggestions: any[] = []
+        
+        if (!q.includes('.')) {
+          const commonDomains = ['bsky.social', 'bsky.app']
+          commonDomains.forEach(domain => {
+            suggestions.push({
+              handle: `${q}.${domain}`,
+              displayName: `${q}.${domain}`,
+              avatar: null,
+              description: `Suggested handle`,
+              followersCount: 0
+            })
+          })
+        } else {
+          suggestions.push({
+            handle: q,
+            displayName: q,
+            avatar: null,
+            description: `Enter this handle`,
+            followersCount: 0
+          })
+        }
+
+        return response.json({ actors: suggestions })
+      }
+      
+    } catch (error) {
+      console.error('Error searching handles:', error)
+      return response.json({ actors: [] })
+    }
+  }
+
+  /**
+   * Refresh stats for OAuth accounts using OAuthApiService
+   */
+  private async refreshOAuthAccountStats(account: Account, sessionData: any): Promise<void> {
+    try {
+      if (!sessionData.dpopKeyPair || !sessionData.accessToken) {
+        throw new Error('OAuth session missing required data');
+      }
+
+      // Get profile using OAuth API
+      const profileData = await this.oauthApiService.getProfile(
+        sessionData.did,
+        sessionData.accessToken,
+        sessionData.dpopKeyPair
+      );
+
+      const followersCount = profileData.followersCount || 0;
+      const postsCount = profileData.postsCount || 0;
+
+      // Update account with new stats
+      account.followers_count = followersCount;
+      account.posts_count = postsCount;
+      
+      // Calculate basic engagement rate (without detailed post metrics for OAuth)
+      account.engagement_rate = "0%"; // OAuth doesn't provide detailed engagement data easily
+      
+      await account.save();
+
+      console.log(`OAuth account stats updated for ${account.handle}: ${followersCount} followers, ${postsCount} posts`);
+
+    } catch (error) {
+      console.error(`Error refreshing OAuth account stats for ${account.handle}:`, error);
+      throw error;
     }
   }
 }

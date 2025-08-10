@@ -14,6 +14,20 @@ export default class AccountManager {
         }
 
         try {
+            // Check if this is an OAuth account
+            let sessionData = null;
+            if (account.session) {
+                try {
+                    sessionData = JSON.parse(account.session);
+                } catch (e) {
+                    console.error("Invalid session JSON for account:", account.handle);
+                }
+            }
+
+            if (sessionData?.type === 'oauth') {
+                throw new Error(`OAuth account ${account.handle} requires OAuthApiService, not AccountService. Use OAuth-specific methods instead.`);
+            }
+
             const existingService = this.accountServiceMap.get(account.handle)
             if (existingService) {
                 return existingService
@@ -32,6 +46,20 @@ export default class AccountManager {
         }
 
         try {
+            // Check if this is an OAuth account
+            let sessionData = null;
+            if (account.session) {
+                try {
+                    sessionData = JSON.parse(account.session);
+                } catch (e) {
+                    console.error("Invalid session JSON for account:", account.handle);
+                }
+            }
+
+            if (sessionData?.type === 'oauth') {
+                throw new Error(`OAuth account ${account.handle} requires OAuthApiService, not AccountService.`);
+            }
+
             const agent = new AtpAgent({ service: 'https://bsky.social' })
             const accountService = new AccountService(agent)
             await accountService.createOrResumeSession(account)

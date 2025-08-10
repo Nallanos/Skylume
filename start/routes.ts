@@ -162,6 +162,8 @@ router
 router
   .post('/api/account/:id/refresh-stats', [account_controller, 'refreshStatsApi'])
   .use(middleware.auth())
+router
+  .get('/api/search/handles', [account_controller, 'searchHandles'])
 
 /*
 |--------------------------------------------------------------------------
