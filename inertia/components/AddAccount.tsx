@@ -20,7 +20,7 @@ function AddAccount() {
     router.put(
       '/account',
       {
-        bksy_social: bksySocial,
+        bksy_social: bksySocial.replace(/\s/g, ''),
         token_app_password: tokenAppPassword,
         remember_me: rememberMe,
       },
