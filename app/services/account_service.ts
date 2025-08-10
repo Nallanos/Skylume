@@ -466,17 +466,58 @@ export default class AccountService {
     public async createOrResumeSession(account: Account): Promise<void> {
         try {
             if (!this.agent) this.agent = new AtpAgent({ service: "https://bsky.social" });
+            
+            // Parse session data to determine authentication type
+            let sessionData = null;
+            if (account.session) {
+                try {
+                    sessionData = JSON.parse(account.session);
+                } catch (e) {
+                    console.error("Invalid session JSON for account:", account.handle);
+                }
+            }
+
+            // Handle OAuth sessions
+            if (sessionData?.type === 'oauth' && sessionData.accessToken) {
+                console.log("Resuming OAuth session for account:", account.handle);
+                try {
+                    await this.agent.resumeSession({
+                        accessJwt: sessionData.accessToken,
+                        refreshJwt: sessionData.refreshToken || '',
+                        did: sessionData.did,
+                        handle: account.handle,
+                        active: true
+                    } as AtpSessionData);
+                    
+                    await this.updateAccountRateLimit(account);
+                    return;
+                } catch (err) {
+                    console.log("OAuth session expired or invalid for:", account.handle);
+                    // For now, throw error - in production you'd implement token refresh
+                    throw new Error(`OAuth session invalid for ${account.handle}: ${err.message}`);
+                }
+            }
+            
+            // Handle app password sessions (existing logic)
             if (!this.agent.sessionManager.hasSession || !account.session) {
-                console.log("Creating new session for account:", account.handle);
+                if (!account.appPassword) {
+                    throw new Error(`No authentication method available for ${account.handle}. Account needs either OAuth tokens or app password.`);
+                }
+                
+                console.log("Creating new app password session for account:", account.handle);
                 const session = (await this.agent.login({
                     identifier: account.handle,
                     password: account.appPassword,
                 })).data;
 
-                account.session = JSON.stringify(session);
+                // Store as app password session
+                account.session = JSON.stringify({ 
+                    type: 'app_password', 
+                    ...session 
+                });
                 await account.save();
             } else if (account.at_session) {
-                console.log("Resuming session for account:", account.handle);
+                console.log("Resuming app password session for account:", account.handle);
                 await this.agent.resumeSession({
                     accessJwt: account.at_session.accessJwt,
                     refreshJwt: account.at_session.refreshJwt,
@@ -487,17 +528,27 @@ export default class AccountService {
             await this.updateAccountRateLimit(account);
             return;
         } catch (err) {
-            try {
-                console.log("Failed to resume session, attempting new login for:", account.handle);
-                const session = (await this.agent.login({
-                    identifier: account.handle,
-                    password: account.appPassword,
-                })).data;
+            // Fallback: try app password login if available
+            if (account.appPassword) {
+                try {
+                    console.log("Failed to resume session, attempting new app password login for:", account.handle);
+                    const session = (await this.agent.login({
+                        identifier: account.handle,
+                        password: account.appPassword,
+                    })).data;
 
-                account.session = JSON.stringify(session);
-                await account.save();
-                await this.updateAccountRateLimit(account);
-            } catch (err) {
+                    account.session = JSON.stringify({ 
+                        type: 'app_password', 
+                        ...session 
+                    });
+                    await account.save();
+                    await this.updateAccountRateLimit(account);
+                } catch (fallbackErr) {
+                    await this.updateAccountRateLimit(account, fallbackErr);
+                    console.error("All authentication methods failed for account:", account.handle, fallbackErr);
+                    throw new Error(`Failed to authenticate account ${account.handle}: ${fallbackErr.message}`);
+                }
+            } else {
                 await this.updateAccountRateLimit(account, err);
                 console.error("Error while creating or resuming the session for account:", account.handle, err);
                 throw new Error(`Failed to authenticate account ${account.handle} : ${err.message}`);

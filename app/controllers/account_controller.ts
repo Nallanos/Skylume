@@ -11,99 +11,104 @@ import FollowersHistory from '#models/followers_history'
 import PostHistory from '#models/post_history'
 import AccountManager from '#services/account_manager'
 import { CacheManager } from '#services/cache_manager'
+import OAuthService from '#services/oauth_service'
 
 @inject()
 export default class AccountController {
-  constructor(protected account_manager: AccountManager, protected cacheManager: CacheManager) { }
+  constructor(
+    protected account_manager: AccountManager, 
+    protected cacheManager: CacheManager,
+    protected oauthService: OAuthService
+  ) { }
 
-
-  public async createAccount({ request, auth, response, session }: HttpContext) {
-    const agent = new AtpAgent({ service: "https://bsky.social" })
+  /**
+   * Initiate OAuth authorization flow
+   */
+  public async initiateOAuth({ response, session }: HttpContext) {
     try {
-      const { token_app_password, bksy_social, remember_me } = request.only(['token_app_password', 'bksy_social', 'remember_me'])
-      console.log('CreateAccount called for handle:', bksy_social)
+      console.log('OAuth initiation called')
+      await this.oauthService.initiateAuthFlow({ response, session } as HttpContext)
+    } catch (error) {
+      console.error('OAuth initiation error:', error)
+      session.flash('errors.oauth', 'Failed to start OAuth flow. Please try again.')
+      return response.redirect().back()
+    }
+  }
 
-      if (!token_app_password || !bksy_social) {
-        session.flash("errors.credentials", "Missing app password or social handle.")
-        return response.redirect().back()
+  /**
+   * Handle OAuth callback
+   */
+  public async handleOAuthCallback({ request, response, session, auth }: HttpContext) {
+    try {
+      const oauthSessionData = await this.oauthService.handleCallback({ request, session } as HttpContext)
+      
+      if (!oauthSessionData) {
+        return response.redirect('/add/account')
       }
 
-      try {
-        const bskySession = await agent.login({ identifier: bksy_social, password: token_app_password })
+      // Get profile information using the access token
+      const agent = new AtpAgent({ service: "https://bsky.social" })
+      
+      // Set up agent with OAuth token - use resumeSession method
+      await agent.resumeSession({
+        accessJwt: oauthSessionData.accessToken,
+        refreshJwt: oauthSessionData.refreshToken || '',
+        did: oauthSessionData.did,
+        handle: '', 
+        active: true
+      })
 
-        if (!bskySession) {
-          session.flash("errors.credentials", "Failed to retrieve session. Please verify your credentials.")
-          return response.redirect().back()
-        }
+      // Fetch profile to get handle
+      const profile = await agent.getProfile({ actor: oauthSessionData.did })
+      const handle = profile.data.handle
 
-        const token = await agent.com.atproto.server.getServiceAuth({ aud: "did:web:api.bsky.chat", lxm: "chat.bsky.convo.sendMessage" }, { headers: { Authorization: `Bearer ${bskySession.data.accessJwt}` } })
-        if (!token.data.token) {
-          session.flash("errors.credentials", "Please, grants us access to your DMS.")
-          return response.redirect().back()
-        }
+      let user: User | undefined
 
-      } catch (err) {
-        session.flash("errors.credentials", `Failed to retrieve session. Please check if you have granted us access to your DMS and that you're credentials are valid. \n ${err.message}`)
-        return response.redirect().back()
-      }
-
-      let user: User | undefined;
-
-      // First, check if user is already authenticated
+      // Check if user is already authenticated
       try {
         user = await auth.authenticate()
-        console.log('User already authenticated:', user.email)
       } catch {
-        // User is not authenticated, proceed with login/creation logic
-        console.log('No authenticated user, proceeding with login/creation for:', bksy_social)
+        // Create or find user based on handle
+        const existingUser = await User.findBy('email', handle)
         
-        // Try to find existing user by handle/email
-        const existingUser = await User.findBy('email', bksy_social)
-
         if (existingUser) {
-          // User exists, login directly
-          try {
-            await auth.use('web').login(existingUser, !!remember_me)
-            user = existingUser
-            console.log('Logged in existing user:', bksy_social)
-          } catch (err) {
-            console.error("Error logging in existing user:", err)
-            session.flash("errors.credentials", "Failed to login existing account.")
-            return response.redirect().back()
-          }
+          await auth.use('web').login(existingUser)
+          user = existingUser
         } else {
-          // User doesn't exist, create new one
-          try {
-            console.log('Creating new user account for:', bksy_social)
-            user = await this.createUser(bksy_social, token_app_password)
-            if (!user) {
-              session.flash("errors.credentials", "Failed to create user account.")
-              return response.redirect().back()
-            }
-            await auth.use('web').login(user, !!remember_me)
-          } catch (err) {
-            console.error("Error creating user:", err)
-            session.flash("errors.credentials", "Failed to create user account. Please try again.")
-            return response.redirect().back()
+          // Create new user with OAuth data
+          user = await this.createUser(handle, '') // No password for OAuth users
+          if (user) {
+            await auth.use('web').login(user)
           }
         }
       }
 
-      // Check if this user already has an account with this handle
+      if (!user) {
+        session.flash('errors.oauth', 'Failed to create or authenticate user.')
+        return response.redirect('/add/account')
+      }
+
+      // Check if account already exists
       const existingAccount = await Account.query()
         .where('userId', user.id)
-        .where('handle', bksy_social)
+        .where('handle', handle)
         .first()
 
       if (existingAccount) {
-        session.flash("errors.credentials", "You already have an account with this handle.")
-        return response.redirect().back()
+        // Update existing account with new OAuth session
+        existingAccount.session = JSON.stringify(oauthSessionData)
+        await existingAccount.save()
+        
+        session.flash('success', 'Account updated successfully with OAuth authentication.')
+        return response.redirect('/dashboard')
       }
 
+      // Create new account with OAuth session
       const accountData = {
         userId: user.id,
-        appPassword: token_app_password,
-        handle: bksy_social,
+        handle: handle,
+        did: oauthSessionData.did,
+        session: JSON.stringify(oauthSessionData),
         id: crypto.randomBytes(16).toString('hex'),
         seenNotificationAt: new Date().toISOString()
       }
@@ -111,22 +116,18 @@ export default class AccountController {
       const account = await Account.create(accountData)
 
       if (!account) {
-        session.flash("errors.credentials", "Failed to create account. Please verify your information.")
-        return response.redirect().back()
+        session.flash('errors.oauth', 'Failed to create account.')
+        return response.redirect('/add/account')
       }
 
-      // Initialiser l'historique des abonnés pour le nouveau compte
-      const accountService = await this.account_manager.getOrCreateAccountService(account)
-      await accountService.createOrResumeSession(account)
-
+      // Initialize account data
       try {
-        // Mettre à jour les statistiques du compte (followers_count, posts_count, engagement_rate)
+        const accountService = await this.account_manager.getOrCreateAccountService(account)
+        await accountService.createOrResumeSession(account)
         await accountService.updateAccountStats(account)
 
-        // Récupérer le nombre actuel d'abonnés (maintenant stocké dans account.followers_count)
+        // Create initial followers history
         const followersCount = account.followers_count || await accountService.getFollowersCount(account)
-
-        // Créer un premier enregistrement dans l'historique des abonnés
         await FollowersHistory.create({
           userId: user.id,
           accountId: account.id,
@@ -134,10 +135,9 @@ export default class AccountController {
           recordedAt: DateTime.now()
         })
 
-        // Synchroniser les posts récents pour le nouveau compte
+        // Sync recent posts
         const authorFeed = await agent.getAuthorFeed({ actor: account.handle, limit: 20 })
-
-        if (authorFeed && authorFeed.data && authorFeed.data.feed) {
+        if (authorFeed?.data?.feed) {
           for (const item of authorFeed.data.feed) {
             const post = item.post
             const postedAt = DateTime.fromISO(post.indexedAt)
@@ -157,8 +157,163 @@ export default class AccountController {
           }
         }
       } catch (error) {
-        console.error("Erreur lors de l'initialisation des données d'analytics:", error)
+        console.error("Error initializing account data:", error)
       }
+      
+      session.flash('success', 'Account connected successfully via OAuth!')
+      return response.redirect('/dashboard')
+
+    } catch (error) {
+      console.error('OAuth callback error:', error)
+      session.flash('errors.oauth', 'Failed to complete OAuth authentication.')
+      return response.redirect('/add/account')
+    }
+  }
+
+
+  public async createAccount({ request, auth, response, session }: HttpContext) {
+    const agent = new AtpAgent({ service: "https://bsky.social" })
+    try {
+      const { credential, password, remember_me } = request.only(['credential', 'password', 'remember_me'])
+      console.log('CreateAccount called for credential:', credential)
+
+      if (!credential || !password) {
+        session.flash("errors.credentials", "Missing credential or password.")
+        return response.redirect().back()
+      }
+
+      // Authenticate with Bluesky (app password or regular password - both work the same way)
+      let bskySession: any
+      try {
+        bskySession = await agent.login({ identifier: credential, password })
+        if (!bskySession) {
+          session.flash("errors.credentials", "Failed to retrieve session. Please verify your credentials.")
+          return response.redirect().back()
+        }
+
+        // Try to verify DM access (optional - won't fail if not available)
+        try {
+          const token = await agent.com.atproto.server.getServiceAuth({ 
+            aud: "did:web:api.bsky.chat", 
+            lxm: "chat.bsky.convo.sendMessage" 
+          }, { 
+            headers: { Authorization: `Bearer ${bskySession.data.accessJwt}` } 
+          })
+          
+          if (!token.data.token) {
+            console.log('DM access not available for this account')
+          }
+        } catch (dmError) {
+          console.log('DM access check failed, continuing:', dmError.message)
+        }
+
+      } catch (err: any) {
+        session.flash("errors.credentials", `Failed to authenticate. Please check your credentials. ${err.message}`)
+        return response.redirect().back()
+      }
+
+      const handle = credential
+      let user: User | undefined
+
+      // Authentication and user creation logic
+      try {
+        console.log("Attempting authentication for:", credential)
+        user = await auth.authenticate()
+        console.log('User already authenticated:', user.email)
+      } catch {
+        console.log('No authenticated user, proceeding with login/creation for:', credential)
+        
+        const existingUser = await User.findBy('email', handle)
+
+        if (existingUser) {
+          await auth.use('web').login(existingUser, !!remember_me)
+          user = existingUser
+          console.log('Logged in existing user:', handle)
+        } else {
+          // Create new user
+          try {
+            console.log('Creating new user account for:', handle)
+            user = await this.createUser(handle, password)
+            if (!user) {
+              session.flash("errors.credentials", "Failed to create user account.")
+              return response.redirect().back()
+            }
+            await auth.use('web').login(user, !!remember_me)
+          } catch (err) {
+            console.error("Error creating user:", err)
+            session.flash("errors.credentials", "Failed to create user account. Please try again.")
+            return response.redirect().back()
+          }
+        }
+      }
+
+      // Check if account already exists
+      const existingAccount = await Account.query()
+        .where('userId', user.id)
+        .where('handle', handle)
+        .first()
+
+      if (existingAccount) {
+        session.flash("errors.credentials", "You already have an account with this handle.")
+        return response.redirect().back()
+      }
+
+      // Create account with session data
+      const accountData = {
+        userId: user.id,
+        handle: handle,
+        id: crypto.randomBytes(16).toString('hex'),
+        seenNotificationAt: new Date().toISOString(),
+        appPassword: password,
+        session: JSON.stringify({ type: 'app_password', appPassword: password })
+      }
+
+      const account = await Account.create(accountData)
+
+      if (!account) {
+        session.flash("errors.credentials", "Failed to create account. Please verify your information.")
+        return response.redirect().back()
+      }
+
+      // Initialize account data
+      try {
+        const accountService = await this.account_manager.getOrCreateAccountService(account)
+        await accountService.createOrResumeSession(account)
+        await accountService.updateAccountStats(account)
+
+        const followersCount = account.followers_count || await accountService.getFollowersCount(account)
+        await FollowersHistory.create({
+          userId: user.id,
+          accountId: account.id,
+          followersCount,
+          recordedAt: DateTime.now()
+        })
+
+        // Sync recent posts
+        const authorFeed = await agent.getAuthorFeed({ actor: account.handle, limit: 20 })
+        if (authorFeed?.data?.feed) {
+          for (const item of authorFeed.data.feed) {
+            const post = item.post
+            const postedAt = DateTime.fromISO(post.indexedAt)
+
+            await PostHistory.create({
+              accountId: account.id,
+              userId: user.id,
+              postUri: post.uri,
+              postCid: post.cid,
+              text: post.record && typeof post.record === 'object' && 'text' in post.record ? String(post.record.text) : '',
+              likes: post.likeCount || 0,
+              reposts: post.repostCount || 0,
+              replies: post.replyCount || 0,
+              views: 0,
+              postedAt: postedAt
+            })
+          }
+        }
+      } catch (error) {
+        console.error("Error initializing account data:", error)
+      }
+
       return response.redirect('/dashboard')
     } catch (err: any) {
       if (err && err.error === "AuthFactorTokenRequired") {
@@ -175,7 +330,7 @@ export default class AccountController {
     }
   }
 
-  private async createUser(handle: string, appPassword: string) {
+  private async createUser(handle: string, password: string) {
     try {
       // Check if user already exists
       const userAlreadyExists = await User.findBy('email', handle)
@@ -189,7 +344,7 @@ export default class AccountController {
       const newUser = await User.create({
         id: handle,
         email: handle,
-        password: appPassword,
+        password: password,
         createdAt: DateTime.now()
       })
 
