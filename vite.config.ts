@@ -28,7 +28,7 @@ export default defineConfig({
   },
 
   server: {
-    allowedHosts: ['bluesky-bot.com'],
+    allowedHosts: ['bluesky-bot.com', 'localhost', '127.0.0.1'],
     hmr: {
       host: 'localhost'
     }

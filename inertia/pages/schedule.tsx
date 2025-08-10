@@ -3,12 +3,10 @@ import { Head, usePage, router } from '@inertiajs/react'
 import Layout from '../components/Layout'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
-import { Plus, Trash, Lock, Edit, User, List, Grid, Settings, Image, X } from 'lucide-react'
+import { Plus, Trash, Lock, Edit, User, Settings, Image, X } from 'lucide-react'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import BlueskyAvatar from '../components/BlueskyAvatar'
-
-import CalendarView from '../components/CalendarView'
 
 interface Scheduling {
   id: number
@@ -165,7 +163,6 @@ function Schedule({ schedulings }: ScheduleProps) {
   const [editingSchedule, setEditingSchedule] = useState<Scheduling | null>(null)
   const [localDateTime, setLocalDateTime] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
-  const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list')
 
   // Add modal state
   const [addMessage, setAddMessage] = useState('')
@@ -247,22 +244,6 @@ function Schedule({ schedulings }: ScheduleProps) {
 
     return days
   }, [groupedSchedulings])
-
-  // Convert schedulings to calendar events
-  const calendarEvents = useMemo(() => {
-    return sortedSchedulings.map((schedule) => ({
-      id: schedule.id,
-      date: new Date(schedule.scheduleTime),
-      time: new Date(schedule.scheduleTime).toLocaleTimeString([], {
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true,
-      }),
-      title: schedule.message.substring(0, 50) + (schedule.message.length > 50 ? '...' : ''),
-      account: schedule.account?.handle || 'Unknown',
-      status: 'pending' as const,
-    }))
-  }, [sortedSchedulings])
 
   // Optimiser les fonctions avec useCallback pour éviter les re-renders
   const deleteSchedule = useCallback(async (schedule_id: number) => {
@@ -477,120 +458,82 @@ function Schedule({ schedulings }: ScheduleProps) {
                 <Settings className="h-4 w-4" />
               </Button>
 
-              {/* View Mode Toggle */}
-              <div className="flex items-center bg-muted rounded-lg p-1">
-                <Button
-                  variant={viewMode === 'list' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setViewMode('list')}
-                  className="h-8 px-3"
-                >
-                  <List className="h-4 w-4" />
-                </Button>
-                <Button
-                  variant={viewMode === 'calendar' ? 'default' : 'ghost'}
-                  size="sm"
-                  onClick={() => setViewMode('calendar')}
-                  className="h-8 px-3"
-                >
-                  <Grid className="h-4 w-4" />
-                </Button>
-              </div>
-
               <Button
                 size="default"
-                variant={'outline'}
+                className="bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 disabled={isFreeLimitReached}
-                className="text-white font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={() => setShowAddModal(true)}
               >
-                Schedule Post
                 <Plus className="h-4 w-4 mr-2" />
+                Schedule Post
               </Button>
             </div>
           </div>
 
           {/* Queue */}
-          {viewMode === 'list' ? (
-            <div className="space-y-6">
-              {upcomingDays.map((day) => (
-                <div key={day.date} className="space-y-3">
-                  {/* Day Header */}
-                  <div className="border-b border-gray-200 dark:border-gray-700 pb-2">
-                    <h2 className="text-lg font-semibold text-foreground">{day.displayName}</h2>
-                  </div>
-
-                  {/* Time slots for this day */}
-                  <div className="space-y-2">
-                    {/* Afficher tous les posts existants pour ce jour */}
-                    {day.scheduledPosts.map((post) => (
-                      <ScheduledPostItem
-                        key={`post-${post.id}`}
-                        post={post}
-                        onEdit={startEdit}
-                        onDelete={deleteSchedule}
-                      />
-                    ))}
-
-                    {/* Afficher les créneaux prédéfinis disponibles si on n'a pas atteint la limite */}
-                    {useMemo(() => {
-                      const usedSlots = day.scheduledPosts.map((post) => {
-                        return new Date(post.scheduleTime).toLocaleTimeString('en-US', {
-                          hour: 'numeric',
-                          minute: '2-digit',
-                          hour12: true,
-                        })
-                      })
-
-                      const availableSlots = timeSlots.filter((slot) => !usedSlots.includes(slot))
-                      const remainingSlots = Math.max(0, maxSlotsPerDay - day.scheduledPosts.length)
-                      const slotsToShow = availableSlots.slice(0, remainingSlots)
-
-                      return slotsToShow.map((timeSlot) => (
-                        <EmptyTimeSlot
-                          key={`empty-${timeSlot}`}
-                          timeSlot={timeSlot}
-                          date={day.date}
-                          isFreeLimitReached={isFreeLimitReached || false}
-                          onSlotClick={handleSlotClick}
-                        />
-                      ))
-                    }, [day.scheduledPosts, day.date, timeSlots, maxSlotsPerDay, isFreeLimitReached, handleSlotClick])}
-                  </div>
+          <div className="space-y-6">
+            {upcomingDays.map((day) => (
+              <div key={day.date} className="space-y-3">
+                {/* Day Header */}
+                <div className="border-b border-gray-200 dark:border-gray-700 pb-2">
+                  <h2 className="text-lg font-semibold text-foreground">{day.displayName}</h2>
                 </div>
-              ))}
 
-              {/* Global Add Button */}
-              <Card
-                className="border-dashed border-2 border-blue-300 dark:border-blue-600 hover:border-blue-500 dark:hover:border-blue-400 transition-colors cursor-pointer group"
-                onClick={() => !isFreeLimitReached && setShowAddModal(true)}
-              >
-                <CardContent className="flex items-center justify-center py-6">
-                  <div className="flex items-center gap-3 text-blue-600 dark:text-blue-400 group-hover:text-blue-700 dark:group-hover:text-blue-300">
-                    <div className="w-8 h-8 rounded-full border-2 border-current flex items-center justify-center">
-                      <Plus className="h-4 w-4" />
-                    </div>
-                    <span className="font-medium">Add Custom Time Slot</span>
+                {/* Time slots for this day */}
+                <div className="space-y-2">
+                  {/* Afficher tous les posts existants pour ce jour */}
+                  {day.scheduledPosts.map((post) => (
+                    <ScheduledPostItem
+                      key={`post-${post.id}`}
+                      post={post}
+                      onEdit={startEdit}
+                      onDelete={deleteSchedule}
+                    />
+                  ))}
+
+                  {/* Afficher les créneaux prédéfinis disponibles si on n'a pas atteint la limite */}
+                  {useMemo(() => {
+                    const usedSlots = day.scheduledPosts.map((post) => {
+                      return new Date(post.scheduleTime).toLocaleTimeString('en-US', {
+                        hour: 'numeric',
+                        minute: '2-digit',
+                        hour12: true,
+                      })
+                    })
+
+                    const availableSlots = timeSlots.filter((slot) => !usedSlots.includes(slot))
+                    const remainingSlots = Math.max(0, maxSlotsPerDay - day.scheduledPosts.length)
+                    const slotsToShow = availableSlots.slice(0, remainingSlots)
+
+                    return slotsToShow.map((timeSlot) => (
+                      <EmptyTimeSlot
+                        key={`empty-${timeSlot}`}
+                        timeSlot={timeSlot}
+                        date={day.date}
+                        isFreeLimitReached={isFreeLimitReached || false}
+                        onSlotClick={handleSlotClick}
+                      />
+                    ))
+                  }, [day.scheduledPosts, day.date, timeSlots, maxSlotsPerDay, isFreeLimitReached, handleSlotClick])}
+                </div>
+              </div>
+            ))}
+
+            {/* Global Add Button */}
+            <Card
+              className="border-dashed border-2 border-blue-300 dark:border-blue-600 hover:border-blue-500 dark:hover:border-blue-400 transition-colors cursor-pointer group"
+              onClick={() => !isFreeLimitReached && setShowAddModal(true)}
+            >
+              <CardContent className="flex items-center justify-center py-6">
+                <div className="flex items-center gap-3 text-blue-600 dark:text-blue-400 group-hover:text-blue-700 dark:group-hover:text-blue-300">
+                  <div className="w-8 h-8 rounded-full border-2 border-current flex items-center justify-center">
+                    <Plus className="h-4 w-4" />
                   </div>
-                </CardContent>
-              </Card>
-            </div>
-          ) : (
-            <CalendarView
-              events={calendarEvents}
-              onAddEvent={(_date) => {
-                // Set the date in the modal and open it
-                setShowAddModal(true)
-              }}
-              onEventClick={(event) => {
-                // Find the corresponding schedule and edit it
-                const schedule = sortedSchedulings.find((s) => s.id === event.id)
-                if (schedule) {
-                  startEdit(schedule)
-                }
-              }}
-            />
-          )}
+                  <span className="font-medium">Add Custom Time Slot</span>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
 
           {/* Edit Modal */}
           {editingSchedule && (

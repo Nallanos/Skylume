@@ -49,35 +49,55 @@ export default class AccountController {
 
       let user: User | undefined;
 
-      // First, try to find existing user by handle/email
-      const existingUser = await User.findBy('email', bksy_social)
+      // First, check if user is already authenticated
+      try {
+        user = await auth.authenticate()
+        console.log('User already authenticated:', user.email)
+      } catch {
+        // User is not authenticated, proceed with login/creation logic
+        console.log('No authenticated user, proceeding with login/creation for:', bksy_social)
+        
+        // Try to find existing user by handle/email
+        const existingUser = await User.findBy('email', bksy_social)
 
-      if (existingUser) {
-        // User exists, login directly
-        try {
-          await auth.use('web').login(existingUser, !!remember_me)
-          user = existingUser
-          console.log('Logged in existing user:', bksy_social)
-        } catch (err) {
-          console.error("Error logging in existing user:", err)
-          session.flash("errors.credentials", "Failed to login existing account.")
-          return response.redirect().back()
-        }
-      } else {
-        // User doesn't exist, create new one
-        try {
-          console.log('Creating new user account for:', bksy_social)
-          user = await this.createUser(bksy_social, token_app_password)
-          if (!user) {
-            session.flash("errors.credentials", "Failed to create user account.")
+        if (existingUser) {
+          // User exists, login directly
+          try {
+            await auth.use('web').login(existingUser, !!remember_me)
+            user = existingUser
+            console.log('Logged in existing user:', bksy_social)
+          } catch (err) {
+            console.error("Error logging in existing user:", err)
+            session.flash("errors.credentials", "Failed to login existing account.")
             return response.redirect().back()
           }
-          await auth.use('web').login(user, !!remember_me)
-        } catch (err) {
-          console.error("Error creating user:", err)
-          session.flash("errors.credentials", "Failed to create user account. Please try again.")
-          return response.redirect().back()
+        } else {
+          // User doesn't exist, create new one
+          try {
+            console.log('Creating new user account for:', bksy_social)
+            user = await this.createUser(bksy_social, token_app_password)
+            if (!user) {
+              session.flash("errors.credentials", "Failed to create user account.")
+              return response.redirect().back()
+            }
+            await auth.use('web').login(user, !!remember_me)
+          } catch (err) {
+            console.error("Error creating user:", err)
+            session.flash("errors.credentials", "Failed to create user account. Please try again.")
+            return response.redirect().back()
+          }
         }
+      }
+
+      // Check if this user already has an account with this handle
+      const existingAccount = await Account.query()
+        .where('userId', user.id)
+        .where('handle', bksy_social)
+        .first()
+
+      if (existingAccount) {
+        session.flash("errors.credentials", "You already have an account with this handle.")
+        return response.redirect().back()
       }
 
       const accountData = {
