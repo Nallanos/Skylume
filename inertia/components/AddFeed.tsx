@@ -31,7 +31,7 @@ export default function AddFeed({ accounts, isFirstFeed = false, onCancel }: Add
     if (!keywordInput.trim()) return
     
     // Format keyword: remove spaces, convert to lowercase
-    const formattedKeyword = keywordInput.trim().toLowerCase().replace(/\s+/g, '')
+    const formattedKeyword = keywordInput.trim().toLowerCase()
     
     // Avoid duplicates
     if (!keywords.includes(formattedKeyword) && formattedKeyword) {
@@ -66,7 +66,7 @@ export default function AddFeed({ accounts, isFirstFeed = false, onCancel }: Add
           setKeywords([])
           setKeywordInput('')
           
-          // Call onCancel only after successful creation and redirect
+          // Hide the create form immediately after successful creation
           if (onCancel) {
             onCancel()
           }

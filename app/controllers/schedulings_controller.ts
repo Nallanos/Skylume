@@ -31,8 +31,18 @@ export default class SchedulingsController {
             return response.redirect("/schedule")
         }
 
-        const { account_handle, message, schedule_time } = request.all()
-        console.log('[DEBUG] Extracted data:', { account_handle, message, schedule_time })
+        const requestData = request.all()
+        const { account_handle, message, schedule_time, alt_texts, content_warnings } = requestData
+        console.log('[DEBUG] Extracted data:', { account_handle, message, schedule_time, alt_texts, content_warnings })
+        console.log('[DEBUG] Request body keys:', Object.keys(requestData))
+        console.log('[DEBUG] Full request body:', requestData)
+
+        // Handle file uploads (images)
+        const images = request.files('images', {
+            size: '10mb',
+            extnames: ['jpg', 'jpeg', 'png', 'gif', 'webp']
+        })
+        console.log('[DEBUG] Uploaded images:', images.length)
 
         // Validation
         if (!account_handle || !message || !schedule_time) {
@@ -60,12 +70,34 @@ export default class SchedulingsController {
         }
 
         try {
+            // Process uploaded images
+            const imagePaths: string[] = []
+            if (images && images.length > 0) {
+                for (const image of images) {
+                    if (image.isValid) {
+                        // Save file to public/uploads with unique name
+                        const timestamp = Date.now()
+                        const fileName = `${timestamp}-${image.clientName}`
+                        await image.move('public/uploads', { name: fileName })
+                        imagePaths.push(`/uploads/${fileName}`)
+                    }
+                }
+            }
+
+            // Parse alt texts if provided
+            const parsedAltTexts = alt_texts ? (Array.isArray(alt_texts) ? alt_texts : JSON.parse(alt_texts || '[]')) : []
+            const parsedContentWarnings = content_warnings ? (Array.isArray(content_warnings) ? content_warnings : JSON.parse(content_warnings || '[]')) : []
+            console.log('[DEBUG] Processed images:', imagePaths.length, 'Alt texts:', parsedAltTexts.length, 'Content warnings:', parsedContentWarnings.length)
+
             const scheduling = await Scheduling.create({ 
                 account_id: account.id, 
                 message, 
                 scheduleTime: schedule_time, 
                 userId: account.userId,
-                status: 'pending'
+                status: 'pending',
+                images: JSON.stringify(imagePaths),
+                altTexts: JSON.stringify(parsedAltTexts),
+                contentWarnings: JSON.stringify(parsedContentWarnings)
             });
 
             console.log('[DEBUG] Created scheduling:', scheduling.id)
@@ -80,12 +112,25 @@ export default class SchedulingsController {
     }
 
     public async editPost({ request, response }: HttpContext) {
-        const { id, account_id, message, schedule_time } = request.all()
+        const { id, account_id, message, schedule_time, alt_texts, content_warnings } = request.all()
         const scheduling = await Scheduling.findOrFail(id);
 
         scheduling.account_id = account_id;
         scheduling.message = message;
         scheduling.scheduleTime = schedule_time;
+        
+        // Update alt texts if provided
+        if (alt_texts !== undefined) {
+            const parsedAltTexts = Array.isArray(alt_texts) ? alt_texts : JSON.parse(alt_texts || '[]')
+            scheduling.altTexts = JSON.stringify(parsedAltTexts)
+        }
+        
+        // Update content warnings if provided
+        if (content_warnings !== undefined) {
+            const parsedContentWarnings = Array.isArray(content_warnings) ? content_warnings : JSON.parse(content_warnings || '[]')
+            scheduling.contentWarnings = JSON.stringify(parsedContentWarnings)
+        }
+        
         await scheduling.save();
 
         // Utiliser la méthode updateJob qui gère correctement la suppression et la création

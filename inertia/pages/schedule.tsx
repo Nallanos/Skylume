@@ -1,9 +1,10 @@
 import { useState, useMemo, useRef, useEffect, useCallback, memo } from 'react'
 import { Head, usePage, router } from '@inertiajs/react'
 import Layout from '../components/Layout'
+import ContentWarningModal from '../components/ContentWarningModal'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
-import { Plus, Trash, Lock, Edit, User, Settings, Image, X } from 'lucide-react'
+import { Plus, Trash, Lock, Edit, User, Settings, Image, X, Shield } from 'lucide-react'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import BlueskyAvatar from '../components/BlueskyAvatar'
@@ -14,6 +15,9 @@ interface Scheduling {
   message: string
   scheduleTime: string
   status: string
+  images?: string[]
+  altTexts?: string[]
+  contentWarnings?: string[]
   account?: {
     handle: string
     displayName: string
@@ -176,6 +180,9 @@ function Schedule({ schedulings }: ScheduleProps) {
   // Images state
   const [selectedImages, setSelectedImages] = useState<File[]>([])
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
+  const [imageAltTexts, setImageAltTexts] = useState<string[]>([])
+  const [contentWarnings, setContentWarnings] = useState<string[]>([])
+  const [showContentWarningModal, setShowContentWarningModal] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   const isFreeLimitReached = user.plan === 'free' && user.isScheduledLimitReached
@@ -305,6 +312,8 @@ function Schedule({ schedulings }: ScheduleProps) {
       formData.append('account_handle', selectedAccount.handle)
       formData.append('message', addMessage)
       formData.append('schedule_time', localDate.toISOString())
+      formData.append('alt_texts', JSON.stringify(imageAltTexts))
+      formData.append('content_warnings', JSON.stringify(contentWarnings))
       
       // Ajouter les images
       selectedImages.forEach((image) => {
@@ -315,8 +324,16 @@ function Schedule({ schedulings }: ScheduleProps) {
         account_handle: selectedAccount.handle,
         message: addMessage,
         schedule_time: localDate.toISOString(),
-        images_count: selectedImages.length
+        images_count: selectedImages.length,
+        alt_texts: imageAltTexts,
+        content_warnings: contentWarnings
       })
+
+      // Debug FormData contents
+      console.log('FormData contents:')
+      for (let [key, value] of formData.entries()) {
+        console.log(key, ':', value)
+      }
 
       // Utiliser router.post avec FormData
       router.post('/schedule/create', formData, {
@@ -329,12 +346,13 @@ function Schedule({ schedulings }: ScheduleProps) {
       setAddAccountId('')
       setSelectedDate('')
       setSelectedTimeSlot('')
+      setContentWarnings([])
       clearImages()
     } catch (error) {
       console.error('Error saving schedule:', error)
       return
     }
-  }, [addMessage, addAccountId, addDateTime, selectedDate, selectedTimeSlot, accounts, selectedImages])
+  }, [addMessage, addAccountId, addDateTime, selectedDate, selectedTimeSlot, accounts, selectedImages, imageAltTexts, contentWarnings])
 
   const startEdit = useCallback((schedule: Scheduling) => {
     setEditingSchedule({ ...schedule })
@@ -370,6 +388,7 @@ function Schedule({ schedulings }: ScheduleProps) {
     if (newImages.length === 0) return
     
     setSelectedImages(prev => [...prev, ...newImages])
+    setImageAltTexts(prev => [...prev, ...new Array(newImages.length).fill('')])
     
     // Create previews
     newImages.forEach(file => {
@@ -386,11 +405,22 @@ function Schedule({ schedulings }: ScheduleProps) {
   const removeImage = useCallback((index: number) => {
     setSelectedImages(prev => prev.filter((_, i) => i !== index))
     setImagePreviews(prev => prev.filter((_, i) => i !== index))
+    setImageAltTexts(prev => prev.filter((_, i) => i !== index))
   }, [])
 
   const clearImages = useCallback(() => {
     setSelectedImages([])
     setImagePreviews([])
+    setImageAltTexts([])
+    setContentWarnings([])
+  }, [])
+
+  const updateAltText = useCallback((index: number, altText: string) => {
+    setImageAltTexts(prev => {
+      const newAltTexts = [...prev]
+      newAltTexts[index] = altText
+      return newAltTexts
+    })
   }, [])
 
   // Handle paste event for images
@@ -678,23 +708,78 @@ function Schedule({ schedulings }: ScheduleProps) {
 
                       {/* Image Previews */}
                       {imagePreviews.length > 0 && (
-                        <div className="grid grid-cols-2 gap-2 max-h-40 overflow-y-auto">
-                          {imagePreviews.map((preview, index) => (
-                            <div key={index} className="relative group">
-                              <img
-                                src={preview}
-                                alt={`Preview ${index + 1}`}
-                                className="w-full h-20 object-cover rounded border"
-                              />
-                              <button
-                                type="button"
-                                onClick={() => removeImage(index)}
-                                className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                              >
-                                <X className="h-3 w-3" />
-                              </button>
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto">
+                            {imagePreviews.map((preview, index) => (
+                              <div key={index} className="space-y-2">
+                                <div className="relative group">
+                                  <img
+                                    src={preview}
+                                    alt={imageAltTexts[index] || `Preview ${index + 1}`}
+                                    className="w-full h-20 object-cover rounded border"
+                                  />
+                                  <button
+                                    type="button"
+                                    onClick={() => removeImage(index)}
+                                    className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                                  >
+                                    <X className="h-3 w-3" />
+                                  </button>
+                                </div>
+                                <div className="space-y-1">
+                                  <Label 
+                                    htmlFor={`alt-text-modal-${index}`}
+                                    className="text-xs font-medium text-gray-600 dark:text-gray-400"
+                                  >
+                                    Alt text
+                                  </Label>
+                                  <Input
+                                    id={`alt-text-modal-${index}`}
+                                    type="text"
+                                    placeholder="Describe this image..."
+                                    value={imageAltTexts[index] || ''}
+                                    onChange={(e) => updateAltText(index, e.target.value)}
+                                    className="text-xs"
+                                    maxLength={1000}
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Content Warnings for images */}
+                      {selectedImages.length > 0 && (
+                        <div className="space-y-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                          <div className="flex items-center justify-between">
+                            <Label className="text-sm font-medium flex items-center gap-2">
+                              <Shield className="h-4 w-4" />
+                              Content Warnings
+                            </Label>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setShowContentWarningModal(true)}
+                              className="text-xs"
+                            >
+                              Add Warning
+                            </Button>
+                          </div>
+                          
+                          {contentWarnings.length > 0 && (
+                            <div className="flex flex-wrap gap-2">
+                              {contentWarnings.map((warning) => (
+                                <span 
+                                  key={warning} 
+                                  className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300 text-xs rounded-full"
+                                >
+                                  {warning.replace('-', ' ')}
+                                </span>
+                              ))}
                             </div>
-                          ))}
+                          )}
                         </div>
                       )}
                     </div>
@@ -816,6 +901,14 @@ function Schedule({ schedulings }: ScheduleProps) {
               </Card>
             </div>
           )}
+
+          {/* Content Warning Modal */}
+          <ContentWarningModal
+            isOpen={showContentWarningModal}
+            onClose={() => setShowContentWarningModal(false)}
+            onSave={setContentWarnings}
+            initialWarnings={contentWarnings}
+          />
         </div>
       </Layout>
     </>

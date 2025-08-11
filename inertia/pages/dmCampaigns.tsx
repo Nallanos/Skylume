@@ -1,4 +1,4 @@
-import { Head, usePage, Link, router } from '@inertiajs/react'
+import { Head, usePage, Link } from '@inertiajs/react'
 import { useState } from 'react'
 import Layout from '../components/Layout'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
@@ -64,9 +64,27 @@ function DMCampaigns() {
   const handleAnalyze = async (campaignId: number) => {
     setLoading({ ...loading, [campaignId]: true })
     try {
-      await router.post(`/campaign/${campaignId}/analyze`)
+      const response = await fetch(`/campaign/${campaignId}/analyze`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          // Reload the page to show updated status
+          window.location.reload()
+        }
+      } else {
+        const errorData = await response.json()
+        alert(errorData.error || 'Failed to start analysis')
+      }
     } catch (error) {
       console.error('Error starting analysis:', error)
+      alert('Error starting analysis. Please try again.')
     } finally {
       setLoading({ ...loading, [campaignId]: false })
     }
@@ -74,18 +92,54 @@ function DMCampaigns() {
 
   const handleToggleStatus = async (campaignId: number) => {
     try {
-      await router.post(`/campaign/toggle/${campaignId}`)
+      const response = await fetch(`/campaign/toggle/${campaignId}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          // Reload the page to show updated status
+          window.location.reload()
+        }
+      } else {
+        const errorData = await response.json()
+        alert(errorData.error || 'Failed to toggle campaign status')
+      }
     } catch (error) {
       console.error('Error toggling campaign status:', error)
+      alert('Error toggling campaign status. Please try again.')
     }
   }
 
   const handleDelete = async (campaignId: number) => {
     if (confirm('Are you sure you want to delete this campaign?')) {
       try {
-        await router.delete(`/campaign/delete/${campaignId}`)
+        const response = await fetch(`/campaign/delete/${campaignId}`, {
+          method: 'DELETE',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          if (data.success) {
+            // Reload the page to show updated campaigns list
+            window.location.reload()
+          }
+        } else {
+          const errorData = await response.json()
+          alert(errorData.error || 'Failed to delete campaign')
+        }
       } catch (error) {
         console.error('Error deleting campaign:', error)
+        alert('Error deleting campaign. Please try again.')
       }
     }
   }

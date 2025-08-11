@@ -589,9 +589,93 @@ export default class AccountService {
         }
     }
 
-    public async post(account: Account, message: string) {
+    public async post(account: Account, message: string, images?: string[], altTexts?: string[], contentWarnings?: string[]) {
         try {
-            await this.agent.post({ text: message });
+            const postRecord: any = { text: message }
+            
+            // Handle images if provided
+            if (images && images.length > 0) {
+                const embeds = []
+                for (let i = 0; i < images.length; i++) {
+                    const imagePath = images[i]
+                    const altText = altTexts?.[i] || ''
+                    
+                    try {
+                        // Read the image file from the public directory
+                        const fs = await import('fs')
+                        const path = await import('path')
+                        
+                        const fullImagePath = path.join(process.cwd(), 'public', imagePath)
+                        
+                        if (fs.existsSync(fullImagePath)) {
+                            const imageBuffer = fs.readFileSync(fullImagePath)
+                            
+                            // Upload the image to Bluesky
+                            const uploadResponse = await this.agent.uploadBlob(imageBuffer, {
+                                encoding: 'image/' + path.extname(imagePath).slice(1)
+                            })
+                            
+                            embeds.push({
+                                $type: 'app.bsky.embed.images#image',
+                                image: uploadResponse.data.blob,
+                                alt: altText
+                            })
+                        }
+                    } catch (imageErr) {
+                        console.error(`[ERROR] Failed to upload image ${imagePath}:`, imageErr)
+                        // Continue with other images
+                    }
+                }
+                
+                if (embeds.length > 0) {
+                    postRecord.embed = {
+                        $type: 'app.bsky.embed.images',
+                        images: embeds
+                    }
+                }
+            }
+            
+            // Handle content warnings/labels according to Bluesky self-labeling spec
+            if (contentWarnings && contentWarnings.length > 0) {
+                console.log('[DEBUG] Adding content warnings:', contentWarnings)
+                
+                // Map our content warning IDs to official Bluesky label values
+                // Based on https://docs.bsky.app/docs/advanced-guides/moderation#self-labels
+                const labelMap: { [key: string]: string } = {
+                    'adult': 'porn',           // Adult content -> porn label
+                    'suggestive': 'sexual',    // Suggestive -> sexual label
+                    'nudity': 'nudity',        // Nudity -> nudity label
+                    'graphic-media': 'graphic-media', // Graphic media -> graphic-media label
+                    'sexual': 'sexual'         // Direct mapping for sexual content
+                }
+                
+                const mappedLabels = contentWarnings
+                    .map(warning => labelMap[warning])
+                    .filter(Boolean) // Remove undefined mappings
+                
+                console.log('[DEBUG] Mapped labels:', mappedLabels)
+                
+                if (mappedLabels.length > 0) {
+                    postRecord.labels = {
+                        $type: 'com.atproto.label.defs#selfLabels',
+                        values: mappedLabels.map(label => ({ val: label }))
+                    }
+                    
+                    console.log('[DEBUG] Final labels object:', JSON.stringify(postRecord.labels, null, 2))
+                }
+            }
+            
+            console.log('[DEBUG] Complete post record before sending to Bluesky:', JSON.stringify(postRecord, null, 2))
+            
+            // Use createRecord directly to ensure labels are preserved
+            const result = await this.agent.api.com.atproto.repo.createRecord({
+                repo: this.agent.session?.did || '',
+                collection: 'app.bsky.feed.post',
+                record: postRecord
+            })
+            
+            console.log('[DEBUG] Bluesky createRecord response:', result)
+            console.log('[DEBUG] Post successfully sent to Bluesky')
             await this.updateAccountRateLimit(account);
         } catch (err) {
             await this.updateAccountRateLimit(account, err);

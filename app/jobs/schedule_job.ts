@@ -23,7 +23,24 @@ const handle = async (data: ScheduleJobPayload, account_service: AccountService)
         console.log(`[INFO] Processing schedule ${schedule.id} for account ${account.handle}`)
 
         await account_service.createOrResumeSession(account);
-        await account_service.post(account, schedule.message).then(async () => {
+        
+        // Parse images and alt texts from the schedule
+        const images = schedule.images ? (Array.isArray(schedule.images) ? schedule.images : JSON.parse(schedule.images || '[]')) : []
+        const altTexts = schedule.altTexts ? (Array.isArray(schedule.altTexts) ? schedule.altTexts : JSON.parse(schedule.altTexts || '[]')) : []
+        const contentWarnings = schedule.contentWarnings ? (Array.isArray(schedule.contentWarnings) ? schedule.contentWarnings : JSON.parse(schedule.contentWarnings || '[]')) : []
+        
+        console.log(`[DEBUG] Schedule ${schedule.id} raw data:`)
+        console.log(`  - images field:`, schedule.images)
+        console.log(`  - altTexts field:`, schedule.altTexts)
+        console.log(`  - contentWarnings field:`, schedule.contentWarnings)
+        console.log(`[DEBUG] Schedule ${schedule.id} parsed data:`)
+        console.log(`  - images:`, images)
+        console.log(`  - altTexts:`, altTexts)
+        console.log(`  - contentWarnings:`, contentWarnings)
+        
+        console.log(`[INFO] Schedule ${schedule.id} has ${images.length} images with alt texts and ${contentWarnings.length} content warnings`)
+        
+        await account_service.post(account, schedule.message, images, altTexts, contentWarnings).then(async () => {
             schedule.status = "posted"
             await schedule.save()
             console.log(`[INFO] Successfully posted schedule ${schedule.id}`)

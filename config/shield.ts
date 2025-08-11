@@ -6,7 +6,7 @@ const shieldConfig = defineConfig({
    * to learn more
    */
   csp: {
-    enabled: true,
+    enabled: false, // Disabled for development
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: [
@@ -63,7 +63,7 @@ const shieldConfig = defineConfig({
    * to learn more
    */
   csrf: {
-    enabled: true,
+    enabled: false, // Disabled for development
     exceptRoutes: [
       '/stripe/webhook', // Exception pour les webhooks Stripe
       '/api/python/*', // Exception pour l'API Python interne
@@ -79,7 +79,7 @@ const shieldConfig = defineConfig({
    * iFrames
    */
   xFrame: {
-    enabled: true,
+    enabled: false, // Disabled for development
     action: 'DENY',
   },
 
@@ -87,7 +87,7 @@ const shieldConfig = defineConfig({
    * Force browser to always use HTTPS
    */
   hsts: {
-    enabled: true,
+    enabled: false, // Disabled for development
     maxAge: '180 days',
   },
 
@@ -96,7 +96,7 @@ const shieldConfig = defineConfig({
    * response and always rely on the "content-type" header.
    */
   contentTypeSniffing: {
-    enabled: true,
+    enabled: false, // Disabled for development
   },
 })
 

@@ -29,6 +29,18 @@ export default class Scheduling extends BaseModel {
   @column({ serialize: (value: string) => value ? JSON.parse(value) : [] })
   declare images: string
 
+  @column({ 
+    columnName: 'alt_texts',
+    serialize: (value: string) => value ? JSON.parse(value) : [] 
+  })
+  declare altTexts: string
+
+  @column({ 
+    columnName: 'content_warnings',
+    serialize: (value: string) => value ? JSON.parse(value) : [] 
+  })
+  declare contentWarnings: string
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

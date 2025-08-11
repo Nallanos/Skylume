@@ -575,7 +575,43 @@ router
     }
 
     const { account_handle, message, schedule_time } = request.all()
-    console.log('[DEBUG] Extracted data:', { account_handle, message, schedule_time })
+    
+    // Extract alt texts and content warnings from FormData
+    let altTexts: string[] = []
+    let contentWarnings: string[] = []
+    
+    try {
+      const formData = request.all()
+      console.log('[DEBUG] FormData contents:')
+      for (const [key, value] of Object.entries(formData)) {
+        console.log(`  ${key}:`, value)
+      }
+      
+      // Parse alt texts if present
+      if (formData.alt_texts) {
+        if (typeof formData.alt_texts === 'string') {
+          altTexts = JSON.parse(formData.alt_texts)
+        } else {
+          altTexts = formData.alt_texts
+        }
+      }
+      
+      // Parse content warnings if present
+      if (formData.content_warnings) {
+        if (typeof formData.content_warnings === 'string') {
+          contentWarnings = JSON.parse(formData.content_warnings)
+        } else {
+          contentWarnings = formData.content_warnings
+        }
+      }
+      
+      console.log('[DEBUG] Parsed alt texts:', altTexts)
+      console.log('[DEBUG] Parsed content warnings:', contentWarnings)
+    } catch (parseError) {
+      console.error('[DEBUG] Error parsing alt texts or content warnings:', parseError)
+    }
+    
+    console.log('[DEBUG] Extracted data:', { account_handle, message, schedule_time, altTexts, contentWarnings })
 
     // Validation
     if (!account_handle || !message || !schedule_time) {
@@ -631,6 +667,11 @@ router
 
     try {
       console.log('[DEBUG] Creating schedule entry...')
+      console.log('[DEBUG] About to save data:')
+      console.log('  - images:', JSON.stringify(imagePaths))
+      console.log('  - altTexts:', JSON.stringify(altTexts))
+      console.log('  - contentWarnings:', JSON.stringify(contentWarnings))
+      
       const scheduling = await Scheduling.create({
         userId: user.id,
         account_id: account.id,
@@ -638,10 +679,18 @@ router
         scheduleTime: schedule_time,
         status: 'pending',
         images: JSON.stringify(imagePaths),
+        altTexts: JSON.stringify(altTexts),
+        contentWarnings: JSON.stringify(contentWarnings),
       })
 
       console.log('[DEBUG] Schedule created with ID:', scheduling.id)
+      console.log('[DEBUG] Saved schedule data:')
+      console.log('  - images:', scheduling.images)
+      console.log('  - altTexts:', scheduling.altTexts)
+      console.log('  - contentWarnings:', scheduling.contentWarnings)
       console.log('[DEBUG] Images saved:', imagePaths.length, 'files')
+      console.log('[DEBUG] Alt texts:', altTexts.length, 'entries')
+      console.log('[DEBUG] Content warnings:', contentWarnings.length, 'entries')
 
       // Ajouter à la queue BullMQ pour traitement automatique
       try {

@@ -7,6 +7,7 @@ import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Textarea } from '../components/ui/textarea'
 import CustomSelect, { type Option } from '../components/ui/CustomSelect'
+import ContentWarningModal from '../components/ContentWarningModal'
 import { Badge } from '../components/ui/badge'
 import { Alert, AlertDescription } from '../components/ui/alert'
 import {
@@ -24,6 +25,7 @@ import {
   Image as ImageIcon,
   X,
   Upload,
+  Shield,
 } from 'lucide-react'
 
 interface Account {
@@ -63,6 +65,9 @@ export default function AddSchedule() {
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
   const [selectedImages, setSelectedImages] = useState<File[]>([])
   const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([])
+  const [imageAltTexts, setImageAltTexts] = useState<string[]>([])
+  const [contentWarnings, setContentWarnings] = useState<string[]>([])
+  const [showContentWarningModal, setShowContentWarningModal] = useState(false)
   const [pasteNotification, setPasteNotification] = useState<string | null>(null)
 
   const isFreeLimitReached = user.plan === 'free' && user.isScheduledLimitReached
@@ -116,6 +121,7 @@ export default function AddSchedule() {
             const newImageUrl = URL.createObjectURL(newFile)
             setSelectedImages(prev => [...prev, newFile])
             setImagePreviewUrls(prev => [...prev, newImageUrl])
+            setImageAltTexts(prev => [...prev, '']) // Initialize with empty alt text
             
             // Show success notification
             setPasteNotification('Image pasted successfully!')
@@ -183,6 +189,8 @@ export default function AddSchedule() {
       formData.append('account_handle', selectedAccountData.handle)
       formData.append('message', message.trim())
       formData.append('schedule_time', scheduleDateTime.toISOString())
+      formData.append('alt_texts', JSON.stringify(imageAltTexts))
+      formData.append('content_warnings', JSON.stringify(contentWarnings))
       
       // Append images
       selectedImages.forEach((image, index) => {
@@ -204,6 +212,8 @@ export default function AddSchedule() {
           imagePreviewUrls.forEach(url => URL.revokeObjectURL(url))
           setSelectedImages([])
           setImagePreviewUrls([])
+          setImageAltTexts([])
+          setContentWarnings([])
         },
         onError: (errors) => {
           console.log('=== INERTIA ERROR ===', errors)
@@ -303,9 +313,11 @@ export default function AddSchedule() {
     
     if (newImages.length > 0) {
       const newImageUrls = newImages.map(file => URL.createObjectURL(file))
+      const newAltTexts = new Array(newImages.length).fill('')
       
       setSelectedImages(prev => [...prev, ...newImages])
       setImagePreviewUrls(prev => [...prev, ...newImageUrls])
+      setImageAltTexts(prev => [...prev, ...newAltTexts])
     }
     
     // Reset input
@@ -318,6 +330,15 @@ export default function AddSchedule() {
     
     setSelectedImages(prev => prev.filter((_, i) => i !== index))
     setImagePreviewUrls(prev => prev.filter((_, i) => i !== index))
+    setImageAltTexts(prev => prev.filter((_, i) => i !== index))
+  }
+
+  const updateAltText = (index: number, altText: string) => {
+    setImageAltTexts(prev => {
+      const newAltTexts = [...prev]
+      newAltTexts[index] = altText
+      return newAltTexts
+    })
   }
 
   return (
@@ -491,26 +512,85 @@ export default function AddSchedule() {
 
                     {/* Image Previews */}
                     {selectedImages.length > 0 && (
-                      <div className="grid grid-cols-2 gap-3">
-                        {imagePreviewUrls.map((url, index) => (
-                          <div key={index} className="relative group">
-                            <img
-                              src={url}
-                              alt={`Preview ${index + 1}`}
-                              className="w-full h-32 object-cover rounded-lg border"
-                            />
-                            <button
-                              type="button"
-                              onClick={() => removeImage(index)}
-                              className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
-                            >
-                              <X className="h-3 w-3" />
-                            </button>
-                            <div className="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
-                              {selectedImages[index]?.name}
+                      <div className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          {imagePreviewUrls.map((url, index) => (
+                            <div key={index} className="space-y-2">
+                              <div className="relative group">
+                                <img
+                                  src={url}
+                                  alt={imageAltTexts[index] || `Preview ${index + 1}`}
+                                  className="w-full h-32 object-cover rounded-lg border"
+                                />
+                                <button
+                                  type="button"
+                                  onClick={() => removeImage(index)}
+                                  className="absolute top-2 right-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-600"
+                                >
+                                  <X className="h-3 w-3" />
+                                </button>
+                                <div className="absolute bottom-2 left-2 bg-black/50 text-white text-xs px-2 py-1 rounded">
+                                  {selectedImages[index]?.name}
+                                </div>
+                              </div>
+                              <div className="space-y-1">
+                                <Label 
+                                  htmlFor={`alt-text-${index}`}
+                                  className="text-xs font-medium text-gray-600 dark:text-gray-400"
+                                >
+                                  Alt text (for accessibility)
+                                </Label>
+                                <Input
+                                  id={`alt-text-${index}`}
+                                  type="text"
+                                  placeholder="Describe this image..."
+                                  value={imageAltTexts[index] || ''}
+                                  onChange={(e) => updateAltText(index, e.target.value)}
+                                  className="text-xs"
+                                  maxLength={1000}
+                                />
+                                <p className="text-xs text-gray-500 dark:text-gray-400">
+                                  {(imageAltTexts[index] || '').length}/1000 characters
+                                </p>
+                              </div>
                             </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Content Warnings */}
+                    {selectedImages.length > 0 && (
+                      <div className="space-y-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                        <div className="flex items-center justify-between">
+                          <Label className="text-sm font-medium flex items-center gap-2">
+                            <Shield className="h-4 w-4" />
+                            Content Warnings
+                          </Label>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            onClick={() => setShowContentWarningModal(true)}
+                            className="text-xs"
+                          >
+                            Add Warning
+                          </Button>
+                        </div>
+                        
+                        {contentWarnings.length > 0 && (
+                          <div className="flex flex-wrap gap-2">
+                            {contentWarnings.map((warning) => (
+                              <Badge key={warning} variant="secondary" className="text-xs">
+                                {warning.replace('-', ' ')}
+                              </Badge>
+                            ))}
                           </div>
-                        ))}
+                        )}
+                        
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
+                          Add content warnings for sensitive media to help users make informed viewing choices.
+                        </p>
                       </div>
                     )}
                   </div>
@@ -606,6 +686,14 @@ export default function AddSchedule() {
               </CardContent>
             </Card>
           </div>
+
+          {/* Content Warning Modal */}
+          <ContentWarningModal
+            isOpen={showContentWarningModal}
+            onClose={() => setShowContentWarningModal(false)}
+            onSave={setContentWarnings}
+            initialWarnings={contentWarnings}
+          />
       </Layout>
     </>
   )
