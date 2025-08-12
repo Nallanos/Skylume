@@ -658,6 +658,8 @@ export default function CampaignStats({ user, stats, followersData, error }: Cam
                       <div className="space-y-3">
                         {filteredFollowers.map((follower) => {
                           const config = getInterestConfig(follower.interestLevel)
+                          // Bluesky profile URL (web)
+                          const profileUrl = `https://bsky.app/profile/${follower.followerHandle}`
                           return (
                             <div
                               key={follower.id}
@@ -689,6 +691,20 @@ export default function CampaignStats({ user, stats, followersData, error }: Cam
                                       💬 Replied
                                     </Badge>
                                   )}
+                                  {/* Bluesky profile icon */}
+                                  <a
+                                    href={profileUrl}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    title="Voir le profil Bluesky"
+                                    className="ml-1 text-blue-500 hover:text-blue-700 transition-colors"
+                                    style={{ display: 'inline-flex', alignItems: 'center' }}
+                                  >
+                                    {/* Simple external/profile icon (Lucide: ExternalLink) */}
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" className="inline-block">
+                                      <path strokeLinecap="round" strokeLinejoin="round" d="M18 13v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6m5-3h3m0 0v3m0-3-9 9" />
+                                    </svg>
+                                  </a>
                                 </div>
                                 <p className="text-sm text-muted-foreground">@{follower.followerHandle}</p>
                                 {follower.followerBio && (

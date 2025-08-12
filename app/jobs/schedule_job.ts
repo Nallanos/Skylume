@@ -40,11 +40,38 @@ const handle = async (data: ScheduleJobPayload, account_service: AccountService)
         
         console.log(`[INFO] Schedule ${schedule.id} has ${images.length} images with alt texts and ${contentWarnings.length} content warnings`)
         
-        await account_service.post(account, schedule.message, images, altTexts, contentWarnings).then(async () => {
-            schedule.status = "posted"
-            await schedule.save()
-            console.log(`[INFO] Successfully posted schedule ${schedule.id}`)
-        })
+        // Use the new posting methods for better functionality
+        if (contentWarnings.length > 0 && images.length > 0) {
+            console.log(`[INFO] Using postWithImagePaths for schedule ${schedule.id} with content warnings`)
+            // Map legacy content warnings to new format
+            const mappedWarnings = contentWarnings.map((warning: string) => {
+                const warningMap: { [key: string]: string } = {
+                    'adult': 'porn',
+                    'suggestive': 'sexual',
+                    'nudity': 'nudity',
+                    'graphic-media': 'graphic-media',
+                    'graphic_media': 'graphic-media',
+                    'sexual': 'sexual',
+                    'gore': 'gore'
+                };
+                return warningMap[warning] || warning;
+            });
+            
+            await account_service.postWithImagePaths(
+                account, 
+                schedule.message, 
+                images, 
+                altTexts, 
+                mappedWarnings as any
+            );
+        } else {
+            console.log(`[INFO] Using legacy post method for schedule ${schedule.id}`)
+            await account_service.post(account, schedule.message, images, altTexts, contentWarnings);
+        }
+        
+        schedule.status = "posted"
+        await schedule.save()
+        console.log(`[INFO] Successfully posted schedule ${schedule.id}`)
     } catch (err) {
         console.error("[ERROR] Error in ScheduleJob:", err);
         // Marquer le schedule comme échoué

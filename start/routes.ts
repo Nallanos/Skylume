@@ -9,7 +9,6 @@
 
 import router from '@adonisjs/core/services/router'
 import { middleware } from './kernel.js'
-import SchedulingService from '#services/scheduling_service'
 import Account from '#models/account'
 import Feed from '#models/feed'
 
@@ -37,38 +36,6 @@ router.on('/password/reset').renderInertia('contact-us')
 */
 
 router.on('/add/account').renderInertia('AddAccount').use(middleware.auth())
-router
-  .get('/add/schedule', async ({ auth, inertia }) => {
-    const user = auth.user
-    if (!user) {
-      return inertia.render('AddSchedule')
-    }
-
-    const { default: Scheduling } = await import('#models/scheduling')
-    const { default: Account } = await import('#models/account')
-
-    const schedulings = await Scheduling.query().where('userId', user.id).where('status', 'pending')
-
-    // Récupérer les comptes de l'utilisateur
-    const accounts = await Account.query().where('userId', user.id)
-
-    const scheduledCount = schedulings.length
-    const isScheduledLimitReached = user.plan === 'free' && scheduledCount >= 5
-
-    return inertia.render('AddSchedule', {
-      user: {
-        ...user.toJSON(),
-        scheduledCount,
-        isScheduledLimitReached,
-        account: accounts.map((acc) => ({
-          id: acc.id,
-          handle: acc.handle,
-          displayName: acc.handle, // ou utilisez un autre champ si disponible
-        })),
-      },
-    })
-  })
-  .use(middleware.auth())
 router.on('/plan/change').renderInertia('planChange').use(middleware.auth())
 
 // DM Campaigns - AI Campaign Creation
@@ -91,28 +58,6 @@ router
   .use(middleware.auth())
 
 router.on('/account/:id/dashboard/loading').renderInertia('AccountDashboard').use(middleware.auth())
-
-// Route corrigée pour l'analyse d'audience
-// router.get("/account/:id/audience-analysis", async ({ params, inertia, auth, response }) => {
-//     const user = auth.user
-//     if (!user) {
-//         return response.redirect('/login')
-//     }
-
-//     try {
-//         // Récupérer le compte associé à l'ID et à l'utilisateur authentifié
-//         const account = await Account.query()
-//             .where('id', params.id)
-//             .where('userId', user.id)
-//             .firstOrFail()
-
-//         // Rendre la vue avec le compte en tant que props
-//         return inertia.render('AudienceAnalysis', { account })
-//     } catch (error) {
-//         console.error('Erreur lors du chargement du compte:', error)
-//         return response.redirect('/dashboard')
-//     }
-// }).use(middleware.auth())
 
 const session_controller = () => import('#controllers/session_controller')
 const account_controller = () => import('#controllers/account_controller')
@@ -307,7 +252,7 @@ router
           return {
             id: campaign.id,
             name: campaign.name,
-            message: campaign.message,
+            // message: campaign.message removed - now handled by campaign messages
             accountHandle: campaign.accountHandle,
             strategy: campaign.strategy,
             user_id: campaign.user_id,
@@ -376,6 +321,54 @@ router
   .use(middleware.auth())
 router
   .get('/api/campaign/:id/followers-paginated', [dm_campaigns_controller, 'getAnalyzedFollowersPaginatedApi'])
+  .use(middleware.auth())
+
+// ===== NOUVELLES ROUTES - MESSAGES MULTIPLES =====
+router
+  .get('/campaign/:id/messages', [dm_campaigns_controller, 'getCampaignMessages'])
+  .use(middleware.auth())
+router
+  .post('/campaign/:id/messages', [dm_campaigns_controller, 'createCampaignMessage'])
+  .use(middleware.auth())
+router
+  .put('/campaign/:id/messages/:messageId', [dm_campaigns_controller, 'updateCampaignMessage'])
+  .use(middleware.auth())
+router
+  .delete('/campaign/:id/messages/:messageId', [dm_campaigns_controller, 'deleteCampaignMessage'])
+  .use(middleware.auth())
+
+// ===== NOUVELLES ROUTES - TRACKING CONVERSATIONS =====
+router
+  .post('/campaign/:id/check-conversations', [dm_campaigns_controller, 'checkConversations'])
+  .use(middleware.auth())
+router
+  .post('/campaign/:id/mark-contacted/:followerId', [dm_campaigns_controller, 'markAsContacted'])
+  .use(middleware.auth())
+router
+  .get('/campaign/:id/conversation-status', [dm_campaigns_controller, 'getConversationStatus'])
+  .use(middleware.auth())
+router
+  .post('/campaign/:id/mark-all-existing-conversations', [dm_campaigns_controller, 'markAllExistingConversationsAsContacted'])
+  .use(middleware.auth())
+
+// ===== NOUVELLES ROUTES - EXECUTION DES CAMPAGNES =====
+router
+  .get('/api/campaigns/:id/execution/config', [dm_campaigns_controller, 'getExecutionConfig'])
+  .use(middleware.auth())
+router
+  .post('/api/campaigns/:id/execution/config', [dm_campaigns_controller, 'saveExecutionConfig'])
+  .use(middleware.auth())
+router
+  .get('/api/campaigns/:id/execution/preview', [dm_campaigns_controller, 'getExecutionPreview'])
+  .use(middleware.auth())
+router
+  .get('/api/campaigns/:id/execution/validate', [dm_campaigns_controller, 'validateExecutionConfig'])
+  .use(middleware.auth())
+router
+  .post('/api/campaigns/:id/execution/reset-counts', [dm_campaigns_controller, 'resetMessageCounts'])
+  .use(middleware.auth())
+router
+  .post('/api/campaigns/:id/execute', [dm_campaigns_controller, 'executeCampaign'])
   .use(middleware.auth())
 
 /*
@@ -547,279 +540,18 @@ router
 |
 */
 
+const schedulings_controller = () => import('#controllers/schedulings_controller')
+
 router
-  .post('/schedule/create', async ({ request, response, auth, session }) => {
-    console.log('[DEBUG] schedulePost called')
-    console.log('[DEBUG] Request body keys:', Object.keys(request.all()))
-
-    const user = auth.user
-    if (!user) {
-      console.log('[DEBUG] User not authenticated')
-      return response.redirect('/dashboard')
-    }
-
-    // Importer Scheduling dynamiquement
-    const { default: Scheduling } = await import('#models/scheduling')
-
-    const schedules = await Scheduling.query()
-      .where('userId', user.id)
-      .andWhere('status', 'pending')
-
-    console.log('Current schedule count:', schedules.length)
-
-    if (schedules.length >= 5 && user.plan == 'free') {
-      user.isScheduledLimitReached = true
-      await user.save()
-      session.flash('error', 'You have reached the free plan limit (5/5 posts)')
-      return response.redirect('/schedule')
-    }
-
-    const { account_handle, message, schedule_time } = request.all()
-    
-    // Extract alt texts and content warnings from FormData
-    let altTexts: string[] = []
-    let contentWarnings: string[] = []
-    
-    try {
-      const formData = request.all()
-      console.log('[DEBUG] FormData contents:')
-      for (const [key, value] of Object.entries(formData)) {
-        console.log(`  ${key}:`, value)
-      }
-      
-      // Parse alt texts if present
-      if (formData.alt_texts) {
-        if (typeof formData.alt_texts === 'string') {
-          altTexts = JSON.parse(formData.alt_texts)
-        } else {
-          altTexts = formData.alt_texts
-        }
-      }
-      
-      // Parse content warnings if present
-      if (formData.content_warnings) {
-        if (typeof formData.content_warnings === 'string') {
-          contentWarnings = JSON.parse(formData.content_warnings)
-        } else {
-          contentWarnings = formData.content_warnings
-        }
-      }
-      
-      console.log('[DEBUG] Parsed alt texts:', altTexts)
-      console.log('[DEBUG] Parsed content warnings:', contentWarnings)
-    } catch (parseError) {
-      console.error('[DEBUG] Error parsing alt texts or content warnings:', parseError)
-    }
-    
-    console.log('[DEBUG] Extracted data:', { account_handle, message, schedule_time, altTexts, contentWarnings })
-
-    // Validation
-    if (!account_handle || !message || !schedule_time) {
-      console.log('[DEBUG] Validation failed - missing fields')
-      session.flash(
-        'error',
-        'Missing required fields: account_handle, message, and schedule_time are required'
-      )
-      return response.redirect('/schedule')
-    }
-
-    // Find account
-    const account = await Account.findBy('handle', account_handle)
-    console.log('[DEBUG] Found account:', account?.handle)
-
-    if (!account) {
-      console.log('[DEBUG] Account not found for handle:', account_handle)
-      session.flash('error', 'Account not found')
-      return response.redirect('/schedule')
-    }
-
-    // Handle image uploads
-    let imagePaths: string[] = []
-    try {
-      const images = request.files('images', {
-        size: '10mb',
-        extnames: ['jpg', 'jpeg', 'png', 'gif', 'webp'],
-      })
-
-      if (images && Array.isArray(images)) {
-        console.log('[DEBUG] Processing', images.length, 'images')
-
-        // Créer le répertoire uploads s'il n'existe pas
-        const uploadsDir = 'public/uploads/schedules'
-        const fs = await import('fs')
-        if (!fs.existsSync(uploadsDir)) {
-          fs.mkdirSync(uploadsDir, { recursive: true })
-        }
-
-        for (const image of images) {
-          if (image.isValid) {
-            const fileName = `${user.id}_${Date.now()}_${image.clientName}`
-            await image.move(uploadsDir, { name: fileName })
-            imagePaths.push(`/uploads/schedules/${fileName}`)
-            console.log('[DEBUG] Image saved:', fileName)
-          }
-        }
-      }
-    } catch (error) {
-      console.error('[DEBUG] Error processing images:', error)
-      // Continue without images if upload fails
-    }
-
-    try {
-      console.log('[DEBUG] Creating schedule entry...')
-      console.log('[DEBUG] About to save data:')
-      console.log('  - images:', JSON.stringify(imagePaths))
-      console.log('  - altTexts:', JSON.stringify(altTexts))
-      console.log('  - contentWarnings:', JSON.stringify(contentWarnings))
-      
-      const scheduling = await Scheduling.create({
-        userId: user.id,
-        account_id: account.id,
-        message: message,
-        scheduleTime: schedule_time,
-        status: 'pending',
-        images: JSON.stringify(imagePaths),
-        altTexts: JSON.stringify(altTexts),
-        contentWarnings: JSON.stringify(contentWarnings),
-      })
-
-      console.log('[DEBUG] Schedule created with ID:', scheduling.id)
-      console.log('[DEBUG] Saved schedule data:')
-      console.log('  - images:', scheduling.images)
-      console.log('  - altTexts:', scheduling.altTexts)
-      console.log('  - contentWarnings:', scheduling.contentWarnings)
-      console.log('[DEBUG] Images saved:', imagePaths.length, 'files')
-      console.log('[DEBUG] Alt texts:', altTexts.length, 'entries')
-      console.log('[DEBUG] Content warnings:', contentWarnings.length, 'entries')
-
-      // Ajouter à la queue BullMQ pour traitement automatique
-      try {
-        const jobId = await SchedulingService.schedulePost(scheduling)
-        console.log(`[SCHEDULING] Job created with ID: ${jobId}`)
-        session.flash(
-          'success',
-          `Post scheduled successfully${imagePaths.length > 0 ? ` with ${imagePaths.length} image(s)` : ''}! Job ID: ${jobId}`
-        )
-      } catch (queueError) {
-        console.error('[SCHEDULING] Error adding to queue:', queueError)
-        session.flash(
-          'warning',
-          `Post scheduled${imagePaths.length > 0 ? ` with ${imagePaths.length} image(s)` : ''} but may not be processed automatically. Please check logs.`
-        )
-      }
-
-      // Rediriger vers la page schedule avec succès
-      return response.redirect('/schedule')
-    } catch (error) {
-      console.error('[DEBUG] Error creating schedule:', error)
-      session.flash('error', 'An error occurred while scheduling the post. Please try again.')
-      return response.redirect('/schedule')
-    }
-  })
+  .post('/schedule/create', [schedulings_controller, 'schedulePost'])
   .use(middleware.auth())
 
 router
-  .put('/schedule/delete', async ({ request, response, auth, session }) => {
-    console.log('[DEBUG] deletePost called')
-    console.log('[DEBUG] Request body:', request.all())
-
-    const user = auth.user
-    if (!user) {
-      console.log('[DEBUG] User not authenticated')
-      return response.redirect('/dashboard')
-    }
-
-    const { default: Scheduling } = await import('#models/scheduling')
-    const { scheduleId } = request.all()
-
-    if (!scheduleId) {
-      console.log('[DEBUG] Missing scheduleId')
-      session.flash('error', 'Schedule ID is required')
-      return response.redirect('/schedule')
-    }
-
-    try {
-      const schedule = await Scheduling.query()
-        .where('id', scheduleId)
-        .where('userId', user.id)
-        .first()
-
-      if (!schedule) {
-        console.log('[DEBUG] Schedule not found or unauthorized')
-        session.flash('error', 'Schedule not found')
-        return response.redirect('/schedule')
-      }
-
-      // Annuler le job BullMQ s'il existe
-      if (schedule.jobId) {
-        try {
-          await SchedulingService.cancelScheduledPost(schedule)
-          console.log(`[SCHEDULING] Cancelled job ${schedule.jobId}`)
-        } catch (cancelError) {
-          console.error('[SCHEDULING] Error cancelling job:', cancelError)
-          // Continue avec la suppression même si l'annulation échoue
-        }
-      }
-
-      await schedule.delete()
-      console.log('[DEBUG] Schedule deleted successfully:', scheduleId)
-
-      session.flash('success', 'Schedule deleted successfully!')
-      return response.redirect('/schedule')
-    } catch (error) {
-      console.error('[DEBUG] Error deleting schedule:', error)
-      session.flash('error', 'An error occurred while deleting the schedule')
-      return response.redirect('/schedule')
-    }
-  })
+  .put('/schedule/delete', [schedulings_controller, 'deletePost'])
   .use(middleware.auth())
 
 router
-  .put('/schedule/edit', async ({ request, response, auth, session }) => {
-    console.log('[DEBUG] editPost called')
-    console.log('[DEBUG] Request body:', request.all())
-
-    const user = auth.user
-    if (!user) {
-      console.log('[DEBUG] User not authenticated')
-      return response.redirect('/dashboard')
-    }
-
-    const { default: Scheduling } = await import('#models/scheduling')
-    const { scheduleId, message, schedule_time } = request.all()
-
-    if (!scheduleId || !message || !schedule_time) {
-      console.log('[DEBUG] Missing required fields for edit')
-      session.flash('error', 'Schedule ID, message, and schedule_time are required')
-      return response.redirect('/schedule')
-    }
-
-    try {
-      const schedule = await Scheduling.query()
-        .where('id', scheduleId)
-        .where('userId', user.id)
-        .first()
-
-      if (!schedule) {
-        console.log('[DEBUG] Schedule not found or unauthorized')
-        session.flash('error', 'Schedule not found')
-        return response.redirect('/schedule')
-      }
-
-      schedule.message = message
-      schedule.scheduleTime = schedule_time
-      await schedule.save()
-
-      console.log('[DEBUG] Schedule updated successfully:', scheduleId)
-
-      session.flash('success', 'Schedule updated successfully!')
-      return response.redirect('/schedule')
-    } catch (error) {
-      console.error('[DEBUG] Error updating schedule:', error)
-      session.flash('error', 'An error occurred while updating the schedule')
-      return response.redirect('/schedule')
-    }
-  })
+  .put('/schedule/edit', [schedulings_controller, 'editPost'])
   .use(middleware.auth())
 
 router
@@ -871,8 +603,8 @@ router
   .get('/schedule/queue/stats', async ({ response, auth }) => {
     try {
       await auth.authenticate()
-      const stats = await SchedulingService.getQueueStats()
-      return response.json(stats)
+      // TODO: Implémenter les stats via SchedulingQueueManager si nécessaire
+      return response.json({ waiting: 0, active: 0, completed: 0, failed: 0 })
     } catch (error) {
       console.error('Error getting queue stats:', error)
       return response.status(500).json({ error: 'Internal server error' })

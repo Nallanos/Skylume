@@ -43,11 +43,19 @@ export class SchedulingQueueManager {
             new Worker(
                 this.queueName,
                 async (job) => {
+                    console.log(`[WORKER] 🔥 Processing job ${job.id} with data:`, job.data)
                     const { schedule_id } = job.data
-                    const scheduling = await Scheduling.findOrFail(schedule_id)
-                    const account = await Account.findOrFail(scheduling.account_id)
-                    console.log(`Processing schedule job ${job.id} for schedule ID: ${schedule_id}`)
-                    await handle({ schedule_id }, await this.account_manager.getOrCreateAccountService(account))
+                    try {
+                        const scheduling = await Scheduling.findOrFail(schedule_id)
+                        const account = await Account.findOrFail(scheduling.account_id)
+                        console.log(`[WORKER] ✅ Found scheduling ${schedule_id} for account ${account.handle}`)
+                        console.log(`[WORKER] 📤 About to publish post: "${scheduling.message}"`)
+                        await handle({ schedule_id }, await this.account_manager.getOrCreateAccountService(account))
+                        console.log(`[WORKER] 🎉 Successfully processed job ${job.id} for schedule ${schedule_id}`)
+                    } catch (error) {
+                        console.error(`[WORKER] ❌ Error processing job ${job.id}:`, error)
+                        throw error
+                    }
                 },
                 {
                     connection: {
@@ -68,7 +76,25 @@ export class SchedulingQueueManager {
      */
     public async createOneJob(scheduling: Scheduling): Promise<void> {
         try {
-            const scheduleTimeISO = scheduling.scheduleTime.toISO()
+            // Handle both Lucid DateTime objects and regular Date/string objects
+            let scheduleTimeISO: string
+            if (scheduling.scheduleTime && typeof scheduling.scheduleTime.toISO === 'function') {
+                // Lucid DateTime object
+                const isoString = scheduling.scheduleTime.toISO()
+                if (!isoString) {
+                    throw new Error(`Failed to convert DateTime to ISO string for schedule ${scheduling.id}`)
+                }
+                scheduleTimeISO = isoString
+            } else if (scheduling.scheduleTime instanceof Date) {
+                // JavaScript Date object
+                scheduleTimeISO = scheduling.scheduleTime.toISOString()
+            } else if (typeof scheduling.scheduleTime === 'string') {
+                // String representation
+                scheduleTimeISO = new Date(scheduling.scheduleTime).toISOString()
+            } else {
+                throw new Error(`Invalid schedule time format for schedule ${scheduling.id}`)
+            }
+            
             if (!scheduleTimeISO) {
                 throw new Error(`Invalid schedule time for schedule ${scheduling.id}`)
             }

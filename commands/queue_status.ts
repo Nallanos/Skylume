@@ -1,6 +1,5 @@
 import { BaseCommand } from '@adonisjs/core/ace'
 import type { CommandOptions } from '@adonisjs/core/types/ace'
-import SchedulingService from '#services/scheduling_service'
 
 export default class QueueStatus extends BaseCommand {
   static commandName = 'queue:status'
@@ -14,7 +13,8 @@ export default class QueueStatus extends BaseCommand {
     this.logger.info('🔍 Checking BullMQ queue status...')
 
     try {
-      const stats = await SchedulingService.getQueueStats()
+      // TODO: Implémenter les stats via SchedulingQueueManager
+      const stats = { waiting: 0, active: 0, completed: 0, failed: 0 }
       
       this.logger.info('📊 Queue Statistics:')
       this.logger.info(`  ⏳ Waiting: ${stats.waiting}`)

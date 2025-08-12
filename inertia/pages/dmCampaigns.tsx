@@ -25,7 +25,7 @@ interface User {
 interface DmCampaign {
   id: number
   name: string
-  message: string
+  // message supprimé - maintenant dans campaign_messages
   accountHandle: string
   strategy: string
   keywords: string
@@ -38,6 +38,8 @@ interface DmCampaign {
   targetCount: number
   number_of_message_sent: number
   status: boolean
+  checkConversationsStatus?: string
+  lastConversationCheck?: string
 }
 
 interface PageProps {
@@ -302,12 +304,11 @@ function DMCampaigns() {
                     </CardHeader>
                     
                     <CardContent className="space-y-4">
-                      {/* Message Preview */}
+                      {/* Campaign Configuration */}
                       <div className="p-3 bg-muted rounded-md">
-                        <p className="text-sm font-medium mb-1">Message:</p>
+                        <p className="text-sm font-medium mb-1">Strategy:</p>
                         <p className="text-sm text-muted-foreground">
-                          {campaign.message.substring(0, 150)}
-                          {campaign.message.length > 150 && '...'}
+                          {campaign.strategy || 'Default strategy'} - Multiple message templates configured
                         </p>
                       </div>
 

@@ -2,9 +2,9 @@ import { Head, usePage } from '@inertiajs/react'
 import Layout from '../components/Layout'
 import AccountCard from '../components/AccountCard'
 import AddAccount from '../components/AddAccount'
-import { Plus, Users, BarChart2, Calendar, MessageSquare } from 'lucide-react'
+import { Plus, Users, BarChart2, Calendar } from 'lucide-react'
 import { Button } from '../components/ui/button'
-import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '../components/ui/card'
+import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 
 interface Account {
   id: number
@@ -148,92 +148,6 @@ function Dashboard({ accounts }: DashboardProps) {
             {accounts.map((account) => (
               <AccountCard key={account.id} account={account} />
             ))}
-          </div>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="mt-8">
-          <h2 className="text-lg font-medium mb-4">Quick Actions</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <Card className="cursor-pointer transition-all">
-              <CardContent className="pt-6">
-                <div className="flex flex-col items-center text-center p-2">
-                  <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center mb-3">
-                    <Calendar className="h-6 w-6 text-blue-500" />
-                  </div>
-                  <h3 className="font-medium mb-1">Schedule a Post</h3>
-                  <p className="text-sm text-muted-foreground">Plan your content in advance</p>
-                </div>
-              </CardContent>
-              <CardFooter className="pt-0 pb-4">
-                <Button asChild size="sm" variant="outline" className="w-full">
-                  <a href="/add/schedule">
-                    <Plus className="h-4 w-4 mr-2 transition-transform group-hover:rotate-90" />
-                    Schedule
-                  </a>
-                </Button>
-              </CardFooter>
-            </Card>
-
-            <Card className="cursor-pointer transition-all">
-              <CardContent className="pt-6">
-                <div className="flex flex-col items-center text-center p-2">
-                  <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center mb-3">
-                    <MessageSquare className="h-6 w-6 text-blue-500" />
-                  </div>
-                  <h3 className="font-medium mb-1">DM Campaign</h3>
-                  <p className="text-sm text-muted-foreground">Create direct message campaigns</p>
-                </div>
-              </CardContent>
-              <CardFooter className="pt-0 pb-4">
-                <Button asChild size="sm" variant="outline" className="w-full">
-                  <a href="/add/campaign">
-                    <Plus className="h-4 w-4 mr-2 transition-transform group-hover:rotate-90" />
-                    Create
-                  </a>
-                </Button>
-              </CardFooter>
-            </Card>
-
-            <Card className="cursor-pointer transition-all">
-              <CardContent className="pt-6">
-                <div className="flex flex-col items-center text-center p-2">
-                  <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center mb-3">
-                    <Users className="h-6 w-6 text-blue-500" />
-                  </div>
-                  <h3 className="font-medium mb-1">Manage Feeds</h3>
-                  <p className="text-sm text-muted-foreground">Monitor relevant content</p>
-                </div>
-              </CardContent>
-              <CardFooter className="pt-0 pb-4">
-                <Button asChild size="sm" variant="outline" className="w-full">
-                  <a href="/feed">
-                    <Users className="h-4 w-4 mr-2" />
-                    Manage
-                  </a>
-                </Button>
-              </CardFooter>
-            </Card>
-
-            <Card className="cursor-pointer transition-all">
-              <CardContent className="pt-6">
-                <div className="flex flex-col items-center text-center p-2">
-                  <div className="w-12 h-12 rounded-full bg-blue-500/10 flex items-center justify-center mb-3">
-                    <BarChart2 className="h-6 w-6 text-blue-500" />
-                  </div>
-                  <h3 className="font-medium mb-1">Analytics</h3>
-                  <p className="text-sm text-muted-foreground">Track your performance</p>
-                </div>
-              </CardContent>
-              <CardFooter className="pt-0 pb-4">
-                <Button asChild size="sm" variant="outline" className="w-full">
-                  <a href="/analytics">
-                    <BarChart2 className="h-4 w-4 mr-2" />
-                    View
-                  </a>
-                </Button>
-              </CardFooter>
-            </Card>
           </div>
         </div>
       </Layout>

@@ -6,7 +6,7 @@ import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
-import { Textarea } from '../components/ui/textarea'
+import CampaignExecutionCard from '../components/CampaignExecutionCard'
 import {
   Dialog,
   DialogContent,
@@ -39,7 +39,7 @@ interface User {
 interface Campaign {
   id: number
   name: string
-  message: string
+  // message field removed - now handled by campaign messages
   accountHandle: string
   strategy: string
   keywords: string // Backend sends JSON string
@@ -116,7 +116,7 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
   const [isEditingSettings, setIsEditingSettings] = useState(false)
   const [editedCampaign, setEditedCampaign] = useState({
     name: campaign.name,
-    message: campaign.message,
+    // message field removed - now handled by campaign messages
     targetCount: campaign.targetCount,
     keywords: campaign.keywords,
     excludeKeywords: campaign.excludeKeywords || '[]',
@@ -157,7 +157,7 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
         },
         body: JSON.stringify({
           name: editedCampaign.name,
-          message: editedCampaign.message,
+          // message field removed - now handled by campaign messages
           targetCount: editedCampaign.targetCount,
           keywords: editedCampaign.keywords,
           excludeKeywords: editedCampaign.excludeKeywords,
@@ -419,6 +419,40 @@ Are you sure you want to proceed with executing this campaign?`
     }
   }
 
+  const handleMarkExistingConversations = async () => {
+    if (!confirm('This will mark as "already contacted" all followers who have existing conversations with messages. Continue?')) {
+      return
+    }
+
+    setLoading(true)
+    try {
+      const response = await fetch(`/campaign/${campaign.id}/mark-all-existing-conversations`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          alert(`Successfully marked ${data.updatedCount} followers as already contacted.`)
+          // Refresh stats to show updated counts
+          pollAnalysisStatus()
+        }
+      } else {
+        const errorData = await response.json()
+        alert(errorData.error || 'Failed to mark existing conversations')
+      }
+    } catch (error) {
+      console.error('Error marking existing conversations:', error)
+      alert('Error marking existing conversations. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'completed':
@@ -649,20 +683,7 @@ Are you sure you want to proceed with executing this campaign?`
                       </p>
                     </div>
 
-                    {/* Message */}
-                    <div>
-                      <Label htmlFor="message">Message Template</Label>
-                      <Textarea
-                        id="message"
-                        value={editedCampaign.message}
-                        onChange={(e) => setEditedCampaign(prev => ({ ...prev, message: e.target.value }))}
-                        rows={4}
-                        className="mt-1"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Characters: {editedCampaign.message.length}/280
-                      </p>
-                    </div>
+                    {/* Message Template section removed - now handled by campaign messages */}
                   </div>
                   
                   <DialogFooter>
@@ -731,6 +752,18 @@ Are you sure you want to proceed with executing this campaign?`
                 </Button>
               )}
 
+              {localCampaign.analysisStatus === 'completed' && (
+                <Button
+                  variant="outline"
+                  onClick={handleMarkExistingConversations}
+                  disabled={loading}
+                  className="flex items-center gap-2"
+                >
+                  <MessageSquare className="h-4 w-4" />
+                  Mark Existing Convos
+                </Button>
+              )}
+
               {localCampaign.analysisStatus === 'completed' &&
                 localCampaign.executionStatus !== 'completed' && (
                   <div className="flex flex-col gap-2">
@@ -749,7 +782,7 @@ Are you sure you want to proceed with executing this campaign?`
           {/* Stats */}
           {localStats && (
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <Card>
+              <Card className="bg-background border">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">
                     Total Analyzed
@@ -762,7 +795,7 @@ Are you sure you want to proceed with executing this campaign?`
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-background border">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">
                     Interested
@@ -779,7 +812,7 @@ Are you sure you want to proceed with executing this campaign?`
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-background border">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">
                     Messages Sent
@@ -792,7 +825,7 @@ Are you sure you want to proceed with executing this campaign?`
                 </CardContent>
               </Card>
 
-              <Card>
+              <Card className="bg-background border">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">
                     Responses
@@ -913,6 +946,13 @@ Are you sure you want to proceed with executing this campaign?`
             </Card>
           )}
 
+          {/* Campaign Execution Card */}
+          <CampaignExecutionCard
+            campaignId={campaign.id}
+            campaignName={campaign.name}
+            analysisStatus={campaign.analysisStatus}
+          />
+
           {/* Campaign Info */}
           <Card>
             <CardHeader>
@@ -950,14 +990,6 @@ Are you sure you want to proceed with executing this campaign?`
                       </div>
                     </div>
                   )}
-                </div>
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Message</p>
-                    <div className="bg-muted/50 p-3 rounded-lg mt-1">
-                      <p className="text-sm">{localCampaign.message}</p>
-                    </div>
-                  </div>
                 </div>
               </div>
             </CardContent>

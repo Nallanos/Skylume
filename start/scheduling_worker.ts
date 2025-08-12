@@ -1,4 +1,5 @@
-import SchedulingService from '#services/scheduling_service'
+import { SchedulingQueueManager } from '../app/bluesky/scheduling_manager.js'
+import app from '@adonisjs/core/services/app'
 
 // Démarrer le service de scheduling quand l'application démarre
 console.log('[STARTUP] Initializing scheduling service...')
@@ -6,13 +7,10 @@ console.log('[STARTUP] Initializing scheduling service...')
 // Initialiser explicitement le service et vérifier qu'il fonctionne
 async function initializeSchedulingService() {
   try {
-    // Le service est automatiquement initialisé lors de l'import
-    // Mais on peut vérifier qu'il fonctionne en récupérant les stats
-    const stats = await SchedulingService.getQueueStats()
-    console.log('[STARTUP] Scheduling service initialized successfully')
-    console.log(`[STARTUP] Queue stats: ${JSON.stringify(stats)}`)
+    const schedulingManager = await app.container.make(SchedulingQueueManager)
+    await schedulingManager.createAndStartSchedulersQueue()
     
-    // Ajouter un listener pour voir si le worker fonctionne
+    console.log('[STARTUP] Scheduling queue manager initialized successfully')
     console.log('[STARTUP] BullMQ worker is ready to process jobs')
     
   } catch (error) {
@@ -20,20 +18,18 @@ async function initializeSchedulingService() {
   }
 }
 
-// Démarrer l'initialisation
-initializeSchedulingService()
-
-export default SchedulingService
+// Démarrer l'initialisation si on n'est pas en mode test
+if (!app.inTest) {
+  initializeSchedulingService()
+}
 
 // Gestion propre de l'arrêt
-process.on('SIGTERM', async () => {
+process.on('SIGTERM', () => {
   console.log('[SHUTDOWN] Stopping scheduling service...')
-  await SchedulingService.cleanup()
   process.exit(0)
 })
 
-process.on('SIGINT', async () => {
+process.on('SIGINT', () => {
   console.log('[SHUTDOWN] Stopping scheduling service...')
-  await SchedulingService.cleanup()
   process.exit(0)
 })

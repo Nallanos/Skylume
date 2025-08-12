@@ -8,6 +8,9 @@ import type { ProfileView } from '@atproto/api/dist/client/types/app/bsky/actor/
 import AccountService from '#services/account_service'
 import AccountManager from '#services/account_manager'
 import DmCampaignAnalysisService from '#services/dm_campaign_analysis_service'
+import CampaignMessageService from '#services/campaign_message_service'
+import ConversationTrackingService from '#services/conversation_tracking_service'
+import CampaignExecutionService from '#services/campaign_execution_service'
 import { formatKeywordsForStorage } from '../utils/keywords.js'
 import { inject } from '@adonisjs/core'
 
@@ -25,18 +28,24 @@ export default class DmCampaignsController {
     private currentAccount!: Account
     private currentDmCampaign!: DmCampaign
 
-    constructor(protected accountManager: AccountManager, protected analysisService: DmCampaignAnalysisService) {}
+    constructor(
+        protected accountManager: AccountManager, 
+        protected analysisService: DmCampaignAnalysisService,
+        protected campaignMessageService: CampaignMessageService,
+        protected conversationTrackingService: ConversationTrackingService,
+        protected campaignExecutionService: CampaignExecutionService
+    ) {}
 
     public async createDmCampaign({ request, response, auth, session }: HttpContext) {
         try {
-            const { name, message, accountHandle, strategy, keywords, excludeKeywords, targetCount, interestedThreshold, moderatelyInterestedThreshold } = request.only([
-                "name", "message", "accountHandle", "strategy", "keywords", "excludeKeywords", "targetCount", "interestedThreshold", "moderatelyInterestedThreshold"
+            const { name, accountHandle, strategy, keywords, excludeKeywords, targetCount, interestedThreshold, moderatelyInterestedThreshold } = request.only([
+                "name", "accountHandle", "strategy", "keywords", "excludeKeywords", "targetCount", "interestedThreshold", "moderatelyInterestedThreshold"
             ])
             const user = auth.getUserOrFail()
 
-            // Validation des données requises
-            if (!name || !message || !accountHandle || !keywords || keywords.length === 0) {
-                throw new Error("Name, message, account handle and keywords are required")
+            // Validation des données requises - message temporairement optionnel
+            if (!name || !accountHandle || !keywords || keywords.length === 0) {
+                throw new Error("Name, account handle and keywords are required")
             }
 
             // Ensure keywords is properly formatted as JSON array
@@ -45,19 +54,23 @@ export default class DmCampaignsController {
                 ? formatKeywordsForStorage(excludeKeywords) 
                 : null
 
-            await DmCampaign.create({
+            const campaign = await DmCampaign.create({
                 name,
                 strategy: strategy || 'semantic_analysis',
                 accountHandle,
-                message,
+                // message supprimé temporairement
                 user_id: user.id,
                 keywords: processedKeywords,
                 excludeKeywords: processedExcludeKeywords,
                 targetCount: targetCount || 50,
                 interestedThreshold: interestedThreshold || 0.7,
                 moderatelyInterestedThreshold: moderatelyInterestedThreshold || 0.5,
-                analysisStatus: 'pending'
+                analysisStatus: 'pending',
+                checkConversationsStatus: 'pending'
             })
+
+            // Créer les messages par défaut pour la campagne
+            await this.campaignMessageService.createDefaultMessages(campaign.id)
 
             session.flash("success", "Campaign created successfully!")
             return response.redirect("/campaign")
@@ -262,7 +275,7 @@ export default class DmCampaignsController {
             await this.incrementMessageCounter()
             return true
         } else if (this.currentDmCampaign.strategy === "not-received" && !messages.some(
-            (msg) => typeof msg.text === "string" && msg.text.includes(this.currentDmCampaign.message)
+            (msg) => typeof msg.text === "string" && msg.text.includes("TODO: Check campaign messages")
         )) {
             await this.sendCampaignMessage(convo, account)
             await this.incrementMessageCounter()
@@ -280,7 +293,7 @@ export default class DmCampaignsController {
                 }
                 return this.accountService.sendMessageToConvo(
                     account,
-                    { convoId: convo.id, message: { text: this.currentDmCampaign.message } },
+                    { convoId: convo.id, message: { text: "TODO: Use campaign message based on interest level" } },
                 )
             },
             'sendMessageToConvo'
@@ -408,7 +421,7 @@ export default class DmCampaignsController {
 
             // Mettre à jour la campagne
             campaign.name = name
-            campaign.message = message
+            // campaign.message removed - now handled by campaign messages
             campaign.targetCount = targetCount || campaign.targetCount
             campaign.keywords = keywords
             campaign.excludeKeywords = excludeKeywords || null
@@ -1095,7 +1108,7 @@ export default class DmCampaignsController {
                             this.currentAccount,
                             { 
                                 convoId: convo.id, 
-                                message: { text: this.currentDmCampaign.message } 
+                                message: { text: "TODO: Use campaign message based on interest level" } 
                             }
                         )
                     },
@@ -1290,5 +1303,435 @@ export default class DmCampaignsController {
         }
 
         return allMessages
+    }
+
+    // =====================================
+    // NOUVELLES MÉTHODES - MESSAGES MULTIPLES
+    // =====================================
+
+    /**
+     * Obtenir tous les messages d'une campagne
+     */
+    public async getCampaignMessages({ params, response }: HttpContext) {
+        try {
+            const campaignId = params.id
+            const messages = await this.campaignMessageService.getCampaignMessages(campaignId)
+            
+            return response.json({
+                success: true,
+                messages
+            })
+        } catch (error) {
+            console.error('Error fetching campaign messages:', error)
+            return response.status(500).json({
+                success: false,
+                error: error.message
+            })
+        }
+    }
+
+    /**
+     * Créer un nouveau message pour une campagne
+     */
+    public async createCampaignMessage({ params, request, response }: HttpContext) {
+        try {
+            const campaignId = params.id
+            const { interestLevel, message, subject } = request.only(['interestLevel', 'message', 'subject'])
+
+            if (!interestLevel || !message) {
+                return response.status(400).json({
+                    success: false,
+                    error: 'Interest level and message are required'
+                })
+            }
+
+            const campaignMessage = await this.campaignMessageService.createMessage({
+                dmCampaignId: campaignId,
+                interestLevel,
+                message,
+                subject
+            })
+
+            return response.json({
+                success: true,
+                message: campaignMessage
+            })
+        } catch (error) {
+            console.error('Error creating campaign message:', error)
+            return response.status(500).json({
+                success: false,
+                error: error.message
+            })
+        }
+    }
+
+    /**
+     * Mettre à jour un message de campagne
+     */
+    public async updateCampaignMessage({ params, request, response }: HttpContext) {
+        try {
+            const messageId = params.messageId
+            const data = request.only(['message', 'subject', 'isActive'])
+
+            await this.campaignMessageService.updateMessage(messageId, data)
+
+            return response.json({
+                success: true,
+                message: 'Campaign message updated successfully'
+            })
+        } catch (error) {
+            console.error('Error updating campaign message:', error)
+            return response.status(500).json({
+                success: false,
+                error: error.message
+            })
+        }
+    }
+
+    /**
+     * Supprimer un message de campagne
+     */
+    public async deleteCampaignMessage({ params, response }: HttpContext) {
+        try {
+            const messageId = params.messageId
+            await this.campaignMessageService.deleteMessage(messageId)
+
+            return response.json({
+                success: true,
+                message: 'Campaign message deleted successfully'
+            })
+        } catch (error) {
+            console.error('Error deleting campaign message:', error)
+            return response.status(500).json({
+                success: false,
+                error: error.message
+            })
+        }
+    }
+
+    // =====================================
+    // NOUVELLES MÉTHODES - TRACKING CONVERSATIONS
+    // =====================================
+
+    /**
+     * Vérifier les conversations existantes pour une campagne
+     */
+    public async checkConversations({ params, response }: HttpContext) {
+        try {
+            const campaignId = params.id
+            const campaign = await DmCampaign.findOrFail(campaignId)
+
+            // Lancer la vérification en arrière-plan
+            this.conversationTrackingService.checkExistingConversations(campaign)
+                .catch(error => console.error('Background conversation check failed:', error))
+
+            return response.json({
+                success: true,
+                message: 'Conversation check started'
+            })
+        } catch (error) {
+            console.error('Error starting conversation check:', error)
+            return response.status(500).json({
+                success: false,
+                error: error.message
+            })
+        }
+    }
+
+    /**
+     * Marquer un follower comme contacté manuellement
+     */
+    public async markAsContacted({ params, response }: HttpContext) {
+        try {
+            const { id: campaignId, followerId } = params
+            const follower = await FollowerCampaign.findOrFail(followerId)
+
+            if (follower.dmCampaignId !== parseInt(campaignId)) {
+                return response.status(400).json({
+                    success: false,
+                    error: 'Follower does not belong to this campaign'
+                })
+            }
+
+            await this.conversationTrackingService.markAsContacted(
+                follower.followerDid,
+                'manual_mark',
+                undefined
+            )
+
+            return response.json({
+                success: true,
+                message: 'Follower marked as contacted'
+            })
+        } catch (error) {
+            console.error('Error marking follower as contacted:', error)
+            return response.status(500).json({
+                success: false,
+                error: error.message
+            })
+        }
+    }
+
+    /**
+     * Obtenir le statut des conversations pour une campagne
+     */
+    public async getConversationStatus({ params, response }: HttpContext) {
+        try {
+            const campaignId = params.id
+            const status = await this.conversationTrackingService.getConversationStatus(campaignId)
+
+            return response.json({
+                success: true,
+                status
+            })
+        } catch (error) {
+            console.error('Error getting conversation status:', error)
+            return response.status(500).json({
+                success: false,
+                error: error.message
+            })
+        }
+    }
+
+    /**
+     * Marquer comme contactés tous les followers avec des conversations non vides
+     */
+    public async markAllExistingConversationsAsContacted({ params, response, auth }: HttpContext) {
+        try {
+            const user = auth.getUserOrFail()
+            const campaignId = params.id
+
+            // Vérifier que la campagne appartient à l'utilisateur
+            const campaign = await DmCampaign.query()
+                .where('id', campaignId)
+                .where('user_id', user.id)
+                .firstOrFail()
+
+            // Initialiser le contexte de campagne pour accéder aux tokens
+            await this.initializeCampaignContext(campaignId)
+
+            // Récupérer tous les followers non contactés
+            const followers = await FollowerCampaign.query()
+                .where('dmCampaignId', campaignId)
+                .where('alreadyContacted', false)
+
+            let updatedCount = 0
+
+            // Traiter en parallèle avec contrôle de concurrence
+            const BATCH_SIZE = 50 // Traiter 50 followers en parallèle
+            const batches = []
+            
+            for (let i = 0; i < followers.length; i += BATCH_SIZE) {
+                batches.push(followers.slice(i, i + BATCH_SIZE))
+            }
+
+            console.log(`Processing ${followers.length} followers in ${batches.length} batches of ${BATCH_SIZE}`)
+
+            for (const batch of batches) {
+                const promises = batch.map(async (followerCampaign) => {
+                    try {
+                        // Vérifier s'il existe une conversation avec ce follower
+                        if (!this.accountService || !this.currentAccount.at_session) {
+                            throw new Error("Account service or session not available")
+                        }
+
+                        const did = this.currentAccount.at_session.did
+                        const convo = await this.withRetry(
+                            () => {
+                                if (!this.accountService) throw new Error("Account service not found")
+                                return this.accountService.getConvoFromMembers(
+                                    this.currentAccount,
+                                    [did, followerCampaign.followerDid]
+                                )
+                            },
+                            'getConvoFromMembers'
+                        )
+
+                        if (convo) {
+                            // Récupérer les messages de la conversation
+                            const messages = await this.withRetry(
+                                () => {
+                                    if (!this.accountService) throw new Error("Account service not found")
+                                    return this.accountService.getMessages(this.currentAccount, convo.id)
+                                },
+                                'getMessages'
+                            ) as unknown as any[]
+
+                            // Si la conversation contient des messages, marquer comme contacté
+                            if (messages && messages.length > 0) {
+                                followerCampaign.alreadyContacted = true
+                                await followerCampaign.save()
+                                console.log(`✓ Marked ${followerCampaign.followerHandle} as already contacted (${messages.length} messages)`)
+                                return 1
+                            }
+                        }
+                        return 0
+                    } catch (error) {
+                        // Gérer les cas spécifiques d'erreur sans log verbeux
+                        if (error.message && error.message.includes('recipient has disabled incoming messages')) {
+                            // Skip silencieusement - c'est normal que certains followers aient désactivé les DMs
+                            return 0
+                        } else if (error.message && error.message.includes('Erreur HTTP ! Statut : 400')) {
+                            // Skip les autres erreurs 400 qui sont généralement des restrictions côté utilisateur
+                            return 0
+                        } else {
+                            // Log seulement les vraies erreurs inattendues
+                            console.error(`Error checking conversation for ${followerCampaign.followerHandle}:`, error.message)
+                            return 0
+                        }
+                    }
+                })
+
+                // Attendre que tous les followers du batch soient traités
+                const results = await Promise.all(promises)
+                updatedCount += results.reduce((sum: number, count: number) => sum + count, 0)
+
+                // Petit délai entre les batches pour éviter de surcharger l'API
+                if (batches.indexOf(batch) < batches.length - 1) {
+                    await this.delay(200)
+                }
+
+                console.log(`Batch ${batches.indexOf(batch) + 1}/${batches.length} completed. Updated so far: ${updatedCount}`)
+            }
+
+            return response.json({
+                success: true,
+                message: `${updatedCount} followers marked as already contacted`,
+                updatedCount
+            })
+
+        } catch (error) {
+            console.error('Error marking existing conversations as contacted:', error)
+            return response.status(500).json({
+                success: false,
+                error: error.message
+            })
+        }
+    }
+
+    // ===== NOUVELLES MÉTHODES - EXECUTION DES CAMPAGNES =====
+
+    public async getExecutionConfig({ params, response, auth }: HttpContext) {
+        try {
+            const user = auth.getUserOrFail()
+            const campaignId = params.id
+
+            // Vérifier que la campagne appartient à l'utilisateur
+            await DmCampaign.query()
+                .where('id', campaignId)
+                .where('user_id', user.id)
+                .firstOrFail()
+
+            // Obtenir la configuration depuis le service d'exécution
+            const config = await this.campaignExecutionService.getExecutionConfig(campaignId)
+            
+            return response.json(config)
+        } catch (error) {
+            console.error('Error getting execution config:', error)
+            return response.status(500).json({
+                success: false,
+                error: error.message
+            })
+        }
+    }
+
+    public async saveExecutionConfig({ params, request, response, auth }: HttpContext) {
+        try {
+            const user = auth.getUserOrFail()
+            const campaignId = params.id
+            const config = request.body()
+
+            // Vérifier que la campagne appartient à l'utilisateur
+            await DmCampaign.query()
+                .where('id', campaignId)
+                .where('user_id', user.id)
+                .firstOrFail()
+
+            // Sauvegarder la configuration
+            await this.campaignExecutionService.saveExecutionConfig(campaignId, config)
+            
+            return response.json({
+                success: true,
+                message: 'Configuration sauvegardée avec succès'
+            })
+        } catch (error) {
+            console.error('Error saving execution config:', error)
+            return response.status(500).json({
+                success: false,
+                error: error.message
+            })
+        }
+    }
+
+    public async getExecutionPreview({ params, response, auth }: HttpContext) {
+        try {
+            const user = auth.getUserOrFail()
+            const campaignId = params.id
+
+            // Vérifier que la campagne appartient à l'utilisateur
+            await DmCampaign.query()
+                .where('id', campaignId)
+                .where('user_id', user.id)
+                .firstOrFail()
+
+            // Obtenir l'aperçu depuis le service d'exécution
+            const preview = await this.campaignExecutionService.getExecutionPreview(campaignId)
+            
+            return response.json(preview)
+        } catch (error) {
+            console.error('Error getting execution preview:', error)
+            return response.status(500).json({
+                success: false,
+                error: error.message
+            })
+        }
+    }
+
+    public async validateExecutionConfig({ params, response, auth }: HttpContext) {
+        try {
+            const user = auth.getUserOrFail()
+            const campaignId = params.id
+
+            // Vérifier que la campagne appartient à l'utilisateur
+            await DmCampaign.query()
+                .where('id', campaignId)
+                .where('user_id', user.id)
+                .firstOrFail()
+
+            // Valider la configuration
+            const validation = await this.campaignExecutionService.validateExecutionConfig(campaignId)
+            
+            return response.json(validation)
+        } catch (error) {
+            console.error('Error validating execution config:', error)
+            return response.status(500).json({
+                success: false,
+                error: error.message
+            })
+        }
+    }
+
+    public async resetMessageCounts({ params, response, auth }: HttpContext) {
+        try {
+            const user = auth.getUserOrFail()
+            const campaignId = params.id
+
+            // Vérifier que la campagne appartient à l'utilisateur
+            await DmCampaign.query()
+                .where('id', campaignId)
+                .where('user_id', user.id)
+                .firstOrFail()
+
+            // Réinitialiser les compteurs
+            await this.campaignExecutionService.resetMessagesSentCounts(campaignId)
+            
+            return response.json({ success: true })
+        } catch (error) {
+            console.error('Error resetting message counts:', error)
+            return response.status(500).json({
+                success: false,
+                error: error.message
+            })
+        }
     }
 }

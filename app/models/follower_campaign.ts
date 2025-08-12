@@ -46,6 +46,19 @@ export default class FollowerCampaign extends BaseModel {
   @column.dateTime({ columnName: 'response_received_at' })
   declare responseReceivedAt: DateTime | null
 
+  // Nouvelles colonnes pour le tracking des conversations
+  @column({ columnName: 'conversation_checked' })
+  declare conversationChecked: boolean
+
+  @column.dateTime({ columnName: 'last_message_at' })
+  declare lastMessageAt: DateTime | null
+
+  @column({ columnName: 'conversation_id' })
+  declare conversationId: string | null
+
+  @column({ columnName: 'already_contacted' })
+  declare alreadyContacted: boolean
+
   @column({
     serialize: (value: string | null) => {
       if (!value) return null

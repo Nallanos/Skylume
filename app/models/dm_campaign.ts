@@ -4,6 +4,7 @@ import Convo from './convo.js'
 import User from './user.js'
 import Account from './account.js'
 import FollowerCampaign from './follower_campaign.js'
+import CampaignMessage from './campaign_message.js'
 import type { ManyToMany, BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 
 type AnalysisStatus = 'pending' | 'in_progress' | 'completed' | 'failed'
@@ -15,8 +16,7 @@ export default class DmCampaign extends BaseModel {
   @column()
   declare name: string
 
-  @column()
-  declare message: string
+  // Ancien message supprimé - maintenant dans campaign_messages
 
   @column()
   declare accountHandle: string
@@ -44,6 +44,13 @@ export default class DmCampaign extends BaseModel {
 
   @column()
   declare followersCursor: string | undefined
+
+  // Champs pour le tracking des conversations
+  @column()
+  declare checkConversationsStatus: string
+
+  @column.dateTime()
+  declare lastConversationCheck: DateTime | null
 
   // Nouveaux champs pour l'analyse
   @column()
@@ -112,4 +119,7 @@ export default class DmCampaign extends BaseModel {
 
   @hasMany(() => FollowerCampaign, { foreignKey: 'dm_campaign_id' })
   declare followerCampaigns: HasMany<typeof FollowerCampaign>
+
+  @hasMany(() => CampaignMessage, { foreignKey: 'dmCampaignId' })
+  declare messages: HasMany<typeof CampaignMessage>
 }

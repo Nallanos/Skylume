@@ -185,6 +185,7 @@ function Schedule({ schedulings }: ScheduleProps) {
   const [showContentWarningModal, setShowContentWarningModal] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
+
   const isFreeLimitReached = user.plan === 'free' && user.isScheduledLimitReached
 
   // Tri des posts par date (plus proche en premier)
@@ -229,20 +230,20 @@ function Schedule({ schedulings }: ScheduleProps) {
 
     for (let i = 1; i <= 7; i++) {
       // 7 jours à venir
-      const date = new Date(today)
-      date.setDate(today.getDate() + i)
+        const date = new Date(today)
+        date.setDate(today.getDate() + i)
 
-      const dateKey = date.toISOString().split('T')[0]
-      const dayName =
-        i === 1
-          ? 'Tomorrow'
-          : date.toLocaleDateString('fr-FR', {
-              weekday: 'long',
-              day: 'numeric',
-              month: 'long',
-            })
+        const dateKey = date.toISOString().split('T')[0]
+        const dayName =
+          i === 1
+            ? 'Tomorrow'
+            : date.toLocaleDateString('en-US', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+              })
 
-      days.push({
+        days.push({
         date: dateKey,
         displayName: dayName,
         scheduledPosts: groupedSchedulings[dateKey] || [],

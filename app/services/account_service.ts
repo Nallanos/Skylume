@@ -3,6 +3,28 @@ import type { MessageView } from "@atproto/api/dist/client/types/chat/bsky/convo
 import type { MessagePayload, NotificationData } from '../bluesky/types.js';
 import Account from '#models/account';
 import type { AtpSessionData } from '@atproto/api';
+import { imageSize } from 'image-size';
+
+// Interfaces pour les posts avec images et labels
+interface PostImage {
+  file: Buffer;
+  alt: string;
+  mimeType?: string;
+}
+
+interface ImageBlob {
+  ref: { $link: string };
+  mimeType: string;
+  size: number;
+}
+
+interface PostOptions {
+  text: string;
+  images?: PostImage[];
+  labels?: string[]; // "porn", "nudity", "sexual", "graphic-media", etc.
+}
+
+type ContentWarningType = 'porn' | 'nudity' | 'sexual' | 'graphic-media' | 'gore';
 
 export default class AccountService {
     public agent: AtpAgent;
@@ -591,94 +613,245 @@ export default class AccountService {
 
     public async post(account: Account, message: string, images?: string[], altTexts?: string[], contentWarnings?: string[]) {
         try {
-            const postRecord: any = { text: message }
+            console.log('[DEBUG] AccountService.post() - Legacy method called, forwarding to new implementation')
+            console.log('  - message:', message)
+            console.log('  - images:', images)
+            console.log('  - altTexts:', altTexts)
+            console.log('  - contentWarnings:', contentWarnings)
             
-            // Handle images if provided
+            // Convert legacy contentWarnings to new ContentWarningType format
+            const mappedWarnings: ContentWarningType[] = [];
+            if (contentWarnings && contentWarnings.length > 0) {
+                const warningMap: { [key: string]: ContentWarningType } = {
+                    'adult': 'porn',
+                    'suggestive': 'sexual',
+                    'nudity': 'nudity',
+                    'graphic-media': 'graphic-media',
+                    'graphic_media': 'graphic-media',
+                    'sexual': 'sexual',
+                    'gore': 'gore'
+                };
+                
+                contentWarnings.forEach(warning => {
+                    const mapped = warningMap[warning];
+                    if (mapped) {
+                        mappedWarnings.push(mapped);
+                    }
+                });
+            }
+            
+            // Use the new postWithImagePaths method for better code reuse
             if (images && images.length > 0) {
-                const embeds = []
-                for (let i = 0; i < images.length; i++) {
-                    const imagePath = images[i]
-                    const altText = altTexts?.[i] || ''
-                    
+                return await this.postWithImagePaths(
+                    account,
+                    message,
+                    images,
+                    altTexts || [],
+                    mappedWarnings.length > 0 ? mappedWarnings : undefined
+                );
+            } else {
+                // For text-only posts, use createPostWithMedia
+                return await this.createPostWithMedia(account, {
+                    text: message,
+                    labels: mappedWarnings.length > 0 ? mappedWarnings : undefined
+                });
+            }
+        } catch (err) {
+            console.error('[ERROR] Legacy post method failed:', err);
+            throw err;
+        }
+    }
+
+    /**
+     * Upload d'une image vers Bluesky (blob)
+     */
+    private async uploadImage(image: PostImage): Promise<ImageBlob> {
+        const mimeType = image.mimeType || this.detectMimeType(image.file);
+        
+        console.log(`[DEBUG] Uploading image with mimeType: ${mimeType}`);
+        
+        const uploadResponse = await this.agent.uploadBlob(image.file, {
+            encoding: mimeType
+        });
+        
+        console.log(`[DEBUG] Image uploaded successfully:`, uploadResponse.data.blob);
+        return uploadResponse.data.blob;
+    }
+
+    /**
+     * Détection du MIME type basique à partir du buffer
+     */
+    private detectMimeType(buffer: Buffer): string {
+        // Détection basique basée sur les premiers bytes
+        if (buffer[0] === 0xFF && buffer[1] === 0xD8) return 'image/jpeg';
+        if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) return 'image/png';
+        if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46) return 'image/gif';
+        if (buffer[0] === 0x57 && buffer[1] === 0x45 && buffer[2] === 0x42 && buffer[3] === 0x50) return 'image/webp';
+        
+        // Fallback
+        return 'image/jpeg';
+    }
+
+    /**
+     * Création d'un post avec images et labels de contenu
+     */
+    public async createPostWithMedia(account: Account, options: PostOptions): Promise<any> {
+        try {
+            console.log('[DEBUG] AccountService.createPostWithMedia() called with:', options);
+            
+            await this.createOrResumeSession(account);
+            
+            // Upload des images si présentes
+            const uploadedImages = [];
+            if (options.images && options.images.length > 0) {
+                console.log(`[DEBUG] Processing ${options.images.length} images`);
+                
+                for (const image of options.images) {
                     try {
-                        // Read the image file from the public directory
-                        const fs = await import('fs')
-                        const path = await import('path')
+                        const blob = await this.uploadImage(image);
                         
-                        const fullImagePath = path.join(process.cwd(), 'public', imagePath)
+                        // Get image dimensions for aspectRatio
+                        const dimensions = imageSize(image.file);
+                        console.log(`[DEBUG] Image dimensions:`, dimensions);
                         
-                        if (fs.existsSync(fullImagePath)) {
-                            const imageBuffer = fs.readFileSync(fullImagePath)
-                            
-                            // Upload the image to Bluesky
-                            const uploadResponse = await this.agent.uploadBlob(imageBuffer, {
-                                encoding: 'image/' + path.extname(imagePath).slice(1)
-                            })
-                            
-                            embeds.push({
-                                $type: 'app.bsky.embed.images#image',
-                                image: uploadResponse.data.blob,
-                                alt: altText
-                            })
-                        }
+                        uploadedImages.push({
+                            alt: image.alt,
+                            aspectRatio: {
+                                width: dimensions.width || 1920,
+                                height: dimensions.height || 1080
+                            },
+                            image: blob
+                        });
                     } catch (imageErr) {
-                        console.error(`[ERROR] Failed to upload image ${imagePath}:`, imageErr)
+                        console.error(`[ERROR] Failed to upload image:`, imageErr);
                         // Continue with other images
                     }
                 }
-                
-                if (embeds.length > 0) {
-                    postRecord.embed = {
-                        $type: 'app.bsky.embed.images',
-                        images: embeds
-                    }
-                }
             }
-            
-            // Handle content warnings/labels according to Bluesky self-labeling spec
-            if (contentWarnings && contentWarnings.length > 0) {
-                console.log('[DEBUG] Adding content warnings:', contentWarnings)
-                
-                // Map our content warning IDs to official Bluesky label values
-                // Based on https://docs.bsky.app/docs/advanced-guides/moderation#self-labels
-                const labelMap: { [key: string]: string } = {
-                    'adult': 'porn',           // Adult content -> porn label
-                    'suggestive': 'sexual',    // Suggestive -> sexual label
-                    'nudity': 'nudity',        // Nudity -> nudity label
-                    'graphic-media': 'graphic-media', // Graphic media -> graphic-media label
-                    'sexual': 'sexual'         // Direct mapping for sexual content
-                }
-                
-                const mappedLabels = contentWarnings
-                    .map(warning => labelMap[warning])
-                    .filter(Boolean) // Remove undefined mappings
-                
-                console.log('[DEBUG] Mapped labels:', mappedLabels)
-                
-                if (mappedLabels.length > 0) {
-                    postRecord.labels = {
-                        $type: 'com.atproto.label.defs#selfLabels',
-                        values: mappedLabels.map(label => ({ val: label }))
-                    }
-                    
-                    console.log('[DEBUG] Final labels object:', JSON.stringify(postRecord.labels, null, 2))
-                }
+
+            // Construction du record
+            const postRecord: any = {
+                $type: 'app.bsky.feed.post',
+                text: options.text,
+                createdAt: new Date().toISOString(),
+            };
+
+            // Ajout des images si présentes
+            if (uploadedImages.length > 0) {
+                postRecord.embed = {
+                    $type: 'app.bsky.embed.images',
+                    images: uploadedImages,
+                };
+                console.log(`[DEBUG] Final embed object:`, JSON.stringify(postRecord.embed, null, 2));
             }
-            
-            console.log('[DEBUG] Complete post record before sending to Bluesky:', JSON.stringify(postRecord, null, 2))
-            
-            // Use createRecord directly to ensure labels are preserved
+
+            // Ajout des labels de contenu si présents
+            if (options.labels && options.labels.length > 0) {
+                postRecord.labels = {
+                    $type: 'com.atproto.label.defs#selfLabels',
+                    values: options.labels.map(label => ({ val: label })),
+                };
+                console.log(`[DEBUG] Final labels object:`, JSON.stringify(postRecord.labels, null, 2));
+            }
+
+            console.log('[DEBUG] Complete post record before sending to Bluesky:', JSON.stringify(postRecord, null, 2));
+
+            // Envoi du post
             const result = await this.agent.api.com.atproto.repo.createRecord({
                 repo: this.agent.session?.did || '',
                 collection: 'app.bsky.feed.post',
                 record: postRecord
-            })
+            });
+
+            console.log('[DEBUG] Bluesky createRecord response:', result);
+            console.log('[DEBUG] Post successfully sent to Bluesky');
             
-            console.log('[DEBUG] Bluesky createRecord response:', result)
-            console.log('[DEBUG] Post successfully sent to Bluesky')
             await this.updateAccountRateLimit(account);
+            return result;
         } catch (err) {
             await this.updateAccountRateLimit(account, err);
+            throw err;
+        }
+    }
+
+    /**
+     * Fonction helper pour poster du contenu NSFW avec warning
+     */
+    public async postNSFWContent(
+        account: Account,
+        text: string,
+        images: PostImage[],
+        contentType: ContentWarningType = 'porn'
+    ): Promise<any> {
+        console.log(`[DEBUG] Posting NSFW content with type: ${contentType}`);
+        
+        return this.createPostWithMedia(account, {
+            text,
+            images,
+            labels: [contentType],
+        });
+    }
+
+    /**
+     * Fonction helper pour poster du contenu normal (sans warning)
+     */
+    public async postSafeContent(account: Account, text: string, images?: PostImage[]): Promise<any> {
+        console.log(`[DEBUG] Posting safe content`);
+        
+        return this.createPostWithMedia(account, {
+            text,
+            images,
+        });
+    }
+
+    /**
+     * Fonction helper pour créer un post avec des images depuis des chemins de fichiers
+     */
+    public async postWithImagePaths(
+        account: Account, 
+        text: string, 
+        imagePaths: string[], 
+        altTexts: string[] = [], 
+        contentWarnings?: ContentWarningType[]
+    ): Promise<any> {
+        try {
+            console.log('[DEBUG] Creating post with image paths:', imagePaths);
+            
+            const fs = await import('fs');
+            const path = await import('path');
+            
+            // Convertir les chemins d'images en PostImage objects
+            const images: PostImage[] = [];
+            
+            for (let i = 0; i < imagePaths.length; i++) {
+                const imagePath = imagePaths[i];
+                const altText = altTexts[i] || '';
+                
+                const fullImagePath = path.join(process.cwd(), 'public', imagePath);
+                console.log(`[DEBUG] Processing image: ${fullImagePath}`);
+                
+                if (fs.existsSync(fullImagePath)) {
+                    const imageBuffer = fs.readFileSync(fullImagePath);
+                    
+                    images.push({
+                        file: imageBuffer,
+                        alt: altText,
+                        mimeType: this.detectMimeType(imageBuffer)
+                    });
+                } else {
+                    console.error(`[ERROR] Image file not found: ${fullImagePath}`);
+                }
+            }
+            
+            // Utiliser createPostWithMedia avec les images converties
+            return this.createPostWithMedia(account, {
+                text,
+                images,
+                labels: contentWarnings
+            });
+            
+        } catch (err) {
+            console.error('[ERROR] Failed to create post with image paths:', err);
             throw err;
         }
     }

@@ -1,16 +1,13 @@
 import { Head } from '@inertiajs/react'
 import { Button } from '../components/ui/button'
 import {
-  BarChart,
   CheckCircle,
   ArrowRight,
-  UserCheck,
   Sun,
   Moon,
   Brain,
   Target,
   Zap,
-  MessageCircle,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 

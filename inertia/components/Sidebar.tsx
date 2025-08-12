@@ -243,9 +243,9 @@ function Sidebar({ user, account }: SidebarProps) {
                 </DropdownMenuItem>
 
                 <DropdownMenuItem asChild>
-                  <Link href="/plan/change" className="flex items-center">
+                  <Link href="/plan/change" className="flex items-center text-foreground hover:text-blue-600 dark:hover:text-blue-400">
                     <span className="mr-2">✨</span>
-                    {user?.plan === 'pro' ? 'Manage Plan' : 'Upgrade Plan'}
+                    {user?.plan === 'pro' ? 'Manage Plan' : 'Upgrade to Pro'}
                   </Link>
                 </DropdownMenuItem>
 

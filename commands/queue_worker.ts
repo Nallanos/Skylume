@@ -13,8 +13,14 @@ export default class QueueWorker extends BaseCommand {
     this.logger.info('🚀 Starting BullMQ worker for scheduling...')
 
     try {
-      // Import dynamique pour éviter les problèmes de circular import
-      const { default: SchedulingService } = await import('#services/scheduling_service')
+      // Utiliser SchedulingQueueManager au lieu de SchedulingService
+      const { SchedulingQueueManager } = await import('../app/bluesky/scheduling_manager.js')
+      
+      // Créer une instance et démarrer la queue
+      const { container } = await import('@adonisjs/core')
+      const schedulingManager = await container.make(SchedulingQueueManager)
+      
+      await schedulingManager.createAndStartSchedulersQueue()
       
       this.logger.success('✅ BullMQ worker started successfully!')
       this.logger.info('📡 Worker is listening for scheduled posts...')
@@ -24,14 +30,12 @@ export default class QueueWorker extends BaseCommand {
       // Garder le processus vivant
       process.on('SIGINT', async () => {
         this.logger.info('\n🛑 Stopping worker...')
-        await SchedulingService.cleanup()
         this.logger.success('✅ Worker stopped gracefully')
         process.exit(0)
       })
 
       process.on('SIGTERM', async () => {
         this.logger.info('\n🛑 Stopping worker...')
-        await SchedulingService.cleanup()
         this.logger.success('✅ Worker stopped gracefully')
         process.exit(0)
       })

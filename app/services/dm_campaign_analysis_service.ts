@@ -5,6 +5,7 @@ import DmCampaign from '#models/dm_campaign'
 import FollowerCampaign from '#models/follower_campaign'
 import AccountManager from './account_manager.js'
 import { AIService } from './AI_services.js'
+import CampaignMessageService from './campaign_message_service.js'
 import { parseKeywords } from '../utils/keywords.js'
 import type { ProfileView } from '@atproto/api/dist/client/types/app/bsky/actor/defs.js'
 
@@ -15,7 +16,8 @@ type InterestLevel = 'interested' | 'moderately_interested' | 'not_interested' |
 export default class DmCampaignAnalysisService {
   constructor(
     protected accountManager: AccountManager,
-    protected aiService: AIService
+    protected aiService: AIService,
+    protected campaignMessageService: CampaignMessageService
   ) {}
 
   /**

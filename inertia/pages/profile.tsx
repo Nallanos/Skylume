@@ -1,16 +1,33 @@
-import { Head } from '@inertiajs/react'
+import { Head, router } from '@inertiajs/react'
 import Layout from '../components/Layout'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Settings, User as UserIcon, Shield } from 'lucide-react'
+import { useState } from 'react'
 
 interface ProfileProps {
   user: any
 }
 
 function Profile({ user }: ProfileProps) {
+  const [email, setEmail] = useState(user?.email || '')
+  const [isUpdatingEmail, setIsUpdatingEmail] = useState(false)
+
+  const handleUpdateEmail = async () => {
+    if (!email.trim() || email === user?.email) return
+    
+    setIsUpdatingEmail(true)
+    try {
+      await router.put('/profile/update-email', { email })
+      // The backend will handle the redirect
+    } catch (error) {
+      console.error('Failed to update email:', error)
+    } finally {
+      setIsUpdatingEmail(false)
+    }
+  }
   return (
     <>
       <Head title="Profile Settings" />
@@ -38,14 +55,25 @@ function Profile({ user }: ProfileProps) {
               <CardContent className="space-y-4">
                 <div>
                   <Label htmlFor="email">Email</Label>
-                  <Input
-                    id="email"
-                    type="email"
-                    value={user?.email || ''}
-                    disabled
-                    className="bg-muted"
-                  />
-                  <p className="text-sm text-muted-foreground mt-1">Email cannot be changed</p>
+                  <div className="flex gap-2">
+                    <Input
+                      id="email"
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="Enter your email address"
+                    />
+                    <Button 
+                      onClick={handleUpdateEmail}
+                      disabled={isUpdatingEmail || !email.trim() || email === user?.email}
+                      size="sm"
+                    >
+                      {isUpdatingEmail ? 'Saving...' : 'Save'}
+                    </Button>
+                  </div>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {user?.email ? 'Update your email address' : 'Set your email address for notifications'}
+                  </p>
                 </div>
 
                 <div>
