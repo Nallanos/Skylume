@@ -41,6 +41,42 @@ export default class Scheduling extends BaseModel {
   })
   declare contentWarnings: string
 
+  @column({ 
+    columnName: 'videos',
+    serialize: (value: string) => value ? JSON.parse(value) : [] 
+  })
+  declare videos: string
+
+  @column({ 
+    columnName: 'video_alt_texts',
+    serialize: (value: string) => value ? JSON.parse(value) : [] 
+  })
+  declare videoAltTexts: string
+
+  @column({ 
+    columnName: 'video_thumbnails',
+    serialize: (value: string) => value ? JSON.parse(value) : [] 
+  })
+  declare videoThumbnails: string
+
+  @column({ 
+    columnName: 'video_durations',
+    serialize: (value: string) => value ? JSON.parse(value) : [] 
+  })
+  declare videoDurations: string
+
+  @column({ 
+    columnName: 'video_sizes',
+    serialize: (value: string) => value ? JSON.parse(value) : [] 
+  })
+  declare videoSizes: string
+
+  @column({ 
+    columnName: 'video_metadata',
+    serialize: (value: string) => value ? JSON.parse(value) : [] 
+  })
+  declare videoMetadata: string
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 
@@ -52,4 +88,25 @@ export default class Scheduling extends BaseModel {
 
   @belongsTo(() => User, { foreignKey: 'userId' })
   declare user: BelongsTo<typeof User>
+
+  // Helper methods for video validation
+  public hasVideos(): boolean {
+    const videos = Array.isArray(this.videos) ? this.videos : JSON.parse(this.videos || '[]')
+    return videos.length > 0
+  }
+
+  public hasImages(): boolean {
+    const images = Array.isArray(this.images) ? this.images : JSON.parse(this.images || '[]')
+    return images.length > 0
+  }
+
+  public getVideoCount(): number {
+    const videos = Array.isArray(this.videos) ? this.videos : JSON.parse(this.videos || '[]')
+    return videos.length
+  }
+
+  public getImageCount(): number {
+    const images = Array.isArray(this.images) ? this.images : JSON.parse(this.images || '[]')
+    return images.length
+  }
 }

@@ -2,9 +2,11 @@ import { useState, useMemo, useRef, useEffect, useCallback, memo } from 'react'
 import { Head, usePage, router } from '@inertiajs/react'
 import Layout from '../components/Layout'
 import ContentWarningModal from '../components/ContentWarningModal'
+import HashtagGroupSelector from '../components/HashtagGroupSelector'
+import StreakDisplay from '../components/StreakDisplay'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
-import { Plus, Trash, Lock, Edit, User, Settings, Image, X, Shield } from 'lucide-react'
+import { Plus, Trash, Lock, Edit, User, Settings, X, Shield, Video, FileText } from 'lucide-react'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import BlueskyAvatar from '../components/BlueskyAvatar'
@@ -32,6 +34,11 @@ interface User {
   plan?: string
   isScheduledLimitReached?: boolean
   postsPerDay?: number
+  currentStreak?: number
+  longestStreak?: number
+  isStreakActive?: boolean
+  streakStatus?: 'active' | 'at-risk' | 'broken'
+  lastPostDate?: string | null
   account?: Account[]
 }
 
@@ -45,7 +52,7 @@ interface ScheduleProps {
   schedulings: Scheduling[]
 }
 
-// Composant mémorisé pour les posts existants
+  // Memoized component for existing posts
 const ScheduledPostItem = memo(({ 
   post, 
   onEdit, 
@@ -120,7 +127,7 @@ const ScheduledPostItem = memo(({
   )
 })
 
-// Composant mémorisé pour les créneaux vides
+  // Memoized component for empty time slots
 const EmptyTimeSlot = memo(({ 
   timeSlot, 
   date, 
@@ -177,25 +184,28 @@ function Schedule({ schedulings }: ScheduleProps) {
   const [showSettingsModal, setShowSettingsModal] = useState(false)
   const [tempPostsPerDay, setTempPostsPerDay] = useState<number>(user.postsPerDay || 3)
   
-  // Images state
+  // Media state (images and videos)
   const [selectedImages, setSelectedImages] = useState<File[]>([])
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
   const [imageAltTexts, setImageAltTexts] = useState<string[]>([])
+  const [selectedVideos, setSelectedVideos] = useState<File[]>([])
+  const [videoAltTexts, setVideoAltTexts] = useState<string[]>([])
   const [contentWarnings, setContentWarnings] = useState<string[]>([])
   const [showContentWarningModal, setShowContentWarningModal] = useState(false)
+  const [videoValidationError, setVideoValidationError] = useState<string>('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
 
   const isFreeLimitReached = user.plan === 'free' && user.isScheduledLimitReached
 
-  // Tri des posts par date (plus proche en premier)
+  // Sort posts by date (closest first)
   const sortedSchedulings = useMemo(() => {
     return [...schedulings]
       .filter((schedule) => schedule.status === 'pending')
       .sort((a, b) => new Date(a.scheduleTime).getTime() - new Date(b.scheduleTime).getTime())
   }, [schedulings])
 
-  // Grouper les posts par jour
+  // Group posts by day
   const groupedSchedulings = useMemo(() => {
     const groups: { [key: string]: Scheduling[] } = {}
 
@@ -213,7 +223,7 @@ function Schedule({ schedulings }: ScheduleProps) {
   }, [sortedSchedulings])
 
   
-  // Générer les créneaux horaires en fonction du nombre de posts par jour - mémorisé
+  // Generate time slots based on posts per day - memoized
   const timeSlots = useMemo(() => {
     const generateTimeSlots = (postsCount: number) => {
       const baseSlots = ['9:28 AM', '12:30 PM', '3:15 PM', '5:26 PM', '7:45 PM', '9:20 PM', '11:00 AM', '2:10 PM', '6:35 PM', '8:50 PM']
@@ -222,28 +232,28 @@ function Schedule({ schedulings }: ScheduleProps) {
     return generateTimeSlots(user.postsPerDay || 3)
   }, [user.postsPerDay])
   
-  const maxSlotsPerDay = user.postsPerDay || 3 // Utiliser la préférence de l'utilisateur ou 3 par défaut
+  const maxSlotsPerDay = user.postsPerDay || 3 // Use user preference or default to 3
 
   const upcomingDays = useMemo(() => {
     const days = []
     const today = new Date()
 
     for (let i = 1; i <= 7; i++) {
-      // 7 jours à venir
-        const date = new Date(today)
-        date.setDate(today.getDate() + i)
+      // Next 7 days
+      const date = new Date(today)
+      date.setDate(today.getDate() + i)
 
-        const dateKey = date.toISOString().split('T')[0]
-        const dayName =
-          i === 1
-            ? 'Tomorrow'
-            : date.toLocaleDateString('en-US', {
-                weekday: 'long',
-                day: 'numeric',
-                month: 'long',
-              })
+      const dateKey = date.toISOString().split('T')[0]
+      const dayName =
+        i === 1
+          ? 'Tomorrow'
+          : date.toLocaleDateString('en-US', {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+            })
 
-        days.push({
+      days.push({
         date: dateKey,
         displayName: dayName,
         scheduledPosts: groupedSchedulings[dateKey] || [],
@@ -274,12 +284,25 @@ function Schedule({ schedulings }: ScheduleProps) {
     setEditingSchedule(null)
   }, [editingSchedule, localDateTime])
 
+  // Function to insert hashtags into the message
+  const insertHashtags = useCallback((hashtags: string[]) => {
+    const hashtagsText = hashtags.join(' ')
+    setAddMessage(prev => {
+      // If the message is empty, just add hashtags
+      if (!prev.trim()) {
+        return hashtagsText
+      }
+      // Otherwise, add hashtags at the end with a space
+      return prev + ' ' + hashtagsText
+    })
+  }, [])
+
   const saveAdd = useCallback(async () => {
     try {
       if (!addMessage.trim() || !addAccountId) return
       let finalDateTime = addDateTime
 
-      // Si un créneau prédéfini est sélectionné, l'utiliser
+  // If a predefined slot is selected, use it
       if (selectedDate && selectedTimeSlot && !addDateTime) {
         const date = new Date(selectedDate)
         const [time, period] = selectedTimeSlot.split(' ')
@@ -300,43 +323,63 @@ function Schedule({ schedulings }: ScheduleProps) {
 
       console.log('Final date time:', finalDateTime)
 
-      // Créer la date directement en UTC pour éviter les problèmes de fuseau horaire
+  // Create the date directly in UTC to avoid timezone issues
       const localDate = new Date(finalDateTime)
       
-      // Trouver le handle du compte sélectionné
+  // Find the handle of the selected account
       const selectedAccount = accounts.find((acc) => acc.id === addAccountId)
       console.log('Selected account:', accounts, addAccountId)
       if (!selectedAccount) return
 
-      // Créer FormData pour inclure les images
+      // Validation: Ne pas permettre images ET vidéos en même temps
+      if (selectedImages.length > 0 && selectedVideos.length > 0) {
+        alert('Cannot upload both images and videos in the same post. Please choose either images OR videos.')
+        return
+      }
+
+  // Create FormData to include media
       const formData = new FormData()
       formData.append('account_handle', selectedAccount.handle)
       formData.append('message', addMessage)
       formData.append('schedule_time', localDate.toISOString())
-      formData.append('alt_texts', JSON.stringify(imageAltTexts))
       formData.append('content_warnings', JSON.stringify(contentWarnings))
       
-      // Ajouter les images
+  // Add images
       selectedImages.forEach((image) => {
         formData.append('images', image)
       })
+      
+      // Add videos
+      selectedVideos.forEach((video) => {
+        formData.append('videos', video)
+      })
 
-      console.log('Scheduling payload with images:', { 
+      // Add alt texts
+      if (imageAltTexts.length > 0) {
+        formData.append('alt_texts', JSON.stringify(imageAltTexts))
+      }
+      if (videoAltTexts.length > 0) {
+        formData.append('video_alt_texts', JSON.stringify(videoAltTexts))
+      }
+
+      console.log('Scheduling payload with media:', { 
         account_handle: selectedAccount.handle,
         message: addMessage,
         schedule_time: localDate.toISOString(),
         images_count: selectedImages.length,
+        videos_count: selectedVideos.length,
         alt_texts: imageAltTexts,
+        video_alt_texts: videoAltTexts,
         content_warnings: contentWarnings
       })
 
-      // Debug FormData contents
+  // Debug FormData contents
       console.log('FormData contents:')
       for (let [key, value] of formData.entries()) {
         console.log(key, ':', value)
       }
 
-      // Utiliser router.post avec FormData
+  // Use router.post with FormData
       router.post('/schedule/create', formData, {
         forceFormData: true
       })
@@ -348,12 +391,12 @@ function Schedule({ schedulings }: ScheduleProps) {
       setSelectedDate('')
       setSelectedTimeSlot('')
       setContentWarnings([])
-      clearImages()
+      clearAllMedia()
     } catch (error) {
       console.error('Error saving schedule:', error)
       return
     }
-  }, [addMessage, addAccountId, addDateTime, selectedDate, selectedTimeSlot, accounts, selectedImages, imageAltTexts, contentWarnings])
+  }, [addMessage, addAccountId, addDateTime, selectedDate, selectedTimeSlot, accounts, selectedImages, selectedVideos, imageAltTexts, videoAltTexts, contentWarnings])
 
   const startEdit = useCallback((schedule: Scheduling) => {
     setEditingSchedule({ ...schedule })
@@ -366,9 +409,9 @@ function Schedule({ schedulings }: ScheduleProps) {
     try {
       await router.put('/schedule/editPostPerDay', { postsPerDay: tempPostsPerDay })
       setShowSettingsModal(false)
-      // La redirection backend se charge du rechargement
+  // Backend redirect handles reload
     } catch (error) {
-      console.error('Error saving posts per day:', error)
+  console.error('Error saving posts per day:', error)
     }
   }, [tempPostsPerDay])
 
@@ -378,30 +421,113 @@ function Schedule({ schedulings }: ScheduleProps) {
     setShowAddModal(true)
   }, [])
 
-  // Functions for image handling optimisées
-  const handleImageSelect = useCallback((files: FileList | null) => {
+  // Optimized functions for media handling (images and videos)
+  const handleMediaSelect = useCallback(async (files: FileList | null) => {
     if (!files) return
     
     const newImages = Array.from(files).filter(file => 
       file.type.startsWith('image/') && file.size <= 10 * 1024 * 1024 // 10MB limit
     ).slice(0, 4 - selectedImages.length) // Limit to 4 total images
     
-    if (newImages.length === 0) return
+    const newVideos = Array.from(files).filter(file => 
+      file.type.startsWith('video/') && file.size <= 50 * 1024 * 1024 // 50MB limit
+    ).slice(0, 1 - selectedVideos.length) // Limit to 1 total video
     
-    setSelectedImages(prev => [...prev, ...newImages])
-    setImageAltTexts(prev => [...prev, ...new Array(newImages.length).fill('')])
+    // Ne pas permettre images ET vidéos en même temps
+    if (selectedImages.length > 0 && newVideos.length > 0) {
+      alert('Cannot upload both images and videos in the same post. Please choose either images OR videos.')
+      return
+    }
+    if (selectedVideos.length > 0 && newImages.length > 0) {
+      alert('Cannot upload both images and videos in the same post. Please choose either images OR videos.')
+      return
+    }
     
-    // Create previews
-    newImages.forEach(file => {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        if (e.target?.result) {
-          setImagePreviews(prev => [...prev, e.target!.result as string])
-        }
+    // Handle videos with validation
+    if (newVideos.length > 0) {
+      const videoFile = newVideos[0]
+      
+      // Validate video resolution and duration before adding
+      const validateVideoResolution = (file: File): Promise<{ valid: boolean; error?: string }> => {
+        return new Promise((resolve) => {
+          const video = document.createElement('video')
+          const url = URL.createObjectURL(file)
+          
+          video.onloadedmetadata = () => {
+            const width = video.videoWidth
+            const height = video.videoHeight
+            const duration = video.duration
+            
+            URL.revokeObjectURL(url)
+            
+            // Check resolution (max 1920x1080)
+            if (width > 1920 || height > 1080) {
+              resolve({ 
+                valid: false, 
+                error: `Video resolution too high: ${width}x${height} (max: 1920x1080)` 
+              })
+              return
+            }
+            
+            // Check duration (max 60 seconds)
+            if (duration > 60) {
+              resolve({ 
+                valid: false, 
+                error: `Video too long: ${Math.round(duration)}s (max: 60s)` 
+              })
+              return
+            }
+            
+            resolve({ valid: true })
+          }
+          
+          video.onerror = () => {
+            URL.revokeObjectURL(url)
+            resolve({ 
+              valid: false, 
+              error: 'Unable to read video metadata' 
+            })
+          }
+          
+          video.src = url
+        })
       }
-      reader.readAsDataURL(file)
-    })
-  }, [selectedImages.length])
+      
+      const validationResult = await validateVideoResolution(videoFile)
+      
+      if (!validationResult.valid) {
+        setVideoValidationError(validationResult.error || 'Video validation failed')
+        setTimeout(() => setVideoValidationError(''), 5000) // Clear error after 5 seconds
+        return
+      }
+      
+      // If validation passes, add the video
+      setSelectedVideos(prev => [...prev, videoFile])
+      setVideoAltTexts(prev => [...prev, ''])
+    }
+    
+    // Handle images
+    if (newImages.length > 0) {
+      setSelectedImages(prev => [...prev, ...newImages])
+      setImageAltTexts(prev => [...prev, ...new Array(newImages.length).fill('')])
+      
+      // Create previews
+      newImages.forEach(file => {
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          if (e.target?.result) {
+            setImagePreviews(prev => [...prev, e.target!.result as string])
+          }
+        }
+        reader.readAsDataURL(file)
+      })
+    }
+  }, [selectedImages.length, selectedVideos.length])
+
+  // Keep backward compatibility with image handling
+  const handleImageSelect = useCallback((files: FileList | null) => {
+    handleMediaSelect(files)
+  }, [handleMediaSelect])
 
   const removeImage = useCallback((index: number) => {
     setSelectedImages(prev => prev.filter((_, i) => i !== index))
@@ -409,12 +535,27 @@ function Schedule({ schedulings }: ScheduleProps) {
     setImageAltTexts(prev => prev.filter((_, i) => i !== index))
   }, [])
 
+  const removeVideo = useCallback((index: number) => {
+    setSelectedVideos(prev => prev.filter((_, i) => i !== index))
+    setVideoAltTexts(prev => prev.filter((_, i) => i !== index))
+  }, [])
+
   const clearImages = useCallback(() => {
     setSelectedImages([])
     setImagePreviews([])
     setImageAltTexts([])
-    setContentWarnings([])
   }, [])
+
+  const clearVideos = useCallback(() => {
+    setSelectedVideos([])
+    setVideoAltTexts([])
+  }, [])
+
+  const clearAllMedia = useCallback(() => {
+    clearImages()
+    clearVideos()
+    setContentWarnings([])
+  }, [clearImages, clearVideos])
 
   const updateAltText = useCallback((index: number, altText: string) => {
     setImageAltTexts(prev => {
@@ -423,6 +564,25 @@ function Schedule({ schedulings }: ScheduleProps) {
       return newAltTexts
     })
   }, [])
+
+  const updateVideoAltText = useCallback((index: number, altText: string) => {
+    setVideoAltTexts(prev => {
+      const newAltTexts = [...prev]
+      newAltTexts[index] = altText
+      return newAltTexts
+    })
+  }, [])
+
+
+  // Auto-clear l'erreur de validation après 5 secondes
+  useEffect(() => {
+    if (videoValidationError) {
+      const timer = setTimeout(() => {
+        setVideoValidationError('')
+      }, 5000)
+      return () => clearTimeout(timer)
+    }
+  }, [videoValidationError])
 
   // Handle paste event for images
   useEffect(() => {
@@ -459,16 +619,28 @@ function Schedule({ schedulings }: ScheduleProps) {
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
               <h1 className="text-2xl font-bold">Schedule Queue</h1>
-              <p className="text-muted-foreground mt-1">
-                {sortedSchedulings.length > 0
-                  ? `${sortedSchedulings.length} post${sortedSchedulings.length > 1 ? 's' : ''} in queue`
-                  : 'No posts scheduled'} 
-                {user.postsPerDay && (
-                  <span className="text-xs ml-2 px-2 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded">
-                    {user.postsPerDay} posts/day max
-                  </span>
+              <div className="flex items-center gap-4 mt-1">
+                <p className="text-muted-foreground">
+                  {sortedSchedulings.length > 0
+                    ? `${sortedSchedulings.length} post${sortedSchedulings.length > 1 ? 's' : ''} in queue`
+                    : 'No posts scheduled'} 
+                  {user.postsPerDay && (
+                    <span className="text-xs ml-2 px-2 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded">
+                      {user.postsPerDay} posts/day max
+                    </span>
+                  )}
+                </p>
+                
+                {/* Streak Display */}
+                {user.currentStreak !== undefined && user.longestStreak !== undefined && user.streakStatus && (
+                  <StreakDisplay
+                    currentStreak={user.currentStreak}
+                    longestStreak={user.longestStreak}
+                    streakStatus={user.streakStatus}
+                    className="ml-2"
+                  />
                 )}
-              </p>
+              </div>
             </div>
 
             <div className="flex items-center gap-3">
@@ -636,7 +808,7 @@ function Schedule({ schedulings }: ScheduleProps) {
                     </Label>
                     <select
                       id="addAccount"
-                      className="w-full p-2 border-gray-800 rounded-md bg-background"
+                      className="w-full p-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-black dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                       value={addAccountId}
                       onChange={(e) => setAddAccountId(e.target.value)}
                     >
@@ -662,11 +834,19 @@ function Schedule({ schedulings }: ScheduleProps) {
                       onChange={(e) => setAddMessage(e.target.value)}
                       placeholder="What's on your mind?"
                     />
+                    
+                    {/* Hashtag Group Selector */}
+                    <div className="mt-2">
+                      <HashtagGroupSelector 
+                        onInsert={insertHashtags}
+                        className="w-full sm:w-auto"
+                      />
+                    </div>
                   </div>
 
-                  {/* Images Section */}
+                  {/* Media Section */}
                   <div>
-                    <Label className="text-sm font-medium">Images</Label>
+                    <Label className="text-sm font-medium">Media</Label>
                     <div className="mt-1 space-y-3">
                       {/* Upload Button */}
                       <div className="flex items-center gap-2">
@@ -675,26 +855,26 @@ function Schedule({ schedulings }: ScheduleProps) {
                           variant="outline"
                           size="sm"
                           onClick={() => fileInputRef.current?.click()}
-                          disabled={selectedImages.length >= 4}
+                          disabled={selectedImages.length >= 4 || selectedVideos.length >= 1}
                           className="flex items-center gap-2"
                         >
-                          <Image className="h-4 w-4" />
-                          Add Images ({selectedImages.length}/4)
+                          <FileText className="h-4 w-4" />
+                          Add Media ({selectedImages.length + selectedVideos.length}/{selectedImages.length > 0 ? '4' : '1'})
                         </Button>
                         <input
                           ref={fileInputRef}
                           type="file"
                           multiple
-                          accept="image/*"
+                          accept="image/*,video/*"
                           className="hidden"
-                          onChange={(e) => handleImageSelect(e.target.files)}
+                          onChange={(e) => handleMediaSelect(e.target.files)}
                         />
-                        {selectedImages.length > 0 && (
+                        {(selectedImages.length > 0 || selectedVideos.length > 0) && (
                           <Button
                             type="button"
                             variant="ghost"
                             size="sm"
-                            onClick={clearImages}
+                            onClick={clearAllMedia}
                             className="text-red-500 hover:text-red-700"
                           >
                             Clear All
@@ -702,10 +882,20 @@ function Schedule({ schedulings }: ScheduleProps) {
                         )}
                       </div>
 
-                      {/* Paste Hint */}
+                      {/* Hint */}
                       <p className="text-xs text-muted-foreground">
-                        💡 You can also paste images with Ctrl+V
+                        💡 Upload up to 4 images OR 1 video (max 10MB for images, 50MB for videos)
                       </p>
+
+                      {/* Video Validation Error */}
+                      {videoValidationError && (
+                        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
+                          <div className="flex items-center gap-2">
+                            <strong className="font-bold">Video Error:</strong>
+                            <span className="block sm:inline">{videoValidationError}</span>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Image Previews */}
                       {imagePreviews.length > 0 && (
@@ -750,8 +940,57 @@ function Schedule({ schedulings }: ScheduleProps) {
                         </div>
                       )}
 
-                      {/* Content Warnings for images */}
-                      {selectedImages.length > 0 && (
+                      {/* Video Previews */}
+                      {selectedVideos.length > 0 && (
+                        <div className="space-y-3">
+                          <div className="space-y-3">
+                            {selectedVideos.map((video, index) => (
+                              <div key={index} className="space-y-2">
+                                <div className="relative group p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800">
+                                  <div className="flex items-center gap-3">
+                                    <Video className="h-8 w-8 text-blue-500" />
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                                        {video.name}
+                                      </p>
+                                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                                        {(video.size / (1024 * 1024)).toFixed(1)} MB • Video
+                                      </p>
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => removeVideo(index)}
+                                      className="p-1 text-red-500 hover:text-red-700 transition-colors"
+                                    >
+                                      <X className="h-4 w-4" />
+                                    </button>
+                                  </div>
+                                </div>
+                                <div className="space-y-1">
+                                  <Label 
+                                    htmlFor={`video-alt-text-modal-${index}`}
+                                    className="text-xs font-medium text-gray-600 dark:text-gray-400"
+                                  >
+                                    Alt text
+                                  </Label>
+                                  <Input
+                                    id={`video-alt-text-modal-${index}`}
+                                    type="text"
+                                    placeholder="Describe this video..."
+                                    value={videoAltTexts[index] || ''}
+                                    onChange={(e) => updateVideoAltText(index, e.target.value)}
+                                    className="text-xs"
+                                    maxLength={1000}
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Content Warnings for media */}
+                      {(selectedImages.length > 0 || selectedVideos.length > 0) && (
                         <div className="space-y-3 pt-4 border-t border-gray-200 dark:border-gray-700">
                           <div className="flex items-center justify-between">
                             <Label className="text-sm font-medium flex items-center gap-2">
@@ -794,7 +1033,7 @@ function Schedule({ schedulings }: ScheduleProps) {
                       <div className="mt-1 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
                         <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
                           Scheduled for:{' '}
-                          {new Date(selectedDate).toLocaleDateString('fr-FR', {
+                          {new Date(selectedDate).toLocaleDateString('en-US', {
                             weekday: 'long',
                             day: 'numeric',
                             month: 'long',
@@ -843,7 +1082,7 @@ function Schedule({ schedulings }: ScheduleProps) {
                         setAddAccountId('')
                         setSelectedDate('')
                         setSelectedTimeSlot('')
-                        clearImages()
+                        clearAllMedia()
                       }}
                       className="flex-1"
                     >

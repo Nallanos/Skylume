@@ -75,7 +75,7 @@ export default function CampaignExecutionCard({
   const [executing, setExecuting] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
 
-  // Charger la configuration initiale
+  // Load initial configuration
   useEffect(() => {
     loadExecutionConfig()
   }, [campaignId])
@@ -91,7 +91,7 @@ export default function CampaignExecutionCard({
         await validateConfig()
       }
     } catch (error) {
-      console.error('Erreur lors du chargement de la configuration:', error)
+      console.error('Error loading configuration:', error)
     } finally {
       setLoading(false)
     }
@@ -105,7 +105,7 @@ export default function CampaignExecutionCard({
         setPreview(data)
       }
     } catch (error) {
-      console.error('Erreur lors du chargement de l\'aperçu:', error)
+      console.error('Error loading preview:', error)
     }
   }
 
@@ -117,7 +117,7 @@ export default function CampaignExecutionCard({
         setValidation(data)
       }
     } catch (error) {
-      console.error('Erreur lors de la validation:', error)
+      console.error('Error during validation:', error)
     }
   }
 
@@ -139,10 +139,10 @@ export default function CampaignExecutionCard({
         await loadPreview()
         await validateConfig()
       } else {
-        console.error('Erreur lors de la sauvegarde')
+        console.error('Error during save')
       }
     } catch (error) {
-      console.error('Erreur lors de la sauvegarde:', error)
+      console.error('Error during save:', error)
     } finally {
       setSaving(false)
     }
@@ -162,10 +162,10 @@ export default function CampaignExecutionCard({
       if (response.ok) {
         await loadExecutionConfig() // Reload to get updated counts
       } else {
-        console.error('Erreur lors de la réinitialisation des compteurs')
+        console.error('Error resetting counters')
       }
     } catch (error) {
-      console.error('Erreur lors de la réinitialisation des compteurs:', error)
+      console.error('Error resetting counters:', error)
     } finally {
       setSaving(false)
     }
@@ -185,13 +185,13 @@ export default function CampaignExecutionCard({
       })
 
       if (response.ok) {
-        // Rediriger vers la page de suivi d'exécution
+        // Redirect to execution tracking page
         router.visit(`/dashboard/campaigns/${campaignId}/execution`)
       } else {
-        console.error('Erreur lors de l\'exécution')
+        console.error('Error during execution')
       }
     } catch (error) {
-      console.error('Erreur lors de l\'exécution:', error)
+      console.error('Error during execution:', error)
     } finally {
       setExecuting(false)
     }
@@ -254,65 +254,34 @@ export default function CampaignExecutionCard({
         {/* Aperçu rapide */}
         {preview && (
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
               <Users className="h-4 w-4 text-blue-600" />
               <div>
-                <div className="text-sm text-gray-600">Total followers</div>
+                <div className="text-sm text-muted-foreground">Total followers</div>
                 <div className="font-semibold">{preview.totalFollowers}</div>
               </div>
             </div>
-            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
               <MessageSquare className="h-4 w-4 text-green-600" />
               <div>
-                <div className="text-sm text-gray-600">Messages to send</div>
+                <div className="text-sm text-muted-foreground">Messages to send</div>
                 <div className="font-semibold">{preview.totalMessages}</div>
               </div>
             </div>
-            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
               <Clock className="h-4 w-4 text-orange-600" />
               <div>
-                <div className="text-sm text-gray-600">Estimated duration</div>
+                <div className="text-sm text-muted-foreground">Estimated duration</div>
                 <div className="font-semibold">{formatDuration(preview.estimatedDuration)}</div>
               </div>
             </div>
-            <div className="flex items-center gap-2 p-3 bg-gray-50 rounded-lg">
+            <div className="flex items-center gap-2 p-3 bg-muted rounded-lg">
               <Play className="h-4 w-4 text-purple-600" />
               <div>
-                <div className="text-sm text-gray-600">Active categories</div>
+                <div className="text-sm text-muted-foreground">Active categories</div>
                 <div className="font-semibold">{enabledCategories.length}</div>
               </div>
             </div>
-          </div>
-        )}
-
-        {/* Validation et alertes */}
-        {validation && (
-          <div className="space-y-2">
-            {validation.errors.length > 0 && (
-              <Alert variant="destructive">
-                <AlertCircle className="h-4 w-4" />
-                <div className="ml-3">
-                  <ul className="list-disc list-inside space-y-1">
-                    {validation.errors.map((error, index) => (
-                      <li key={index}>{error}</li>
-                    ))}
-                  </ul>
-                </div>
-              </Alert>
-            )}
-            
-            {validation.warnings.length > 0 && (
-              <Alert>
-                <AlertCircle className="h-4 w-4" />
-                <div className="ml-3">
-                  <ul className="list-disc list-inside space-y-1">
-                    {validation.warnings.map((warning, index) => (
-                      <li key={index}>{warning}</li>
-                    ))}
-                  </ul>
-                </div>
-              </Alert>
-            )}
           </div>
         )}
 
@@ -327,7 +296,7 @@ export default function CampaignExecutionCard({
                   const categoryPreview = preview?.categoriesBreakdown[category]
                   
                   return (
-                    <div key={category} className="border rounded-lg p-4 space-y-3">
+                    <div key={category} className="border border-border rounded-lg p-4 space-y-3">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center gap-3">
                           <input
@@ -343,7 +312,7 @@ export default function CampaignExecutionCard({
                               {categoryLabels[category as keyof typeof categoryLabels] || category}
                             </label>
                             {categoryPreview && (
-                              <div className="text-xs text-gray-500">
+                              <div className="text-xs text-muted-foreground">
                                 {categoryPreview.count} followers • {categoryConfig.messagesSentCount} sent
                               </div>
                             )}
@@ -358,7 +327,7 @@ export default function CampaignExecutionCard({
                         <div className="space-y-3 pl-6">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div>
-                              <label htmlFor={`target-${category}`} className="text-xs text-gray-600 block mb-1">
+                              <label htmlFor={`target-${category}`} className="text-xs text-muted-foreground block mb-1">
                                 Target Count
                               </label>
                               <input
@@ -369,15 +338,15 @@ export default function CampaignExecutionCard({
                                 onChange={(e) => 
                                   updateCategoryConfig(category, 'targetCount', parseInt(e.target.value) || 0)
                                 }
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                className="w-full px-3 py-2 border border-border rounded-md text-sm bg-background"
                                 placeholder="0 = all followers"
                               />
-                              <div className="text-xs text-gray-500 mt-1">
+                              <div className="text-xs text-muted-foreground mt-1">
                                 0 means send to all available followers
                               </div>
                             </div>
                             <div>
-                              <label htmlFor={`priority-${category}`} className="text-xs text-gray-600 block mb-1">
+                              <label htmlFor={`priority-${category}`} className="text-xs text-muted-foreground block mb-1">
                                 Priority Order
                               </label>
                               <input
@@ -388,16 +357,16 @@ export default function CampaignExecutionCard({
                                 onChange={(e) => 
                                   updateCategoryConfig(category, 'priorityOrder', parseInt(e.target.value) || 1)
                                 }
-                                className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm"
+                                className="w-full px-3 py-2 border border-border rounded-md text-sm bg-background"
                                 placeholder="1"
                               />
-                              <div className="text-xs text-gray-500 mt-1">
+                              <div className="text-xs text-muted-foreground mt-1">
                                 Lower numbers = higher priority
                               </div>
                             </div>
                           </div>
                           <div>
-                            <label htmlFor={`message-${category}`} className="text-xs text-gray-600 block mb-1">
+                            <label htmlFor={`message-${category}`} className="text-xs text-muted-foreground block mb-1">
                               DM Message
                             </label>
                             <Textarea
@@ -409,7 +378,7 @@ export default function CampaignExecutionCard({
                               placeholder="Your personalized DM message..."
                               rows={3}
                             />
-                            <div className="text-xs text-gray-500 mt-1">
+                            <div className="text-xs text-muted-foreground mt-1">
                               {categoryConfig.message.length}/280 characters
                             </div>
                           </div>
@@ -465,7 +434,7 @@ export default function CampaignExecutionCard({
         </div>
 
         {analysisStatus !== 'completed' && (
-          <div className="text-sm text-gray-500 text-center">
+          <div className="text-sm text-muted-foreground text-center">
             ⏳ Campaign analysis must be completed before execution
           </div>
         )}

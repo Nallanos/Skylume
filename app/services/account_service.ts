@@ -5,11 +5,25 @@ import Account from '#models/account';
 import type { AtpSessionData } from '@atproto/api';
 import { imageSize } from 'image-size';
 
-// Interfaces pour les posts avec images et labels
+// Interfaces pour les posts avec images, vidéos et labels
 interface PostImage {
   file: Buffer;
   alt: string;
   mimeType?: string;
+}
+
+interface PostVideo {
+  file: Buffer;
+  alt: string;
+  mimeType?: string;
+  aspectRatio?: {
+    width: number;
+    height: number;
+  };
+  captions?: {
+    lang: string;
+    file: Buffer;
+  }[];
 }
 
 interface ImageBlob {
@@ -18,9 +32,16 @@ interface ImageBlob {
   size: number;
 }
 
+interface VideoBlob {
+  ref: { $link: string };
+  mimeType: string;
+  size: number;
+}
+
 interface PostOptions {
   text: string;
   images?: PostImage[];
+  videos?: PostVideo[];
   labels?: string[]; // "porn", "nudity", "sexual", "graphic-media", etc.
 }
 
@@ -679,6 +700,22 @@ export default class AccountService {
     }
 
     /**
+     * Upload d'une vidéo vers Bluesky (blob)
+     */
+    private async uploadVideo(video: PostVideo): Promise<VideoBlob> {
+        const mimeType = video.mimeType || this.detectVideoMimeType(video.file);
+        
+        console.log(`[DEBUG] Uploading video with mimeType: ${mimeType}, size: ${video.file.length} bytes`);
+        
+        const uploadResponse = await this.agent.uploadBlob(video.file, {
+            encoding: mimeType
+        });
+        
+        console.log(`[DEBUG] Video uploaded successfully:`, uploadResponse.data.blob);
+        return uploadResponse.data.blob;
+    }
+
+    /**
      * Détection du MIME type basique à partir du buffer
      */
     private detectMimeType(buffer: Buffer): string {
@@ -690,6 +727,24 @@ export default class AccountService {
         
         // Fallback
         return 'image/jpeg';
+    }
+
+    /**
+     * Détection du MIME type vidéo basique à partir du buffer
+     */
+    private detectVideoMimeType(buffer: Buffer): string {
+        // Détection basique basée sur les premiers bytes
+        if (buffer[4] === 0x66 && buffer[5] === 0x74 && buffer[6] === 0x79 && buffer[7] === 0x70) {
+            // MP4 container
+            return 'video/mp4';
+        }
+        if (buffer[0] === 0x1A && buffer[1] === 0x45 && buffer[2] === 0xDF && buffer[3] === 0xA3) {
+            // WebM container
+            return 'video/webm';
+        }
+        
+        // Fallback
+        return 'video/mp4';
     }
 
     /**
@@ -729,6 +784,31 @@ export default class AccountService {
                 }
             }
 
+            // Upload des vidéos si présentes
+            const uploadedVideos = [];
+            if (options.videos && options.videos.length > 0) {
+                console.log(`[DEBUG] Processing ${options.videos.length} videos`);
+                
+                for (const video of options.videos) {
+                    try {
+                        const blob = await this.uploadVideo(video);
+                        
+                        uploadedVideos.push({
+                            alt: video.alt,
+                            aspectRatio: video.aspectRatio || {
+                                width: 1920,
+                                height: 1080
+                            },
+                            video: blob,
+                            captions: video.captions || []
+                        });
+                    } catch (videoErr) {
+                        console.error(`[ERROR] Failed to upload video:`, videoErr);
+                        // Continue with other videos
+                    }
+                }
+            }
+
             // Construction du record
             const postRecord: any = {
                 $type: 'app.bsky.feed.post',
@@ -736,13 +816,26 @@ export default class AccountService {
                 createdAt: new Date().toISOString(),
             };
 
-            // Ajout des images si présentes
-            if (uploadedImages.length > 0) {
+            // Ajout des images si présentes (et pas de vidéos)
+            if (uploadedImages.length > 0 && uploadedVideos.length === 0) {
                 postRecord.embed = {
                     $type: 'app.bsky.embed.images',
                     images: uploadedImages,
                 };
-                console.log(`[DEBUG] Final embed object:`, JSON.stringify(postRecord.embed, null, 2));
+                console.log(`[DEBUG] Final image embed object:`, JSON.stringify(postRecord.embed, null, 2));
+            }
+            
+            // Ajout des vidéos si présentes (priorité sur les images)
+            if (uploadedVideos.length > 0) {
+                const videoData = uploadedVideos[0];
+                postRecord.embed = {
+                    $type: 'app.bsky.embed.video',
+                    video: videoData.video, // Directement la blob ref
+                    alt: videoData.alt,
+                    aspectRatio: videoData.aspectRatio,
+                    captions: videoData.captions
+                };
+                console.log(`[DEBUG] Final video embed object:`, JSON.stringify(postRecord.embed, null, 2));
             }
 
             // Ajout des labels de contenu si présents
@@ -852,6 +945,95 @@ export default class AccountService {
             
         } catch (err) {
             console.error('[ERROR] Failed to create post with image paths:', err);
+            throw err;
+        }
+    }
+
+    /**
+     * Fonction helper pour créer un post avec des vidéos depuis des chemins de fichiers
+     */
+    public async postWithVideoPaths(
+        account: Account,
+        text: string,
+        videoPaths: string[],
+        videoAltTexts: string[] = [],
+        contentWarnings?: ContentWarningType[]
+    ): Promise<any> {
+        try {
+            console.log('[DEBUG] Creating post with video paths:', videoPaths);
+            
+            const fs = await import('fs');
+            const path = await import('path');
+            
+            // Convertir les chemins de vidéos en PostVideo objects
+            const videos: PostVideo[] = [];
+            
+            for (let i = 0; i < videoPaths.length; i++) {
+                const videoPath = videoPaths[i];
+                const altText = videoAltTexts[i] || '';
+                
+                const fullVideoPath = path.join(process.cwd(), 'public', videoPath);
+                console.log(`[DEBUG] Processing video: ${fullVideoPath}`);
+                
+                if (fs.existsSync(fullVideoPath)) {
+                    const videoBuffer = fs.readFileSync(fullVideoPath);
+                    
+                    videos.push({
+                        file: videoBuffer,
+                        alt: altText,
+                        mimeType: this.detectVideoMimeType(videoBuffer)
+                    });
+                } else {
+                    console.error(`[ERROR] Video file not found: ${fullVideoPath}`);
+                }
+            }
+            
+            // Utiliser createPostWithMedia avec les vidéos converties
+            return this.createPostWithMedia(account, {
+                text,
+                videos,
+                labels: contentWarnings
+            });
+            
+        } catch (err) {
+            console.error('[ERROR] Failed to create post with video paths:', err);
+            throw err;
+        }
+    }
+
+    /**
+     * Fonction helper pour créer un post avec des médias mixtes (images ET/OU vidéos)
+     */
+    public async postWithMixedMedia(
+        account: Account,
+        text: string,
+        imagePaths: string[] = [],
+        videoPaths: string[] = [],
+        imageAltTexts: string[] = [],
+        videoAltTexts: string[] = [],
+        contentWarnings?: ContentWarningType[]
+    ): Promise<any> {
+        try {
+            console.log('[DEBUG] Creating post with mixed media:', { images: imagePaths.length, videos: videoPaths.length });
+            
+            // Si il y a des vidéos, utiliser seulement les vidéos (limitation Bluesky)
+            if (videoPaths.length > 0) {
+                return this.postWithVideoPaths(account, text, videoPaths, videoAltTexts, contentWarnings);
+            }
+            
+            // Sinon utiliser les images
+            if (imagePaths.length > 0) {
+                return this.postWithImagePaths(account, text, imagePaths, imageAltTexts, contentWarnings);
+            }
+            
+            // Post texte seul
+            return this.createPostWithMedia(account, {
+                text,
+                labels: contentWarnings
+            });
+            
+        } catch (err) {
+            console.error('[ERROR] Failed to create post with mixed media:', err);
             throw err;
         }
     }

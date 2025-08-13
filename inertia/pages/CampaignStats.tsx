@@ -29,6 +29,7 @@ interface FollowerCampaign {
   messageSentAt?: string
   responseReceivedAt?: string
   bioQuality?: string
+  alreadyContacted?: boolean
 }
 
 interface CampaignStats {
@@ -681,7 +682,7 @@ export default function CampaignStats({ user, stats, followersData, error }: Cam
                                   <Badge variant="secondary" className={`text-xs ${config.color}`}>
                                    {config.label}
                                   </Badge>
-                                  {follower.messageSent && (
+                                  {follower.alreadyContacted && (
                                     <Badge variant="outline" className="text-xs">
                                       ✉️ Sent
                                     </Badge>

@@ -649,6 +649,7 @@ export default class DmCampaignsController {
                             similarityScore: f.similarityScore,
                             messageSent: f.messageSent,
                             responseReceived: f.responseReceived,
+                            alreadyContacted: f.alreadyContacted,
                             messageSentAt: f.messageSentAt?.toISO?.() || null,
                             responseReceivedAt: f.responseReceivedAt?.toISO?.() || null,
                         }
@@ -1022,6 +1023,7 @@ export default class DmCampaignsController {
                             responseReceived: f.responseReceived,
                             interestLevel: f.interestLevel,
                             bioQuality: f.bioQuality,
+                            alreadyContacted: f.alreadyContacted,
                             analysisMetadata: null
                         }
                     }

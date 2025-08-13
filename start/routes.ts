@@ -69,6 +69,7 @@ const follower_analysis_controller = () => import('#controllers/follower_analysi
 const follower_tracker_controller = () => import('#controllers/follower_tracker_controller')
 const python_controller_methods = () => import('#controllers/python_controller_methods')
 const dm_campaigns_controller = () => import('#controllers/dm_campaigns_controller')
+const hashtag_groups_controller = () => import('#controllers/hashtag_groups_controller')
 
 /*
 |--------------------------------------------------------------------------
@@ -205,20 +206,94 @@ router
     if (user) {
       // Recharger l'utilisateur depuis la DB pour avoir les dernières valeurs
       await user.refresh()
+      
+      // Précharger les comptes de l'utilisateur
+      await user.load('account')
 
       let schedulings = await user
         .related('scheduling')
         .query()
         .preload('account')
         .orderBy('scheduleTime', 'asc')
-      return inertia.render('schedule', { schedulings })
+        
+      // Add streak data to user object
+      const userWithStreak = {
+        ...user.serialize(),
+        currentStreak: user.currentStreak || 0,
+        longestStreak: user.longestStreak || 0,
+        isStreakActive: user.isStreakActive,
+        streakStatus: user.streakStatus,
+        lastPostDate: user.lastPostDate?.toISODate() || null
+      }
+        
+      return inertia.render('schedule', { 
+        schedulings,
+        user: userWithStreak 
+      })
     }
-    return inertia.render('schedule', { schedulings: [] })
+    return inertia.render('schedule', { 
+      schedulings: [],
+      user: null 
+    })
   })
   .use(middleware.auth())
 
 // Routes pour le profil utilisateur
 router.on('/profile').renderInertia('profile').use(middleware.auth())
+
+/*
+|--------------------------------------------------------------------------
+| HASHTAG GROUPS MANAGEMENT
+|--------------------------------------------------------------------------
+| Routes pour la gestion des groupes de hashtags
+|
+*/
+
+router
+  .get('/hashtag-groups', [hashtag_groups_controller, 'index'])
+  .use(middleware.auth())
+  .as('hashtag-groups.index')
+
+router
+  .post('/hashtag-groups', [hashtag_groups_controller, 'store'])
+  .use(middleware.auth())
+  .as('hashtag-groups.store')
+
+router
+  .get('/hashtag-groups/:id', [hashtag_groups_controller, 'show'])
+  .use(middleware.auth())
+  .as('hashtag-groups.show')
+
+router
+  .put('/hashtag-groups/:id', [hashtag_groups_controller, 'update'])
+  .use(middleware.auth())
+  .as('hashtag-groups.update')
+
+router
+  .delete('/hashtag-groups/:id', [hashtag_groups_controller, 'destroy'])
+  .use(middleware.auth())
+  .as('hashtag-groups.destroy')
+
+router
+  .post('/hashtag-groups/:id/hashtags', [hashtag_groups_controller, 'addHashtag'])
+  .use(middleware.auth())
+  .as('hashtag-groups.hashtags.store')
+
+router
+  .delete('/hashtag-groups/:groupId/hashtags/:hashtagId', [hashtag_groups_controller, 'removeHashtag'])
+  .use(middleware.auth())
+  .as('hashtag-groups.hashtags.destroy')
+
+router
+  .put('/hashtag-groups/:id/reorder', [hashtag_groups_controller, 'reorderHashtags'])
+  .use(middleware.auth())
+  .as('hashtag-groups.reorder')
+
+// API pour récupérer les groupes (pour le sélecteur dans le post composer)
+router
+  .get('/api/hashtag-groups', [hashtag_groups_controller, 'api'])
+  .use(middleware.auth())
+  .as('hashtag-groups.api')
 
 /*
 |--------------------------------------------------------------------------

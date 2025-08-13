@@ -22,7 +22,9 @@ import {
   CheckCircle,
   Image as ImageIcon,
   Upload,
+  Video,
 } from 'lucide-react'
+import VideoUpload from './VideoUpload'
 
 interface Account {
   id: number
@@ -63,6 +65,8 @@ export default function AddScheduleModal({ isOpen, onClose, user, accounts }: Ad
   const [errors, setErrors] = useState<{ [key: string]: string }>({})
   const [selectedImages, setSelectedImages] = useState<File[]>([])
   const [imagePreviewUrls, setImagePreviewUrls] = useState<string[]>([])
+  const [selectedVideos, setSelectedVideos] = useState<File[]>([])
+  const [videoAltTexts, setVideoAltTexts] = useState<string[]>([])
 
   const isFreeLimitReached = user.plan === 'free' && user.isScheduledLimitReached
 
@@ -81,6 +85,8 @@ export default function AddScheduleModal({ isOpen, onClose, user, accounts }: Ad
       setErrors({})
       setSelectedImages([])
       setImagePreviewUrls([])
+      setSelectedVideos([])
+      setVideoAltTexts([])
     }
   }, [isOpen])
 
@@ -120,6 +126,12 @@ export default function AddScheduleModal({ isOpen, onClose, user, accounts }: Ad
         return
       }
 
+      // Validation: Ne pas permettre images ET vidéos en même temps
+      if (selectedImages.length > 0 && selectedVideos.length > 0) {
+        setErrors({ media: 'Cannot upload both images and videos in the same post. Please choose either images OR videos.' })
+        return
+      }
+
       // Use POST with FormData to handle file uploads
       const formData = new FormData()
       formData.append('account_handle', selectedAccountData.handle)
@@ -130,6 +142,16 @@ export default function AddScheduleModal({ isOpen, onClose, user, accounts }: Ad
       selectedImages.forEach((image, index) => {
         formData.append(`images[${index}]`, image)
       })
+
+      // Append videos
+      selectedVideos.forEach((video, index) => {
+        formData.append(`videos[${index}]`, video)
+      })
+
+      // Append video alt texts
+      if (videoAltTexts.length > 0) {
+        formData.append('video_alt_texts', JSON.stringify(videoAltTexts))
+      }
 
       // Use POST with FormData to handle file uploads
       router.post('/schedule/create', formData, {
@@ -146,6 +168,9 @@ export default function AddScheduleModal({ isOpen, onClose, user, accounts }: Ad
           imagePreviewUrls.forEach(url => URL.revokeObjectURL(url))
           setSelectedImages([])
           setImagePreviewUrls([])
+          // Reset videos
+          setSelectedVideos([])
+          setVideoAltTexts([])
           onClose()
         },
         onError: (errors) => {
@@ -198,6 +223,7 @@ export default function AddScheduleModal({ isOpen, onClose, user, accounts }: Ad
     if (message.includes('http')) elements.push({ icon: LinkIcon, label: 'Links' })
     if (message.includes('?')) elements.push({ icon: MessageCircle, label: 'Question' })
     if (selectedImages.length > 0) elements.push({ icon: ImageIcon, label: `${selectedImages.length} Image${selectedImages.length > 1 ? 's' : ''}` })
+    if (selectedVideos.length > 0) elements.push({ icon: Video, label: `${selectedVideos.length} Video${selectedVideos.length > 1 ? 's' : ''}` })
     return elements
   }
 
@@ -398,6 +424,15 @@ export default function AddScheduleModal({ isOpen, onClose, user, accounts }: Ad
                 </div>
               )}
             </div>
+
+            {/* Video Upload */}
+            <VideoUpload
+              selectedVideos={selectedVideos}
+              onVideosChange={setSelectedVideos}
+              videoAltTexts={videoAltTexts}
+              onVideoAltTextsChange={setVideoAltTexts}
+              disabled={isFreeLimitReached}
+            />
 
             {/* Date and Time */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
