@@ -159,8 +159,7 @@ export default class AnalyticsController {
 
         const needsInitialSync =
             !hasDataResults ||
-            parseInt(hasDataResults.followers_count) === 0 ||
-            parseInt(hasDataResults.posts_count) === 0
+            parseInt(hasDataResults.followers_count) === 0
 
         if (needsInitialSync) {
             console.log("Aucune donnée d'analytics trouvée, synchronisation initiale...")
@@ -169,6 +168,18 @@ export default class AnalyticsController {
                 this.syncPostsData(selectedAccount),
                 this.recordFollowersHistory(selectedAccount)
             ])
+        } else {
+            // Vérifier si on a besoin d'enregistrer l'historique d'aujourd'hui
+            const today = DateTime.now().startOf('day')
+            const todayRecord = await FollowersHistory.query()
+                .where('account_id', selectedAccount.id)
+                .where('recordedAt', today.toSQLDate()!)
+                .first()
+
+            if (!todayRecord) {
+                console.log("Enregistrement de l'historique des followers pour aujourd'hui...")
+                await this.recordFollowersHistory(selectedAccount)
+            }
         }
 
         const [followersHistory, allPosts] = await Promise.all([
@@ -176,9 +187,9 @@ export default class AnalyticsController {
             FollowersHistory.query()
                 .select('recordedAt', 'followersCount')
                 .where('account_id', selectedAccount.id)
-                .where('recordedAt', '>=', thirtyDaysAgoSQL)
+                .where('recordedAt', '>=', DateTime.now().minus({ days: 90 }).toSQL()) // 90 jours au lieu de 30
                 .orderBy('recordedAt', 'asc')
-                .limit(31),
+                .limit(100), // 100 points au lieu de 31
 
 
             PostHistory.query()
@@ -446,10 +457,18 @@ export default class AnalyticsController {
                 .first();
 
             if (existingRecord) {
-                // Mettre à jour l'enregistrement existant
-                existingRecord.followersCount = account.followers_count || 0;
-                await existingRecord.save();
-                console.log(`Historique des followers mis à jour pour ${account.handle}: ${account.followers_count} followers`);
+                // Mettre à jour seulement si la valeur a changé significativement
+                const currentCount = account.followers_count || 0
+                const recordedCount = existingRecord.followersCount || 0
+                const difference = Math.abs(currentCount - recordedCount)
+
+                if (difference > 0) {
+                    existingRecord.followersCount = currentCount;
+                    await existingRecord.save();
+                    console.log(`Historique des followers mis à jour pour ${account.handle}: ${currentCount} followers (différence: ${difference > recordedCount ? '+' : ''}${currentCount - recordedCount})`);
+                } else {
+                    console.log(`Aucune mise à jour nécessaire pour ${account.handle}: ${currentCount} followers (inchangé)`);
+                }
             } else {
                 // Créer un nouvel enregistrement
                 await FollowersHistory.create({
@@ -893,6 +912,140 @@ export default class AnalyticsController {
         return {
             basic: (totalBasicEngagement / denominator) * 100,
             weighted: (totalWeightedEngagement / denominator) * 100
+        }
+    }
+
+    /**
+     * Méthode utilitaire pour générer des données historiques de test
+     * Utile pour diagnostiquer les problèmes de graphique
+     */
+    public async generateTestHistoryData({ params, response, auth }: HttpContext) {
+        const user = await auth.authenticate()
+        if (!user) {
+            return response.status(401).json({ error: 'Non autorisé' })
+        }
+
+        const accountId = params.id
+
+        try {
+            const selectedAccount = await Account.query()
+                .where('id', accountId)
+                .andWhere('userId', user.id)
+                .firstOrFail()
+
+            // Générer 30 jours de données historiques fictives
+            const baseFollowers = selectedAccount.followers_count || 100
+            const startDate = DateTime.now().minus({ days: 30 }).startOf('day')
+
+            const existingRecords = await FollowersHistory.query()
+                .where('account_id', accountId)
+                .where('recordedAt', '>=', startDate.toSQL())
+
+            console.log(`Génération de données de test pour ${selectedAccount.handle}`)
+            console.log(`Enregistrements existants: ${existingRecords.length}`)
+
+            // Supprimer les données existantes pour ce test (optionnel)
+            if (existingRecords.length > 0) {
+                await FollowersHistory.query()
+                    .where('account_id', accountId)
+                    .where('recordedAt', '>=', startDate.toSQL())
+                    .delete()
+                console.log(`Suppression de ${existingRecords.length} enregistrements existants`)
+            }
+
+            // Créer 30 points de données avec une croissance simulée
+            const records = []
+            for (let i = 0; i < 30; i++) {
+                const date = startDate.plus({ days: i })
+                const variance = Math.floor(Math.random() * 10) - 5 // +/- 5 followers par jour
+                const followers = baseFollowers + (i * 2) + variance // Croissance de ~2 followers/jour avec variance
+
+                const record = await FollowersHistory.create({
+                    userId: user.id,
+                    accountId: accountId,
+                    followersCount: Math.max(0, followers),
+                    recordedAt: date
+                })
+                records.push(record)
+            }
+
+            console.log(`${records.length} enregistrements de test créés`)
+
+            return response.json({
+                success: true,
+                message: `${records.length} enregistrements historiques de test créés pour @${selectedAccount.handle}`,
+                data: records.map(r => ({
+                    date: r.recordedAt.toISODate(),
+                    followers: r.followersCount
+                }))
+            })
+
+        } catch (error) {
+            console.error('Erreur lors de la génération des données de test:', error)
+            return response.status(500).json({ error: 'Erreur serveur' })
+        }
+    }
+
+    /**
+     * Diagnostic des données d'historique pour un compte
+     */
+    public async diagnosticHistoryData({ params, response, auth }: HttpContext) {
+        const user = await auth.authenticate()
+        if (!user) {
+            return response.status(401).json({ error: 'Non autorisé' })
+        }
+
+        const accountId = params.id
+
+        try {
+            const selectedAccount = await Account.query()
+                .where('id', accountId)
+                .andWhere('userId', user.id)
+                .firstOrFail()
+
+            const allRecords = await FollowersHistory.query()
+                .where('account_id', accountId)
+                .orderBy('recordedAt', 'asc')
+
+            const last30Days = await FollowersHistory.query()
+                .where('account_id', accountId)
+                .where('recordedAt', '>=', DateTime.now().minus({ days: 30 }).toSQL())
+                .orderBy('recordedAt', 'asc')
+
+            const last90Days = await FollowersHistory.query()
+                .where('account_id', accountId)
+                .where('recordedAt', '>=', DateTime.now().minus({ days: 90 }).toSQL())
+                .orderBy('recordedAt', 'asc')
+
+            return response.json({
+                account: {
+                    handle: selectedAccount.handle,
+                    current_followers: selectedAccount.followers_count
+                },
+                diagnostic: {
+                    total_records: allRecords.length,
+                    last_30_days: last30Days.length,
+                    last_90_days: last90Days.length,
+                    date_range: allRecords.length > 0 ? {
+                        first: allRecords[0].recordedAt.toISODate(),
+                        last: allRecords[allRecords.length - 1].recordedAt.toISODate()
+                    } : null
+                },
+                sample_data: {
+                    all_records: allRecords.slice(-10).map(r => ({
+                        date: r.recordedAt.toISODate(),
+                        followers: r.followersCount
+                    })),
+                    last_30_days: last30Days.map(r => ({
+                        date: r.recordedAt.toISODate(),
+                        followers: r.followersCount
+                    }))
+                }
+            })
+
+        } catch (error) {
+            console.error('Erreur lors du diagnostic:', error)
+            return response.status(500).json({ error: 'Erreur serveur' })
         }
     }
 }

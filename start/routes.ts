@@ -498,6 +498,14 @@ router
   .get('/analytics/:id/audience/refresh', [follower_analysis_controller, 'getAnalysisStatus'])
   .use(middleware.auth())
 
+// ===== ANALYTICS DIAGNOSTICS =====
+router
+  .post('/api/analytics/:id/generate-test-data', [analytics_controller, 'generateTestHistoryData'])
+  .use(middleware.auth())
+router
+  .get('/api/analytics/:id/diagnostic', [analytics_controller, 'diagnosticHistoryData'])
+  .use(middleware.auth())
+
 // ===== CLUSTER ANALYTICS =====
 router
   .post('/api/accounts/:id/clusters/refresh-cache', [analytics_controller, 'refreshClusterCache'])
