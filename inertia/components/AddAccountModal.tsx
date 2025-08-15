@@ -4,7 +4,6 @@ import { Card, CardContent } from './ui/card'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog'
 import { Badge } from './ui/badge'
 import { 
-  MessageCircle, 
   AtSign, 
   Hash,
   ArrowRight,
@@ -32,14 +31,6 @@ const PLATFORMS = [
     description: 'Connect your Twitter/X account',
     icon: Hash,
     color: 'bg-black',
-    available: true
-  },
-  {
-    id: 'threads',
-    name: 'Threads',
-    description: 'Meta\'s text-based conversation app',
-    icon: MessageCircle,
-    color: 'bg-gradient-to-r from-purple-500 to-pink-500',
     available: true
   }
 ]
