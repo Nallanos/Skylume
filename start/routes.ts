@@ -62,6 +62,8 @@ router.on('/account/:id/dashboard/loading').renderInertia('AccountDashboard').us
 const session_controller = () => import('#controllers/session_controller')
 const account_controller = () => import('#controllers/account_controller')
 const oauth_metadata_controller = () => import('#controllers/oauth_metadata_controller')
+const twitter_auth_controller = () => import('#controllers/twitter_auth_controller')
+const threads_auth_controller = () => import('#controllers/threads_auth_controller')
 const stripe_controller = () => import('#controllers/stripes_controller')
 const feed_controller = () => import('#controllers/feeds_controller')
 const analytics_controller = () => import('#controllers/analytics_controller')
@@ -178,6 +180,18 @@ router.get('/dashboard', async ({ auth, inertia }) => {
       .where('user_id', user.id)
       .orderBy('followers_count', 'desc')
 
+    // Get Twitter accounts
+    const { default: TwitterAccount } = await import('#models/twitter_account')
+    const twitterAccounts = await TwitterAccount.query()
+      .where('user_id', user.id)
+      .orderBy('followers_count', 'desc')
+
+    // Get Threads accounts
+    const { default: ThreadsAccount } = await import('#models/threads_account')
+    const threadsAccounts = await ThreadsAccount.query()
+      .where('user_id', user.id)
+      .orderBy('followers_count', 'desc')
+
     // Get scheduling count for the user
     const { default: Scheduling } = await import('#models/scheduling')
     const schedulings = await Scheduling.query().where('userId', user.id).where('status', 'pending')
@@ -187,6 +201,14 @@ router.get('/dashboard', async ({ auth, inertia }) => {
 
     return inertia.render('dashboard', {
       accounts: accounts,
+      twitterAccounts: twitterAccounts.map(acc => ({
+        ...acc.toJSON(),
+        platform: 'twitter'
+      })),
+      threadsAccounts: threadsAccounts.map(acc => ({
+        ...acc.toJSON(),
+        platform: 'threads'
+      })),
       user: {
         ...user.toJSON(),
         scheduledCount: scheduledCount,
@@ -196,7 +218,7 @@ router.get('/dashboard', async ({ auth, inertia }) => {
   } else {
     // User not authenticated, show AddAccount component
     console.log('User not authenticated, showing AddAccount component')
-    return inertia.render('dashboard', { accounts: [] })
+    return inertia.render('dashboard', { accounts: [], twitterAccounts: [], threadsAccounts: [] })
   }
 })
 
@@ -207,8 +229,31 @@ router
       // Recharger l'utilisateur depuis la DB pour avoir les dernières valeurs
       await user.refresh()
       
-      // Précharger les comptes de l'utilisateur
+      // Précharger les comptes de l'utilisateur pour toutes les plateformes
       await user.load('account')
+      
+      // Load Twitter accounts only (removed Threads support)
+      const TwitterAccount = (await import('#models/twitter_account')).default
+      
+      const twitterAccounts = await TwitterAccount.query().where('user_id', user.id)
+      
+      // Transform all accounts to a unified format with platform information
+      const allAccounts = [
+        ...user.account.map(account => ({
+          id: account.id,
+          handle: account.handle,
+          displayName: account.handle, // Bluesky uses handle as display name
+          platform: 'bluesky' as const,
+          avatar: null // Account model doesn't have avatar
+        })),
+        ...twitterAccounts.map(account => ({
+          id: account.id,
+          handle: account.username,
+          displayName: account.displayName || account.username,
+          platform: 'twitter' as const,
+          avatar: account.profileImageUrl
+        }))
+      ]
 
       let schedulings = await user
         .related('scheduling')
@@ -216,14 +261,15 @@ router
         .preload('account')
         .orderBy('scheduleTime', 'asc')
         
-      // Add streak data to user object
+      // Add streak data to user object and include all accounts
       const userWithStreak = {
         ...user.serialize(),
         currentStreak: user.currentStreak || 0,
         longestStreak: user.longestStreak || 0,
         isStreakActive: user.isStreakActive,
         streakStatus: user.streakStatus,
-        lastPostDate: user.lastPostDate?.toISODate() || null
+        lastPostDate: user.lastPostDate?.toISODate() || null,
+        account: allAccounts // Replace with unified accounts
       }
         
       return inertia.render('schedule', { 
@@ -608,6 +654,37 @@ router
 
 /*
 |--------------------------------------------------------------------------
+| CROSSPOSTING AUTHENTICATION ROUTES
+|--------------------------------------------------------------------------
+| Routes for connecting and managing crossposting accounts
+| Includes: Twitter OAuth, Threads OAuth, disconnect functionality
+|
+*/
+
+router
+  .get('/auth/twitter', [twitter_auth_controller, 'initiateAuth'])
+  .use(middleware.auth())
+
+router
+  .get('/auth/twitter/callback', [twitter_auth_controller, 'callback'])
+
+router
+  .post('/auth/twitter/disconnect/:id', [twitter_auth_controller, 'disconnect'])
+  .use(middleware.auth())
+
+router
+  .get('/auth/threads', [threads_auth_controller, 'initiateAuth'])
+  .use(middleware.auth())
+
+router
+  .get('/auth/threads/callback', [threads_auth_controller, 'callback'])
+
+router
+  .post('/auth/threads/disconnect/:id', [threads_auth_controller, 'disconnect'])
+  .use(middleware.auth())
+
+/*
+|--------------------------------------------------------------------------
 | SCHEDULING FEATURE
 |--------------------------------------------------------------------------
 | Routes pour la gestion de la planification des posts Bluesky
@@ -714,4 +791,25 @@ router
       return response.status(500).json({ error: 'Internal server error' })
     }
   })
+  .use(middleware.auth())
+
+/*
+|--------------------------------------------------------------------------
+| THREADS API ROUTES
+|--------------------------------------------------------------------------
+| Routes for Threads posting functionality
+|
+*/
+
+const ThreadsPostController = () => import('#controllers/threads_post_controller')
+
+// Threads posting routes
+router
+  .group(() => {
+    router.post('/text', [ThreadsPostController, 'createTextPost'])
+    router.post('/image', [ThreadsPostController, 'createImagePost'])
+    router.post('/carousel', [ThreadsPostController, 'createCarouselPost'])
+    router.get('/limits/:accountId', [ThreadsPostController, 'getPostingLimits'])
+  })
+  .prefix('/api/threads/posts')
   .use(middleware.auth())

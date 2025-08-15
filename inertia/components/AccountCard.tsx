@@ -1,7 +1,7 @@
 import { Card, CardContent, CardFooter } from './ui/card'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
-import { BarChart3, Calendar, RefreshCw, Shield, Trash2, Users } from 'lucide-react'
+import { BarChart3, Calendar, RefreshCw, Shield, Trash2, Users, AtSign, Hash, MessageCircle } from 'lucide-react'
 import { useState } from 'react'
 import { router } from '@inertiajs/react'
 import {
@@ -22,6 +22,9 @@ interface Account {
   postsCount: number
   engagementRate?: string
   isRateLimited?: boolean
+  platform: 'bluesky' | 'twitter' | 'threads'
+  username?: string
+  profileImageUrl?: string
 }
 
 interface AccountCardProps {
@@ -29,10 +32,40 @@ interface AccountCardProps {
   onAccountUpdate?: (updatedAccount: Account) => void
 }
 
+const PLATFORM_CONFIG = {
+  bluesky: {
+    name: 'Bluesky',
+    icon: AtSign,
+    color: 'bg-blue-500',
+    borderColor: 'border-blue-500/20',
+    textColor: 'text-blue-600 dark:text-blue-400',
+    hoverColor: 'hover:bg-blue-500/5'
+  },
+  twitter: {
+    name: 'X (Twitter)',
+    icon: Hash,
+    color: 'bg-black',
+    borderColor: 'border-gray-500/20',
+    textColor: 'text-gray-600 dark:text-gray-400',
+    hoverColor: 'hover:bg-gray-500/5'
+  },
+  threads: {
+    name: 'Threads',
+    icon: MessageCircle,
+    color: 'bg-gradient-to-r from-purple-500 to-pink-500',
+    borderColor: 'border-purple-500/20',
+    textColor: 'text-purple-600 dark:text-purple-400',
+    hoverColor: 'hover:bg-purple-500/5'
+  }
+}
+
 function AccountCard({ account, onAccountUpdate }: AccountCardProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [localAccount, setLocalAccount] = useState(account)
+
+  const platformConfig = PLATFORM_CONFIG[account.platform]
+  const PlatformIcon = platformConfig.icon
 
   // Format metrics for better display
   const formatNumber = (num: number) => {
@@ -41,7 +74,13 @@ function AccountCard({ account, onAccountUpdate }: AccountCardProps) {
   }
 
   const handleDelete = async () => {
-    await router.post('/dashboard/accounts/delete', { id: localAccount.id })
+    if (account.platform === 'bluesky') {
+      await router.post('/dashboard/accounts/delete', { id: localAccount.id })
+    } else if (account.platform === 'twitter') {
+      await router.post(`/auth/twitter/disconnect/${localAccount.id}`)
+    } else if (account.platform === 'threads') {
+      await router.post(`/auth/threads/disconnect/${localAccount.id}`)
+    }
   }
 
   const refreshStats = async () => {
@@ -92,7 +131,15 @@ function AccountCard({ account, onAccountUpdate }: AccountCardProps) {
       <CardContent className="p-2">
         {/* Account avatar and name section */}
         <div className="flex items-center justify-between mb-6 p-4">
-          <div className="min-w-0 flex gap-4 mr-4">
+          <div className="min-w-0 flex-1 mr-4">
+            <div className="flex items-center gap-2 mb-2">
+              <div className={`p-1.5 rounded-lg ${platformConfig.color} text-white`}>
+                <PlatformIcon className="h-3 w-3" />
+              </div>
+              <Badge variant="outline" className="text-xs">
+                {platformConfig.name}
+              </Badge>
+            </div>
             <div className="flex items-center gap-2 mb-1">
               <h3 className="font-semibold truncate text-lg text-foreground">{localAccount.handle}</h3>
               {localAccount.displayName && (
@@ -122,13 +169,13 @@ function AccountCard({ account, onAccountUpdate }: AccountCardProps) {
             <Button
               variant="ghost"
               size="sm"
-              className="rounded-full hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-colors"
+              className={`rounded-full transition-colors ${platformConfig.hoverColor}`}
               aria-label="Refresh statistics"
               disabled={isRefreshing}
               onClick={refreshStats}
             >
               <RefreshCw
-                className={`h-12 w-12 text-blue-600 dark:text-blue-400 transition-transform ${isRefreshing ? 'animate-spin' : ''}`}
+                className={`h-12 w-12 ${platformConfig.textColor} transition-transform ${isRefreshing ? 'animate-spin' : ''}`}
               />
             </Button>
           </div>
@@ -137,17 +184,21 @@ function AccountCard({ account, onAccountUpdate }: AccountCardProps) {
         {/* Rate Limited Warning */}
         {localAccount.isRateLimited && (
           <p className="text-xs text-destructive mb-4 px-1">
-            Rate limited, our application can no longer interact with your Bluesky account. For more
-            information, check
-            <a
-              href="https://docs.bsky.app/docs/advanced-guides/rate-limits"
-              target="_blank"
-              rel="noopener"
-              className="underline ml-1"
-            >
-              the documentation
-            </a>
-            .
+            Rate limited, our application can no longer interact with your {platformConfig.name} account.
+            {account.platform === 'bluesky' && (
+              <>
+                {' '}For more information, check
+                <a
+                  href="https://docs.bsky.app/docs/advanced-guides/rate-limits"
+                  target="_blank"
+                  rel="noopener"
+                  className="underline ml-1"
+                >
+                  the documentation
+                </a>
+                .
+              </>
+            )}
           </p>
         )}
 
@@ -180,43 +231,47 @@ function AccountCard({ account, onAccountUpdate }: AccountCardProps) {
         </div>
       </CardContent>
 
-      {/* Buttons section */}
+      {/* Buttons section - Only show for Bluesky accounts */}
       <CardFooter className="pt-3 pb-4 flex justify-between items-center border-t border-border/20">
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 px-3 border-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/5 hover:text-blue-700 dark:hover:text-blue-300 hover:border-blue-500/30"
-            asChild
-          >
-            <a href={`/analytics/${localAccount.id}/`}>
-              <BarChart3 className="h-3.5 w-3.5 mr-1.5" />
-              Stats
-            </a>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 px-3 border-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/5 hover:text-blue-700 dark:hover:text-blue-300 hover:border-blue-500/30"
-            asChild
-          >
-            <a href={`/accounts/${localAccount.id}/follower-tracker`}>
-              <Users className="h-3.5 w-3.5 mr-1.5" />
-              Tracker
-            </a>
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="h-8 px-3 border-blue-500/20 text-blue-600 dark:text-blue-400 hover:bg-blue-500/5 hover:text-blue-700 dark:hover:text-blue-300 hover:border-blue-500/30"
-            asChild
-          >
-            <a href={`/add/schedule?account_id=${localAccount.id}`}>
-              <Calendar className="h-3.5 w-3.5 mr-1.5" />
-              Schedule
-            </a>
-          </Button>
-        </div>
+        {account.platform === 'bluesky' ? (
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className={`h-8 px-3 ${platformConfig.borderColor} ${platformConfig.textColor} ${platformConfig.hoverColor} hover:border-opacity-50`}
+              asChild
+            >
+              <a href={`/analytics/${localAccount.id}/`}>
+                <BarChart3 className="h-3.5 w-3.5 mr-1.5" />
+                Stats
+              </a>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className={`h-8 px-3 ${platformConfig.borderColor} ${platformConfig.textColor} ${platformConfig.hoverColor} hover:border-opacity-50`}
+              asChild
+            >
+              <a href={`/accounts/${localAccount.id}/follower-tracker`}>
+                <Users className="h-3.5 w-3.5 mr-1.5" />
+                Tracker
+              </a>
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className={`h-8 px-3 ${platformConfig.borderColor} ${platformConfig.textColor} ${platformConfig.hoverColor} hover:border-opacity-50`}
+              asChild
+            >
+              <a href={`/add/schedule?account_id=${localAccount.id}&platform=${account.platform}`}>
+                <Calendar className="h-3.5 w-3.5 mr-1.5" />
+                Schedule
+              </a>
+            </Button>
+          </div>
+        ) : (
+          <div className="flex-1"></div>
+        )}
 
         <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
           <DialogTrigger asChild>

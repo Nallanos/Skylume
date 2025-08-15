@@ -1,5 +1,5 @@
 import type { ApplicationService } from '@adonisjs/core/types'
-import { SchedulingQueueManager } from '../app/bluesky/scheduling_manager.js'
+import { SchedulingQueueManager } from '../app/services/scheduling_manager.js'
 
 export default class SchedulingProvider {
   constructor(protected app: ApplicationService) {}

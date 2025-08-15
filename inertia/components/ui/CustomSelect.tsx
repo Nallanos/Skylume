@@ -16,6 +16,7 @@ interface CustomSelectProps {
   className?: string
   allowCustomInput?: boolean
   customInputPlaceholder?: string
+  compact?: boolean // Nouvelle prop pour mode compact
 }
 
 export default function CustomSelect({ 
@@ -26,7 +27,8 @@ export default function CustomSelect({
   disabled = false,
   className = "",
   allowCustomInput = false,
-  customInputPlaceholder = "Enter custom value"
+  customInputPlaceholder = "Enter custom value",
+  compact = false
 }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [customValue, setCustomValue] = useState('')
@@ -65,10 +67,11 @@ export default function CustomSelect({
         onClick={handleToggle}
         disabled={disabled}
         className={`
-          w-full px-3 py-2 text-left border rounded-md text-sm
+          w-full text-left border rounded-md
           flex items-center justify-between
           transition-colors duration-200
           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500
+          ${compact ? 'px-2 py-1 text-xs' : 'px-3 py-2 text-sm'}
           ${disabled 
             ? 'bg-gray-50 dark:bg-gray-800 text-gray-400 dark:text-gray-500 cursor-not-allowed border-gray-200 dark:border-gray-700' 
             : 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
@@ -80,9 +83,9 @@ export default function CustomSelect({
           {selectedOption ? selectedOption.label : (isCustomValue ? value : placeholder)}
         </span>
         <ChevronDown 
-          className={`h-4 w-4 text-gray-400 dark:text-gray-500 transition-transform duration-200 ${
-            isOpen ? 'rotate-180' : ''
-          }`} 
+          className={`text-gray-400 dark:text-gray-500 transition-transform duration-200 ${
+            compact ? 'h-3 w-3' : 'h-4 w-4'
+          } ${isOpen ? 'rotate-180' : ''}`} 
         />
       </button>
 
@@ -117,10 +120,11 @@ export default function CustomSelect({
               type="button"
               onClick={() => handleSelect(option)}
               className={`
-                w-full px-3 py-2 text-left text-sm
+                w-full text-left
                 flex items-center justify-between
                 transition-colors duration-150
                 hover:bg-gray-50 dark:hover:bg-gray-800
+                ${compact ? 'px-2 py-1 text-xs' : 'px-3 py-2 text-sm'}
                 ${value === option.value 
                   ? 'bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400' 
                   : 'text-gray-900 dark:text-gray-100'
@@ -128,15 +132,15 @@ export default function CustomSelect({
               `}
             >
               <div className="flex-1">
-                <div className="font-medium">{option.label}</div>
+                <div className={`font-medium ${compact ? 'text-xs' : ''}`}>{option.label}</div>
                 {option.sublabel && (
-                  <div className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
+                  <div className={`text-gray-500 dark:text-gray-400 mt-0.5 ${compact ? 'text-xs' : 'text-xs'}`}>
                     {option.sublabel}
                   </div>
                 )}
               </div>
               {value === option.value && (
-                <Check className="h-4 w-4 text-blue-600 dark:text-blue-400" />
+                <Check className={`text-blue-600 dark:text-blue-400 ${compact ? 'h-3 w-3' : 'h-4 w-4'}`} />
               )}
             </button>
           ))}

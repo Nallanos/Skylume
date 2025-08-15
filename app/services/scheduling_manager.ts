@@ -4,16 +4,15 @@ import handle from '../jobs/schedule_job.js'
 import env from '#start/env'
 import crypto from 'crypto'
 import { inject } from '@adonisjs/core'
-import AccountManager from '#services/account_manager'
-import Account from '#models/account'
-
 
 @inject()
 export class SchedulingQueueManager {
     public queueName = 'schedulers'
+    private worker: Worker | null = null
 
-    constructor(protected account_manager: AccountManager) { }
-
+    /**
+     * Initialize the queue (no worker logic here, just queue management)
+     */
     public queue = new Queue(this.queueName, {
         connection: {
             family: 0,
@@ -33,46 +32,52 @@ export class SchedulingQueueManager {
     })
 
     /**
-     * Initialise la queue et démarre le worker
+     * Start the worker (separate from queue management)
+     */
+    public async startWorker(): Promise<void> {
+        if (this.worker) {
+            console.log('[WORKER] Worker already running')
+            return
+        }
+
+        this.worker = new Worker(
+            this.queueName,
+            async (job) => {
+                console.log(`[WORKER] 🔥 Processing job ${job.id} with data:`, job.data)
+                await handle(job.data)
+                console.log(`[WORKER] 🎉 Successfully processed job ${job.id}`)
+            },
+            {
+                connection: {
+                    family: 0,
+                    host: env.get('REDIS_HOST'),
+                    port: env.get('REDIS_PORT'),
+                    password: env.get('REDIS_PASSWORD'),
+                },
+            }
+        )
+
+        console.log('[WORKER] BullMQ worker started')
+    }
+
+    /**
+     * Initialize scheduling service - create jobs for existing schedules and start worker
      */
     public async createAndStartSchedulersQueue(): Promise<void> {
         try {
+            // Create jobs for existing schedules
             const schedulings = await Scheduling.all()
             await Promise.all(schedulings.map((scheduling) => this.createOneJob(scheduling)))
 
-            new Worker(
-                this.queueName,
-                async (job) => {
-                    console.log(`[WORKER] 🔥 Processing job ${job.id} with data:`, job.data)
-                    const { schedule_id } = job.data
-                    try {
-                        const scheduling = await Scheduling.findOrFail(schedule_id)
-                        const account = await Account.findOrFail(scheduling.account_id)
-                        console.log(`[WORKER] ✅ Found scheduling ${schedule_id} for account ${account.handle}`)
-                        console.log(`[WORKER] 📤 About to publish post: "${scheduling.message}"`)
-                        await handle({ schedule_id }, await this.account_manager.getOrCreateAccountService(account))
-                        console.log(`[WORKER] 🎉 Successfully processed job ${job.id} for schedule ${schedule_id}`)
-                    } catch (error) {
-                        console.error(`[WORKER] ❌ Error processing job ${job.id}:`, error)
-                        throw error
-                    }
-                },
-                {
-                    connection: {
-                        family: 0,
-                        host: env.get('REDIS_HOST'),
-                        port: env.get('REDIS_PORT'),
-                        password: env.get('REDIS_PASSWORD'),
-                    },
-                }
-            )
+            // Start the worker
+            await this.startWorker()
         } catch (err) {
             console.error('[ERROR] Failed to start schedulers queue:', err)
         }
     }
 
     /**
-     * Crée un job pour un scheduling
+     * Create a job for a scheduling
      */
     public async createOneJob(scheduling: Scheduling): Promise<void> {
         try {
@@ -101,7 +106,7 @@ export class SchedulingQueueManager {
             const scheduleTime = new Date(scheduleTimeISO)
             const delay = scheduleTime.getTime() - Date.now()
             
-            // Ne pas créer de job pour les dates passées
+            // Don't create jobs for past dates
             if (delay <= 0) {
                 console.warn(`[WARNING] Schedule ${scheduling.id} is in the past, skipping job creation`)
                 return
@@ -130,7 +135,7 @@ export class SchedulingQueueManager {
     }
 
     /**
-     * Supprime un job existant
+     * Remove an existing job
      */
     public async removeJob(jobId: string): Promise<void> {
         try {
@@ -148,25 +153,36 @@ export class SchedulingQueueManager {
             }
         } catch (err) {
             console.error(`[ERROR] Failed to remove job ${jobId}:`, err)
-            // Ne pas rethrow l'erreur pour éviter de bloquer les autres opérations
+            // Don't rethrow to avoid blocking other operations
         }
     }
 
     /**
-     * Met à jour un job existant
+     * Update an existing job
      */
     public async updateJob(scheduling: Scheduling): Promise<void> {
         try {
-            // Supprimer l'ancien job s'il existe
+            // Remove the old job if it exists
             if (scheduling.jobId) {
                 await this.removeJob(scheduling.jobId)
             }
             
-            // Créer le nouveau job
+            // Create the new job
             await this.createOneJob(scheduling)
         } catch (err) {
             console.error(`[ERROR] Failed to update job for schedule ${scheduling.id}:`, err)
             throw err
+        }
+    }
+
+    /**
+     * Stop the worker gracefully
+     */
+    public async stopWorker(): Promise<void> {
+        if (this.worker) {
+            await this.worker.close()
+            this.worker = null
+            console.log('[WORKER] Worker stopped')
         }
     }
 }

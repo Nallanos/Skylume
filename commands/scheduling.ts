@@ -1,7 +1,7 @@
 import { inject } from '@adonisjs/core'
 import { BaseCommand } from '@adonisjs/core/ace'
 import type { CommandOptions } from '@adonisjs/core/types/ace'
-import { SchedulingQueueManager } from '../app/bluesky/scheduling_manager.js'
+import { SchedulingQueueManager } from '../app/services/scheduling_manager.js'
 @inject()
 export default class Scheduling extends BaseCommand {
   constructor(

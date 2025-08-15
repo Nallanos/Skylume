@@ -2,7 +2,6 @@ import Scheduling from "#models/scheduling";
 import { HttpContext } from "@adonisjs/core/http";
 import { SchedulingQueueManager } from "../services/scheduling_manager.js";
 import Account from "#models/account";
-import TwitterAccount from "#models/twitter_account";
 import { inject } from "@adonisjs/core";
 import { DateTime } from 'luxon'
 
@@ -76,18 +75,9 @@ export default class SchedulingsController {
         }
 
         try {
-            // ✅ NOUVEAU: Traiter les médias UNE SEULE FOIS avant les comptes multiples
-            console.log('[DEBUG] Processing media files once for all accounts...')
-            const { imageUrls, videoUrls, altTexts, contentWarnings } = await this.extractMediaFromRequest(request)
-            
-            console.log('[DEBUG] Media processed for sharing:', { 
-                imageCount: imageUrls.length, 
-                videoCount: videoUrls.length 
-            })
-
-            // ✅ NOUVEAU: Créer les schedulings pour chaque compte avec les MÊMES médias
+            // ✅ NOUVEAU: Traiter chaque compte sélectionné
             const schedulePromises = accountIds.map(accountId => 
-                this.createScheduleForAccount(accountId, message, schedule_time, imageUrls, videoUrls, altTexts, contentWarnings, user)
+                this.createScheduleForAccount(accountId, message, schedule_time, request, user)
             )
 
             const scheduleResults = await Promise.all(schedulePromises)
@@ -113,15 +103,12 @@ export default class SchedulingsController {
         }
     }
 
-    // ✅ MODIFIÉ: Méthode helper pour créer un schedule avec médias pré-traités
+    // ✅ NOUVEAU: Méthode helper pour créer un schedule pour un compte spécifique
     private async createScheduleForAccount(
         accountId: string, 
         message: string, 
         schedule_time: string, 
-        imageUrls: string[],
-        videoUrls: string[],
-        altTexts: string[],
-        contentWarnings: string[],
+        request: any, 
         user: any
     ): Promise<{ success: boolean; platform?: string; error?: string }> {
         try {
@@ -135,57 +122,35 @@ export default class SchedulingsController {
             }
 
             // Chercher le compte selon la plateforme
-            let account: any
+            let account
             if (platform === 'bluesky') {
-                // ✅ CORRIGÉ: id est déjà une string, pas de parseInt
-                account = await Account.findBy('id', id)
-                
-                // Vérifier que le compte appartient à l'utilisateur
-                if (account && account.userId !== user.id.toString()) {
-                    console.error('[DEBUG] Bluesky account unauthorized:', { accountUserId: account.userId, currentUserId: user.id })
-                    account = null
-                }
+                account = await Account.findBy('id', parseInt(id))
             } else if (platform === 'twitter') {
-                // ✅ IMPLÉMENTÉ: TwitterAccount existe et fonctionne
-                account = await TwitterAccount.findBy('id', parseInt(id))
-                
-                // Vérifier que le compte appartient à l'utilisateur
-                if (account && account.userId !== user.id.toString()) {
-                    console.error('[DEBUG] Twitter account unauthorized:', { accountUserId: account.userId, currentUserId: user.id })
-                    account = null
-                }
+                // TODO: Implémenter la recherche Twitter Account quand le modèle sera créé
+                console.log('[DEBUG] Twitter platform not yet implemented')
+                return { success: false, error: 'Twitter platform not yet implemented' }
             } else {
                 console.error('[DEBUG] Unknown platform:', platform)
                 return { success: false, error: `Unknown platform: ${platform}` }
             }
 
-            if (!account) {
-                console.error('[DEBUG] Account not found:', { platform, id, userId: user.id })
-                return { success: false, error: `Account not found: ${platform}:${id}` }
+            if (!account || account.userId !== user.id) {
+                console.error('[DEBUG] Account not found or unauthorized:', { platform, id, userId: user.id })
+                return { success: false, error: `Account not found or unauthorized: ${platform}:${id}` }
             }
 
-            // ✅ MODIFIÉ: Utiliser les médias déjà traités au lieu de les traiter à nouveau
-            console.log('[DEBUG] Using pre-processed media for account:', accountId, { 
-                imageCount: imageUrls.length, 
-                videoCount: videoUrls.length 
-            })
+            // Extraire les médias et métadonnées depuis FormData
+            const { imageUrls, videoUrls, altTexts, contentWarnings } = await this.extractMediaFromRequest(request)
 
             // Créer le scheduling
             const scheduling = new Scheduling()
             scheduling.userId = user.id
-            
-            // ✅ CORRIGÉ: Relations selon la plateforme
-            if (platform === 'bluesky') {
-                scheduling.account_id = account.id // STRING pour Bluesky
-            } else if (platform === 'twitter') {
-                scheduling.twitterAccountId = account.id // NUMBER pour Twitter
-            }
-            
+            scheduling.account_id = account.id
             scheduling.message = message
             scheduling.scheduleTime = DateTime.fromISO(schedule_time)
             scheduling.status = 'pending'
 
-            // ✅ Ajouter les médias PRÉ-TRAITÉS (mêmes pour tous les comptes)
+            // Ajouter les médias si présents
             if (imageUrls.length > 0) {
                 scheduling.images = JSON.stringify(imageUrls)
             }
@@ -204,7 +169,7 @@ export default class SchedulingsController {
             // Ajouter à la queue
             await this.scheduling_manager.createOneJob(scheduling)
 
-            console.log('[DEBUG] Successfully created schedule for:', { platform, accountId: account.id })
+            console.log('[DEBUG] Successfully created schedule for:', { platform, handle: account.handle })
             return { success: true, platform: platform }
 
         } catch (error) {
@@ -268,14 +233,6 @@ export default class SchedulingsController {
             // Gérer les fichiers uploadés directement
             const uploadedImages = request.files('images')
             if (uploadedImages && uploadedImages.length > 0) {
-                // ✅ Créer le dossier uploads s'il n'existe pas
-                const fs = await import('fs')
-                const path = await import('path')
-                const uploadsDir = path.join(process.cwd(), 'public', 'uploads')
-                if (!fs.existsSync(uploadsDir)) {
-                    fs.mkdirSync(uploadsDir, { recursive: true })
-                }
-
                 for (let i = 0; i < uploadedImages.length; i++) {
                     const image = uploadedImages[i]
                     const imageName = `${Date.now()}_${i}_${image.clientName}`
@@ -286,14 +243,6 @@ export default class SchedulingsController {
 
             const uploadedVideos = request.files('videos')
             if (uploadedVideos && uploadedVideos.length > 0) {
-                // ✅ Créer le dossier videos s'il n'existe pas
-                const fs = await import('fs')
-                const path = await import('path')
-                const videosDir = path.join(process.cwd(), 'public', 'videos')
-                if (!fs.existsSync(videosDir)) {
-                    fs.mkdirSync(videosDir, { recursive: true })
-                }
-
                 for (let i = 0; i < uploadedVideos.length; i++) {
                     const video = uploadedVideos[i]
                     const videoName = `${Date.now()}_${i}_${video.clientName}`

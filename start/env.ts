@@ -54,7 +54,23 @@ export default await Env.create(new URL('../', import.meta.url), {
   | Variables for internal API authentication
   |----------------------------------------------------------
   */
-  INTERNAL_API_KEY: Env.schema.string()
+  INTERNAL_API_KEY: Env.schema.string(),
+
+  /*
+  |----------------------------------------------------------
+  | Variables for Twitter/X API integration
+  |----------------------------------------------------------
+  */
+  TWITTER_CLIENT_ID: Env.schema.string.optional(),
+  TWITTER_CLIENT_SECRET: Env.schema.string.optional(),
+
+  /*
+  |----------------------------------------------------------
+  | Variables for Threads API integration
+  |----------------------------------------------------------
+  */
+  THREADS_CLIENT_ID: Env.schema.string.optional(),
+  THREADS_CLIENT_SECRET: Env.schema.string.optional(),
 })
 
 

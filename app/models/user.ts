@@ -5,6 +5,8 @@ import { BaseModel, column, hasMany, computed } from '@adonisjs/lucid/orm'
 import { withAuthFinder } from '@adonisjs/auth/mixins/lucid'
 import { DbRememberMeTokensProvider } from '@adonisjs/auth/session'
 import Account from './account.js'
+import TwitterAccount from './twitter_account.js'
+import ThreadsAccount from './threads_account.js'
 import type { HasMany } from '@adonisjs/lucid/types/relations'
 import Scheduling from './scheduling.js'
 import FollowersHistory from './followers_history.js'
@@ -68,6 +70,12 @@ export default class User extends compose(BaseModel, AuthFinder) {
 
   @hasMany(() => Account)
   declare account: HasMany<typeof Account>
+
+  @hasMany(() => TwitterAccount)
+  declare twitterAccounts: HasMany<typeof TwitterAccount>
+
+  @hasMany(() => ThreadsAccount)
+  declare threadsAccounts: HasMany<typeof ThreadsAccount>
 
   @hasMany(() => Scheduling)
   declare scheduling: HasMany<typeof Scheduling>

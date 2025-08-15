@@ -1,14 +1,14 @@
-import Account from "#models/account";
 import Scheduling from "#models/scheduling";
-import type AccountService from "#services/account_service";
+import AccountService from "#services/account_service";
 import StreakService from "#services/streak_service";
+import { AtpAgent } from '@atproto/api'
 import { DateTime } from 'luxon'
 
 interface ScheduleJobPayload {
     schedule_id: number
 }
 
-const handle = async (data: ScheduleJobPayload, account_service: AccountService): Promise<void> => {
+const handle = async (data: ScheduleJobPayload): Promise<void> => {
     try {
         const schedule = await Scheduling.find(data.schedule_id);
 
@@ -16,94 +16,127 @@ const handle = async (data: ScheduleJobPayload, account_service: AccountService)
             throw new Error(`Schedule not found for ID: ${data.schedule_id}`);
         }
 
-        const account = await Account.findOrFail(schedule.account_id)
+        // Load the schedule with platform-specific account relationships
+        await schedule.load('account')
+        await schedule.load('twitterAccount')
 
-        if (!account) {
-            throw new Error(`Account not found for ID: ${schedule.account_id}`);
+        // Determine platform and account based on which foreign key is set
+        let platform: string
+        let account: any
+        let accountHandle: string
+
+        if (schedule.account_id) {
+            platform = 'bluesky'
+            account = schedule.account
+            accountHandle = account?.handle || 'unknown'
+        } else if (schedule.twitterAccountId) {
+            platform = 'twitter'
+            account = schedule.twitterAccount
+            accountHandle = account?.username || 'unknown'
+        } else {
+            throw new Error(`No valid account found for schedule ${schedule.id}`)
         }
 
-        console.log(`[INFO] Processing schedule ${schedule.id} for account ${account.handle}`)
+        if (!account) {
+            throw new Error(`${platform} account not found for schedule ${schedule.id}`)
+        }
 
-        await account_service.createOrResumeSession(account);
-        
-        // Parse images and alt texts from the schedule
+        console.log(`✅ Found scheduling ${schedule.id} for ${platform} account ${accountHandle}`)
+        console.log(`[WORKER] 📤 About to publish post: "${schedule.message.slice(0, 50)}${schedule.message.length > 50 ? '...' : ''}"`)
+
+        // Parse media data
         const images = schedule.images ? (Array.isArray(schedule.images) ? schedule.images : JSON.parse(schedule.images || '[]')) : []
         const altTexts = schedule.altTexts ? (Array.isArray(schedule.altTexts) ? schedule.altTexts : JSON.parse(schedule.altTexts || '[]')) : []
         const contentWarnings = schedule.contentWarnings ? (Array.isArray(schedule.contentWarnings) ? schedule.contentWarnings : JSON.parse(schedule.contentWarnings || '[]')) : []
-        
-        // Parse video data
         const videos = schedule.videos ? (Array.isArray(schedule.videos) ? schedule.videos : JSON.parse(schedule.videos || '[]')) : []
         const videoAltTexts = schedule.videoAltTexts ? (Array.isArray(schedule.videoAltTexts) ? schedule.videoAltTexts : JSON.parse(schedule.videoAltTexts || '[]')) : []
-        
-        console.log(`[DEBUG] Schedule ${schedule.id} raw data:`)
-        console.log(`  - images field:`, schedule.images)
-        console.log(`  - altTexts field:`, schedule.altTexts)
-        console.log(`  - contentWarnings field:`, schedule.contentWarnings)
-        console.log(`  - videos field:`, schedule.videos)
-        console.log(`  - videoAltTexts field:`, schedule.videoAltTexts)
-        console.log(`[DEBUG] Schedule ${schedule.id} parsed data:`)
-        console.log(`  - images:`, images)
-        console.log(`  - altTexts:`, altTexts)
-        console.log(`  - contentWarnings:`, contentWarnings)
-        console.log(`  - videos:`, videos)
-        console.log(`  - videoAltTexts:`, videoAltTexts)
-        
-        console.log(`[INFO] Schedule ${schedule.id} has ${images.length} images, ${videos.length} videos, ${altTexts.length} alt texts and ${contentWarnings.length} content warnings`)
-        
-        // Use the new posting methods for better functionality
-        // Priorité: vidéos > images > texte seul
-        if (videos.length > 0) {
-            console.log(`[INFO] Using postWithVideoPaths for schedule ${schedule.id} with ${videos.length} video(s)`)
+
+        console.log(`[WORKER] 📊 Media summary: ${images.length} images, ${videos.length} videos for ${platform}`)
+
+        // Platform-specific posting logic
+        if (platform === 'bluesky') {
+            // Create AccountService instance for Bluesky posting
+            const agent = new AtpAgent({ service: 'https://bsky.social' })
+            const accountService = new AccountService(agent)
+            await accountService.createOrResumeSession(account);
             
-            // Map content warnings to new format
-            const mappedWarnings = contentWarnings.length > 0 ? contentWarnings.map((warning: string) => {
-                const warningMap: { [key: string]: string } = {
-                    'adult': 'porn',
-                    'suggestive': 'sexual',
-                    'nudity': 'nudity',
-                    'graphic-media': 'graphic-media',
-                    'graphic_media': 'graphic-media',
-                    'sexual': 'sexual',
-                    'gore': 'gore'
-                };
-                return warningMap[warning] || warning;
-            }) : undefined;
+            // Use the new posting methods for better functionality
+            if (videos.length > 0) {
+                console.log(`[WORKER] 🎥 Posting video to Bluesky`)
+                const mappedWarnings = contentWarnings.length > 0 ? contentWarnings.map((warning: string) => {
+                    const warningMap: { [key: string]: string } = {
+                        'adult': 'porn',
+                        'suggestive': 'sexual',
+                        'nudity': 'nudity',
+                        'graphic-media': 'graphic-media',
+                        'graphic_media': 'graphic-media',
+                        'sexual': 'sexual',
+                        'gore': 'gore'
+                    };
+                    return warningMap[warning] || warning;
+                }) : undefined;
+                
+                await accountService.postWithVideoPaths(
+                    account, 
+                    schedule.message, 
+                    videos, 
+                    videoAltTexts, 
+                    mappedWarnings as any
+                );
+            } else if (contentWarnings.length > 0 && images.length > 0) {
+                console.log(`[WORKER] 🖼️ Posting images with content warnings to Bluesky`)
+                const mappedWarnings = contentWarnings.map((warning: string) => {
+                    const warningMap: { [key: string]: string } = {
+                        'adult': 'porn',
+                        'suggestive': 'sexual',
+                        'nudity': 'nudity',
+                        'graphic-media': 'graphic-media',
+                        'graphic_media': 'graphic-media',
+                        'sexual': 'sexual',
+                        'gore': 'gore'
+                    };
+                    return warningMap[warning] || warning;
+                });
+                
+                await accountService.postWithImagePaths(
+                    account, 
+                    schedule.message, 
+                    images, 
+                    altTexts, 
+                    mappedWarnings as any
+                );
+            } else {
+                console.log(`[WORKER] 📝 Posting to Bluesky`)
+                await accountService.post(account, schedule.message, images, altTexts, contentWarnings);
+            }
+        } else if (platform === 'twitter') {
+            console.log(`[WORKER] 🐦 Posting to Twitter`)
             
-            await account_service.postWithVideoPaths(
-                account, 
-                schedule.message, 
-                videos, 
-                videoAltTexts, 
-                mappedWarnings as any
-            );
-        } else if (contentWarnings.length > 0 && images.length > 0) {
-            console.log(`[INFO] Using postWithImagePaths for schedule ${schedule.id} with content warnings`)
-            // Map legacy content warnings to new format
-            const mappedWarnings = contentWarnings.map((warning: string) => {
-                const warningMap: { [key: string]: string } = {
-                    'adult': 'porn',
-                    'suggestive': 'sexual',
-                    'nudity': 'nudity',
-                    'graphic-media': 'graphic-media',
-                    'graphic_media': 'graphic-media',
-                    'sexual': 'sexual',
-                    'gore': 'gore'
-                };
-                return warningMap[warning] || warning;
-            });
-            
-            await account_service.postWithImagePaths(
-                account, 
-                schedule.message, 
-                images, 
-                altTexts, 
-                mappedWarnings as any
-            );
-        } else {
-            console.log(`[INFO] Using legacy post method for schedule ${schedule.id}`)
-            await account_service.post(account, schedule.message, images, altTexts, contentWarnings);
+            try {
+                // Check if account has Twitter credentials
+                if (!account.accessToken) {
+                    throw new Error(`TwitterAccount ${accountHandle} missing access token`)
+                }
+                
+                // Create TwitterService with refresh token support
+                const TwitterService = (await import('#services/twitter_service')).default
+                const twitterService = await TwitterService.forTwitterAccountWithRefresh(account)
+                
+                // Post to Twitter using the createPost method
+                const postId = await twitterService.createPost({
+                    text: schedule.message,
+                    media: [...images, ...videos], // ✅ CORRIGÉ: Inclure les vidéos aussi
+                    altTexts: altTexts.length > 0 ? altTexts : undefined
+                })
+                
+                console.log(`[WORKER] ✅ Successfully posted to Twitter: ${postId}`)
+            } catch (twitterError) {
+                console.error(`[WORKER] ❌ Failed to post to Twitter:`, twitterError)
+                throw twitterError
+            }
         }
-        
+
+        console.log(`[WORKER] ✅ Successfully posted to ${platform}`)
         schedule.status = "posted"
         await schedule.save()
         

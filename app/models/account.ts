@@ -4,6 +4,7 @@ import User from './user.js'
 import Feed from './feed.js'
 import RelationshipHistory from './relationship_history.js'
 import type { AtpSessionData } from '@atproto/api'
+import { DateTime } from 'luxon'
 export default class Account extends BaseModel {
   @column({ isPrimary: true })
   declare id: string
@@ -46,6 +47,52 @@ export default class Account extends BaseModel {
 
   @column()
   declare engagement_rate: string
+
+  // Platform identification
+  @column()
+  declare platform: string
+
+  // Twitter-specific credentials
+  @column()
+  declare twitterAccessToken: string | null
+
+  @column()
+  declare twitterAccessTokenSecret: string | null
+
+  @column()
+  declare twitterUserId: string | null
+
+  @column()
+  declare twitterUsername: string | null
+
+  // Threads-specific credentials
+  @column()
+  declare threadsAccessToken: string | null
+
+  @column()
+  declare threadsUserId: string | null
+
+  @column()
+  declare threadsUsername: string | null
+
+  // Platform-specific settings
+  @column({
+    serialize: (value: string) => value ? JSON.parse(value) : {}
+  })
+  declare platformSettings: string
+
+  // Rate limiting per platform
+  @column()
+  declare twitterRateLimited: boolean
+
+  @column()
+  declare threadsRateLimited: boolean
+
+  @column.dateTime()
+  declare twitterRateLimitReset: DateTime | null
+
+  @column.dateTime()
+  declare threadsRateLimitReset: DateTime | null
 
   @computed()
   get at_session(): AtpSessionData | undefined {

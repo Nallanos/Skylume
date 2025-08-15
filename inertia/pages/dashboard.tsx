@@ -2,9 +2,11 @@ import { Head, usePage } from '@inertiajs/react'
 import Layout from '../components/Layout'
 import AccountCard from '../components/AccountCard'
 import AddAccount from '../components/AddAccount'
+import AddAccountModal from '../components/AddAccountModal'
 import { Plus, Users, BarChart2, Calendar } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
+import { useState } from 'react'
 
 interface Account {
   id: number
@@ -14,6 +16,11 @@ interface Account {
   postsCount: number
   engagementRate?: string
   isRateLimited?: boolean
+  platform: 'bluesky' | 'twitter' | 'threads'
+  username?: string
+  twitterUserId?: string
+  threadsUserId?: string
+  profileImageUrl?: string
 }
 
 interface User {
@@ -29,13 +36,38 @@ interface User {
 
 interface DashboardProps {
   accounts: Account[]
+  twitterAccounts: Account[]
+  threadsAccounts: Account[]
 }
 
-function Dashboard({ accounts }: DashboardProps) {
+function Dashboard({ accounts, twitterAccounts, threadsAccounts }: DashboardProps) {
   const { props } = usePage()
   const user = props.user as User
+  const [isAddAccountModalOpen, setIsAddAccountModalOpen] = useState(false)
 
-  if (accounts.length === 0) {
+  // Combine all accounts
+  const allAccounts = [
+    ...accounts.map(acc => ({ ...acc, platform: 'bluesky' as const })),
+    ...twitterAccounts.map(acc => ({ ...acc, platform: 'twitter' as const })),
+    ...threadsAccounts.map(acc => ({ ...acc, platform: 'threads' as const }))
+  ]
+
+  const handlePlatformSelect = (platform: string) => {
+    // Redirect to appropriate auth endpoint
+    switch (platform) {
+      case 'bluesky':
+        window.location.href = '/add/account'
+        break
+      case 'twitter':
+        window.location.href = '/auth/twitter'
+        break
+      case 'threads':
+        window.location.href = '/auth/threads'
+        break
+    }
+  }
+
+  if (allAccounts.length === 0) {
     return (
       <>
         <Head title="Dashboard" />
@@ -58,7 +90,7 @@ function Dashboard({ accounts }: DashboardProps) {
             Welcome back, <span>{user.email.split('@')[0]}</span>
           </h1>
           <p className="text-muted-foreground">
-            Manage your Bluesky presence and schedule your next posts.
+            Manage your social media presence and schedule your next posts.
           </p>
         </div>
 
@@ -67,14 +99,14 @@ function Dashboard({ accounts }: DashboardProps) {
           <div>
             <h2 className="text-2xl font-bold">Dashboard</h2>
             <p className="text-muted-foreground mt-1">
-              {accounts.length} connected Bluesky account{accounts.length > 1 ? 's' : ''}
+              {allAccounts.length} connected account{allAccounts.length > 1 ? 's' : ''} across {
+                new Set(allAccounts.map(acc => acc.platform)).size
+              } platform{new Set(allAccounts.map(acc => acc.platform)).size > 1 ? 's' : ''}
             </p>
           </div>
-          <Button asChild size="sm" variant="outline">
-            <a href="/add/account">
-              <Plus className="h-4 w-4 mr-2 transition-transform group-hover:rotate-90" />
-              Add Account
-            </a>
+          <Button onClick={() => setIsAddAccountModalOpen(true)} size="sm" variant="outline">
+            <Plus className="h-4 w-4 mr-2 transition-transform group-hover:rotate-90" />
+            Add Account
           </Button>
         </div>
 
@@ -91,8 +123,8 @@ function Dashboard({ accounts }: DashboardProps) {
               </div>
             </CardHeader>
             <CardContent className="relative">
-              <div className="text-2xl font-bold">{accounts.length}</div>
-              <p className="text-xs text-muted-foreground mt-1">Active Bluesky accounts</p>
+              <div className="text-2xl font-bold">{allAccounts.length}</div>
+              <p className="text-xs text-muted-foreground mt-1">Active social accounts</p>
             </CardContent>
           </Card>
 
@@ -145,11 +177,18 @@ function Dashboard({ accounts }: DashboardProps) {
         <div className="mb-8">
           <h2 className="text-lg font-medium mb-4">Your Accounts</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {accounts.map((account) => (
-              <AccountCard key={account.id} account={account} />
+            {allAccounts.map((account) => (
+              <AccountCard key={`${account.platform}-${account.id}`} account={account} />
             ))}
           </div>
         </div>
+
+        {/* Add Account Modal */}
+        <AddAccountModal
+          isOpen={isAddAccountModalOpen}
+          onClose={() => setIsAddAccountModalOpen(false)}
+          onSelectPlatform={handlePlatformSelect}
+        />
       </Layout>
     </>
   )

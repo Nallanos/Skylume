@@ -1,4 +1,4 @@
-import { SchedulingQueueManager } from '../app/bluesky/scheduling_manager.js'
+import { SchedulingQueueManager } from '../app/services/scheduling_manager.js'
 import app from '@adonisjs/core/services/app'
 
 // Démarrer le service de scheduling quand l'application démarre

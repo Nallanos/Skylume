@@ -1,13 +1,12 @@
-import { useState, useMemo, useCallback, memo, useRef, useEffect } from 'react'
+import { useState, useMemo, useRef, useEffect, useCallback, memo } from 'react'
 import { Head, usePage, router } from '@inertiajs/react'
 import Layout from '../components/Layout'
-import StreakDisplay from '../components/StreakDisplay'
-import HashtagGroupSelector from '../components/HashtagGroupSelector'
 import ContentWarningModal from '../components/ContentWarningModal'
-import CustomSelect, { type Option } from '../components/ui/CustomSelect'
+import HashtagGroupSelector from '../components/HashtagGroupSelector'
+import StreakDisplay from '../components/StreakDisplay'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
-import { Plus, Trash, Lock, Edit, User, Settings, FileText, X, Shield, Video, Twitter } from 'lucide-react'
+import { Plus, Trash, Lock, Edit, User, Settings, X, Shield, Video, FileText } from 'lucide-react'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import BlueskyAvatar from '../components/BlueskyAvatar'
@@ -21,8 +20,6 @@ interface Scheduling {
   images?: string[]
   altTexts?: string[]
   contentWarnings?: string[]
-  // Platform-specific account references
-  twitterAccountId?: number
   account?: {
     handle: string
     displayName: string
@@ -45,15 +42,10 @@ interface User {
   account?: Account[]
 }
 
-// Unified account interface for all platforms
 interface Account {
-  id: string | number
+  id: string
   handle: string
   displayName: string
-  platform: 'bluesky' | 'twitter' | 'threads'
-  username?: string // For Twitter (different from handle)
-  profileImageUrl?: string
-  avatar?: string
 }
 
 interface ScheduleProps {
@@ -183,15 +175,14 @@ function Schedule({ schedulings }: ScheduleProps) {
   const [localDateTime, setLocalDateTime] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
 
-    // Add modal state
+  // Add modal state
   const [addMessage, setAddMessage] = useState('')
   const [addDateTime, setAddDateTime] = useState('')
-  const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([])
+  const [addAccountId, setAddAccountId] = useState<string>('')
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('')
   const [selectedDate, setSelectedDate] = useState<string>('')
   const [showSettingsModal, setShowSettingsModal] = useState(false)
   const [tempPostsPerDay, setTempPostsPerDay] = useState<number>(user.postsPerDay || 3)
-  const [currentSelectValue, setCurrentSelectValue] = useState<string>('') // ✅ NOUVEAU: Contrôler la valeur du select
   
   // Media state (images and videos)
   const [selectedImages, setSelectedImages] = useState<File[]>([])
@@ -204,34 +195,6 @@ function Schedule({ schedulings }: ScheduleProps) {
   const [videoValidationError, setVideoValidationError] = useState<string>('')
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  // ✅ NOUVEAU: Détecter si Twitter est sélectionné pour désactiver les médias
-  const isTwitterSelected = useMemo(() => {
-    return selectedAccountIds.some(accountId => accountId.startsWith('twitter:'))
-  }, [selectedAccountIds])
-
-  // ✅ NOUVEAU: Détecter si SEUL Bluesky est sélectionné pour permettre les médias
-  const isOnlyBlueskySelected = useMemo(() => {
-    return selectedAccountIds.length > 0 && selectedAccountIds.every(accountId => accountId.startsWith('bluesky:'))
-  }, [selectedAccountIds])
-
-  // Convert accounts to CustomSelect options with proper platform handling
-  const accountOptions = useMemo((): Option[] => {
-    return accounts.map((account) => {
-      // Create a unique identifier that includes platform info
-      const accountKey = `${account.platform}:${account.id}`
-      
-      // Use appropriate handle/username based on platform
-      const displayHandle = account.platform === 'twitter' 
-        ? account.username || account.handle 
-        : account.handle
-      
-      return {
-        value: accountKey, // Platform-prefixed ID
-        label: account.displayName,
-        sublabel: `@${displayHandle} (${account.platform})`
-      }
-    })
-  }, [accounts])
 
   const isFreeLimitReached = user.plan === 'free' && user.isScheduledLimitReached
 
@@ -258,18 +221,6 @@ function Schedule({ schedulings }: ScheduleProps) {
 
     return groups
   }, [sortedSchedulings])
-
-  // ✅ NOUVEAU: Nettoyer automatiquement les médias quand Twitter est sélectionné
-  useEffect(() => {
-    if (isTwitterSelected && (selectedImages.length > 0 || selectedVideos.length > 0)) {
-      console.log('[SCHEDULE] Twitter selected, clearing media files')
-      setSelectedImages([])
-      setSelectedVideos([])
-      setImageAltTexts([])
-      setVideoAltTexts([])
-      setVideoValidationError('')
-    }
-  }, [isTwitterSelected, selectedImages.length, selectedVideos.length])
 
   
   // Generate time slots based on posts per day - memoized
@@ -335,126 +286,117 @@ function Schedule({ schedulings }: ScheduleProps) {
 
   // Function to insert hashtags into the message
   const insertHashtags = useCallback((hashtags: string[]) => {
-    const hashtagText = hashtags.map((tag) => `#${tag}`).join(' ')
-    setAddMessage((prev) => {
-      const trimmed = prev.trim()
-      return trimmed ? `${trimmed} ${hashtagText}` : hashtagText
-    })
-  }, [])
-
-  // Validation function for videos
-  const validateVideoFile = useCallback(async (file: File): Promise<string | null> => {
-    return new Promise((resolve) => {
-      const video = document.createElement('video')
-      video.preload = 'metadata'
-      
-      video.onloadedmetadata = () => {
-        const duration = video.duration
-        const { videoWidth, videoHeight } = video
-        
-        // Check duration (max 60 seconds)
-        if (duration > 60) {
-          resolve('Video duration must be 60 seconds or less')
-          return
-        }
-        
-        // Check resolution (max 1920x1080)
-        if (videoWidth > 1920 || videoHeight > 1080) {
-          resolve('Video resolution must be 1920x1080 or lower')
-          return
-        }
-        
-        resolve(null) // No error
+    const hashtagsText = hashtags.join(' ')
+    setAddMessage(prev => {
+      // If the message is empty, just add hashtags
+      if (!prev.trim()) {
+        return hashtagsText
       }
-      
-      video.onerror = () => {
-        resolve('Invalid video file')
-      }
-      
-      video.src = URL.createObjectURL(file)
+      // Otherwise, add hashtags at the end with a space
+      return prev + ' ' + hashtagsText
     })
   }, [])
 
   const saveAdd = useCallback(async () => {
-    if (!addMessage.trim() || (!addDateTime && !selectedTimeSlot) || selectedAccountIds.length === 0) return
+    try {
+      if (!addMessage.trim() || !addAccountId) return
+      let finalDateTime = addDateTime
 
-    // Determine the final schedule time
-    let finalDateTime: string
-    if (selectedDate && selectedTimeSlot) {
-      // Parse the time slot (e.g., "9:28 AM")
-      const [time, period] = selectedTimeSlot.split(' ')
-      const [hours, minutes] = time.split(':').map(Number)
-      let adjustedHours = hours
-      
-      if (period === 'PM' && hours !== 12) {
-        adjustedHours += 12
-      } else if (period === 'AM' && hours === 12) {
-        adjustedHours = 0
+  // If a predefined slot is selected, use it
+      if (selectedDate && selectedTimeSlot && !addDateTime) {
+        const date = new Date(selectedDate)
+        const [time, period] = selectedTimeSlot.split(' ')
+        const [hours, minutes] = time.split(':')
+        let hour24 = parseInt(hours)
+
+        if (period === 'PM' && hour24 !== 12) {
+          hour24 += 12
+        } else if (period === 'AM' && hour24 === 12) {
+          hour24 = 0
+        }
+
+        date.setHours(hour24, parseInt(minutes), 0, 0)
+        finalDateTime = date.toISOString().slice(0, 16)
       }
 
-      const scheduleDate = new Date(selectedDate)
-      scheduleDate.setHours(adjustedHours, minutes, 0, 0)
-      finalDateTime = scheduleDate.toISOString()
-    } else {
-      finalDateTime = new Date(addDateTime).toISOString()
-    }
+      if (!finalDateTime) return
 
-    // ✅ NOUVEAU: Envoyer tous les comptes sélectionnés en une seule requête
-    const formData = new FormData()
-    formData.append('message', addMessage)
-    formData.append('schedule_time', finalDateTime)
-    
-    // ✅ Envoyer les IDs de comptes sélectionnés au format JSON
-    formData.append('selected_accounts', JSON.stringify(selectedAccountIds))
+      console.log('Final date time:', finalDateTime)
 
-    // Add images with proper array format
-    selectedImages.forEach((image) => {
-      formData.append('images[]', image)
-    })
+  // Create the date directly in UTC to avoid timezone issues
+      const localDate = new Date(finalDateTime)
+      
+  // Find the handle of the selected account
+      const selectedAccount = accounts.find((acc) => acc.id === addAccountId)
+      console.log('Selected account:', accounts, addAccountId)
+      if (!selectedAccount) return
 
-    // Add image alt texts as JSON string
-    if (imageAltTexts.length > 0) {
-      formData.append('image_alt_texts', JSON.stringify(imageAltTexts))
-    }
+      // Validation: Ne pas permettre images ET vidéos en même temps
+      if (selectedImages.length > 0 && selectedVideos.length > 0) {
+        alert('Cannot upload both images and videos in the same post. Please choose either images OR videos.')
+        return
+      }
 
-    // Add videos with proper array format
-    selectedVideos.forEach((video) => {
-      formData.append('videos[]', video)
-    })
-
-    // Add video alt texts as JSON string
-    if (videoAltTexts.length > 0) {
-      formData.append('video_alt_texts', JSON.stringify(videoAltTexts))
-    }
-
-    // Add content warnings as JSON string
-    if (contentWarnings.length > 0) {
+  // Create FormData to include media
+      const formData = new FormData()
+      formData.append('account_handle', selectedAccount.handle)
+      formData.append('message', addMessage)
+      formData.append('schedule_time', localDate.toISOString())
       formData.append('content_warnings', JSON.stringify(contentWarnings))
-    }
+      
+  // Add images
+      selectedImages.forEach((image) => {
+        formData.append('images', image)
+      })
+      
+      // Add videos
+      selectedVideos.forEach((video) => {
+        formData.append('videos', video)
+      })
 
-    // ✅ Une seule requête pour tous les comptes sélectionnés
-    try {
-      await router.post('/schedule/create', formData)
-      console.log(`Successfully scheduled crosspost for ${selectedAccountIds.length} accounts`)
+      // Add alt texts
+      if (imageAltTexts.length > 0) {
+        formData.append('alt_texts', JSON.stringify(imageAltTexts))
+      }
+      if (videoAltTexts.length > 0) {
+        formData.append('video_alt_texts', JSON.stringify(videoAltTexts))
+      }
+
+      console.log('Scheduling payload with media:', { 
+        account_handle: selectedAccount.handle,
+        message: addMessage,
+        schedule_time: localDate.toISOString(),
+        images_count: selectedImages.length,
+        videos_count: selectedVideos.length,
+        alt_texts: imageAltTexts,
+        video_alt_texts: videoAltTexts,
+        content_warnings: contentWarnings
+      })
+
+  // Debug FormData contents
+      console.log('FormData contents:')
+      for (let [key, value] of formData.entries()) {
+        console.log(key, ':', value)
+      }
+
+  // Use router.post with FormData
+      router.post('/schedule/create', formData, {
+        forceFormData: true
+      })
+      
+      setShowAddModal(false)
+      setAddMessage('')
+      setAddDateTime('')
+      setAddAccountId('')
+      setSelectedDate('')
+      setSelectedTimeSlot('')
+      setContentWarnings([])
+      clearAllMedia()
     } catch (error) {
-      console.error('Failed to schedule crosspost:', error)
-      // The error will be handled by the backend and shown via flash messages
+      console.error('Error saving schedule:', error)
+      return
     }
-
-    // Reset form
-    setAddMessage('')
-    setSelectedAccountIds([])
-    setAddDateTime('')
-    setSelectedTimeSlot('')
-    setSelectedDate('')
-    setSelectedImages([])
-    setSelectedVideos([])
-    setImagePreviews([])
-    setImageAltTexts([])
-    setVideoAltTexts([])
-    setContentWarnings([])
-    setShowAddModal(false)
-  }, [addMessage, selectedAccountIds, addDateTime, selectedDate, selectedTimeSlot, selectedImages, selectedVideos, imageAltTexts, videoAltTexts, contentWarnings, accounts])
+  }, [addMessage, addAccountId, addDateTime, selectedDate, selectedTimeSlot, accounts, selectedImages, selectedVideos, imageAltTexts, videoAltTexts, contentWarnings])
 
   const startEdit = useCallback((schedule: Scheduling) => {
     setEditingSchedule({ ...schedule })
@@ -467,9 +409,9 @@ function Schedule({ schedulings }: ScheduleProps) {
     try {
       await router.put('/schedule/editPostPerDay', { postsPerDay: tempPostsPerDay })
       setShowSettingsModal(false)
-      // Backend redirect handles reload
+  // Backend redirect handles reload
     } catch (error) {
-      console.error('Error saving posts per day:', error)
+  console.error('Error saving posts per day:', error)
     }
   }, [tempPostsPerDay])
 
@@ -482,85 +424,120 @@ function Schedule({ schedulings }: ScheduleProps) {
   // Optimized functions for media handling (images and videos)
   const handleMediaSelect = useCallback(async (files: FileList | null) => {
     if (!files) return
-
-    const imageFiles: File[] = []
-    const videoFiles: File[] = []
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]
-      if (file.type.startsWith('image/')) {
-        imageFiles.push(file)
-      } else if (file.type.startsWith('video/')) {
-        videoFiles.push(file)
+    
+    const newImages = Array.from(files).filter(file => 
+      file.type.startsWith('image/') && file.size <= 10 * 1024 * 1024 // 10MB limit
+    ).slice(0, 4 - selectedImages.length) // Limit to 4 total images
+    
+    const newVideos = Array.from(files).filter(file => 
+      file.type.startsWith('video/') && file.size <= 50 * 1024 * 1024 // 50MB limit
+    ).slice(0, 1 - selectedVideos.length) // Limit to 1 total video
+    
+    // Ne pas permettre images ET vidéos en même temps
+    if (selectedImages.length > 0 && newVideos.length > 0) {
+      alert('Cannot upload both images and videos in the same post. Please choose either images OR videos.')
+      return
+    }
+    if (selectedVideos.length > 0 && newImages.length > 0) {
+      alert('Cannot upload both images and videos in the same post. Please choose either images OR videos.')
+      return
+    }
+    
+    // Handle videos with validation
+    if (newVideos.length > 0) {
+      const videoFile = newVideos[0]
+      
+      // Validate video resolution and duration before adding
+      const validateVideoResolution = (file: File): Promise<{ valid: boolean; error?: string }> => {
+        return new Promise((resolve) => {
+          const video = document.createElement('video')
+          const url = URL.createObjectURL(file)
+          
+          video.onloadedmetadata = () => {
+            const width = video.videoWidth
+            const height = video.videoHeight
+            const duration = video.duration
+            
+            URL.revokeObjectURL(url)
+            
+            // Check resolution (max 1920x1080)
+            if (width > 1920 || height > 1080) {
+              resolve({ 
+                valid: false, 
+                error: `Video resolution too high: ${width}x${height} (max: 1920x1080)` 
+              })
+              return
+            }
+            
+            // Check duration (max 60 seconds)
+            if (duration > 60) {
+              resolve({ 
+                valid: false, 
+                error: `Video too long: ${Math.round(duration)}s (max: 60s)` 
+              })
+              return
+            }
+            
+            resolve({ valid: true })
+          }
+          
+          video.onerror = () => {
+            URL.revokeObjectURL(url)
+            resolve({ 
+              valid: false, 
+              error: 'Unable to read video metadata' 
+            })
+          }
+          
+          video.src = url
+        })
       }
-    }
-
-    // Validate constraints
-    if (selectedImages.length + imageFiles.length > 4) {
-      alert('You can only upload up to 4 images total')
-      return
-    }
-
-    if (selectedVideos.length + videoFiles.length > 1) {
-      alert('You can only upload 1 video')
-      return
-    }
-
-    if ((selectedImages.length > 0 || imageFiles.length > 0) && (selectedVideos.length > 0 || videoFiles.length > 0)) {
-      alert('You cannot mix images and videos in the same post')
-      return
-    }
-
-    // Validate video files
-    for (const videoFile of videoFiles) {
-      const error = await validateVideoFile(videoFile)
-      if (error) {
-        setVideoValidationError(error)
+      
+      const validationResult = await validateVideoResolution(videoFile)
+      
+      if (!validationResult.valid) {
+        setVideoValidationError(validationResult.error || 'Video validation failed')
+        setTimeout(() => setVideoValidationError(''), 5000) // Clear error after 5 seconds
         return
       }
+      
+      // If validation passes, add the video
+      setSelectedVideos(prev => [...prev, videoFile])
+      setVideoAltTexts(prev => [...prev, ''])
     }
-
-    // Clear any previous validation errors
-    setVideoValidationError('')
-
-    // Process image files
-    if (imageFiles.length > 0) {
-      const newPreviews: string[] = []
-      const newAltTexts: string[] = []
-
-      imageFiles.forEach((file) => {
+    
+    // Handle images
+    if (newImages.length > 0) {
+      setSelectedImages(prev => [...prev, ...newImages])
+      setImageAltTexts(prev => [...prev, ...new Array(newImages.length).fill('')])
+      
+      // Create previews
+      newImages.forEach(file => {
         const reader = new FileReader()
         reader.onload = (e) => {
-          newPreviews.push(e.target?.result as string)
-          if (newPreviews.length === imageFiles.length) {
-            setImagePreviews((prev) => [...prev, ...newPreviews])
+          if (e.target?.result) {
+            setImagePreviews(prev => [...prev, e.target!.result as string])
           }
         }
         reader.readAsDataURL(file)
-        newAltTexts.push('')
       })
-
-      setSelectedImages((prev) => [...prev, ...imageFiles])
-      setImageAltTexts((prev) => [...prev, ...newAltTexts])
     }
+  }, [selectedImages.length, selectedVideos.length])
 
-    // Process video files
-    if (videoFiles.length > 0) {
-      const newVideoAltTexts: string[] = videoFiles.map(() => '')
-      setSelectedVideos((prev) => [...prev, ...videoFiles])
-      setVideoAltTexts((prev) => [...prev, ...newVideoAltTexts])
-    }
-  }, [selectedImages.length, selectedVideos.length, validateVideoFile])
+  // Keep backward compatibility with image handling
+  const handleImageSelect = useCallback((files: FileList | null) => {
+    handleMediaSelect(files)
+  }, [handleMediaSelect])
 
   const removeImage = useCallback((index: number) => {
-    setSelectedImages((prev) => prev.filter((_, i) => i !== index))
-    setImagePreviews((prev) => prev.filter((_, i) => i !== index))
-    setImageAltTexts((prev) => prev.filter((_, i) => i !== index))
+    setSelectedImages(prev => prev.filter((_, i) => i !== index))
+    setImagePreviews(prev => prev.filter((_, i) => i !== index))
+    setImageAltTexts(prev => prev.filter((_, i) => i !== index))
   }, [])
 
   const removeVideo = useCallback((index: number) => {
-    setSelectedVideos((prev) => prev.filter((_, i) => i !== index))
-    setVideoAltTexts((prev) => prev.filter((_, i) => i !== index))
+    setSelectedVideos(prev => prev.filter((_, i) => i !== index))
+    setVideoAltTexts(prev => prev.filter((_, i) => i !== index))
   }, [])
 
   const clearImages = useCallback(() => {
@@ -577,10 +554,11 @@ function Schedule({ schedulings }: ScheduleProps) {
   const clearAllMedia = useCallback(() => {
     clearImages()
     clearVideos()
+    setContentWarnings([])
   }, [clearImages, clearVideos])
 
   const updateAltText = useCallback((index: number, altText: string) => {
-    setImageAltTexts((prev) => {
+    setImageAltTexts(prev => {
       const newAltTexts = [...prev]
       newAltTexts[index] = altText
       return newAltTexts
@@ -588,12 +566,13 @@ function Schedule({ schedulings }: ScheduleProps) {
   }, [])
 
   const updateVideoAltText = useCallback((index: number, altText: string) => {
-    setVideoAltTexts((prev) => {
+    setVideoAltTexts(prev => {
       const newAltTexts = [...prev]
       newAltTexts[index] = altText
       return newAltTexts
     })
   }, [])
+
 
   // Auto-clear l'erreur de validation après 5 secondes
   useEffect(() => {
@@ -607,38 +586,29 @@ function Schedule({ schedulings }: ScheduleProps) {
 
   // Handle paste event for images
   useEffect(() => {
-    if (!showAddModal) return
-
-    const handlePaste = async (e: ClipboardEvent) => {
+    const handlePaste = (e: ClipboardEvent) => {
+      if (!showAddModal) return
+      
       const items = e.clipboardData?.items
       if (!items) return
-
-      const imageFiles: File[] = []
+      
       for (let i = 0; i < items.length; i++) {
         const item = items[i]
-        if (item.type.indexOf('image') !== -1) {
+        if (item.type.startsWith('image/')) {
+          e.preventDefault()
           const file = item.getAsFile()
-          if (file) imageFiles.push(file)
+          if (file && selectedImages.length < 4) {
+            const dt = new DataTransfer()
+            dt.items.add(file)
+            handleImageSelect(dt.files)
+          }
         }
-      }
-
-      if (imageFiles.length > 0 && selectedImages.length < 4) {
-        const fileList = new DataTransfer()
-        imageFiles.forEach((file) => fileList.items.add(file))
-        await handleMediaSelect(fileList.files)
       }
     }
 
     document.addEventListener('paste', handlePaste)
     return () => document.removeEventListener('paste', handlePaste)
-  }, [showAddModal, selectedImages.length, handleMediaSelect])
-
-  // ✅ NOUVEAU: Reset select value when all accounts are cleared
-  useEffect(() => {
-    if (selectedAccountIds.length === 0) {
-      setCurrentSelectValue('')
-    }
-  }, [selectedAccountIds])
+  }, [showAddModal, selectedImages.length])
 
   return (
     <>
@@ -824,116 +794,33 @@ function Schedule({ schedulings }: ScheduleProps) {
             </div>
           )}
 
-          {/* Add Schedule Modal - Using original beautiful design */}
+          {/* Add Schedule Modal */}
           {showAddModal && (
             <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-              <Card className="w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+              <Card className="w-full max-w-lg mx-4">
                 <CardHeader>
                   <CardTitle>Schedule New Post</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div>
-                    <Label className="text-sm font-medium">
-                      Accounts ({selectedAccountIds.length} selected)
+                    <Label htmlFor="addAccount" className="text-sm font-medium">
+                      Account
                     </Label>
-                    <div className="mt-2 space-y-2">
-                      {/* Show selected accounts */}
-                      {selectedAccountIds.length > 0 && (
-                        <div className="flex flex-wrap gap-2 p-2 bg-blue-50 dark:bg-blue-950/20 rounded-md border border-blue-200 dark:border-blue-800">
-                          {selectedAccountIds.map((accountId) => {
-                            // ✅ NOUVEAU: Parser l'ID avec format platform:id
-                            const [platform, id] = accountId.split(':')
-                            const account = accounts.find(acc => 
-                              acc.platform === platform && acc.id.toString() === id
-                            )
-                            if (!account) return null
-                            
-                            // Utiliser le bon handle selon la plateforme
-                            const displayHandle = account.platform === 'twitter' 
-                              ? account.username || account.handle 
-                              : account.handle
-                            
-                            return (
-                              <div
-                                key={accountId}
-                                className="flex items-center gap-2 bg-white dark:bg-gray-800 px-3 py-2 rounded-full border border-blue-300 dark:border-blue-600 text-sm"
-                              >
-                                {/* ✅ NOUVEAU: Icône de plateforme */}
-                                {account.platform === 'twitter' ? (
-                                  <Twitter className="h-4 w-4 text-blue-400" />
-                                ) : (
-                                  <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
-                                    <span className="text-white text-xs font-bold">B</span>
-                                  </div>
-                                )}
-                                
-                                <div className="flex flex-col">
-                                  <span className="font-medium text-gray-900 dark:text-gray-100">
-                                    {account.displayName}
-                                  </span>
-                                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                                    @{displayHandle}
-                                  </span>
-                                </div>
-                                
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedAccountIds(prev => prev.filter(id => id !== accountId))
-                                  }}
-                                  className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 ml-2"
-                                >
-                                  <X className="h-4 w-4" />
-                                </button>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
-                      
-                      {/* Account selector */}
-                      <CustomSelect
-                        value={currentSelectValue}
-                        onChange={(accountId) => {
-                          if (accountId && !selectedAccountIds.includes(accountId)) {
-                            setSelectedAccountIds(prev => [...prev, accountId])
-                            setCurrentSelectValue('') // ✅ NOUVEAU: Remettre à vide après sélection
-                          }
-                        }}
-                        options={accountOptions.filter(option => !selectedAccountIds.includes(option.value))}
-                        placeholder={selectedAccountIds.length === 0 ? "Choose accounts" : "Add another account"}
-                        className="w-full"
-                      />
-                      
-                      {/* Quick actions */}
-                      {accounts.length > 1 && (
-                        <div className="flex gap-2">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSelectedAccountIds(accounts.map(acc => acc.id.toString()))}
-                            className="text-xs h-6 px-2"
-                            disabled={selectedAccountIds.length === accounts.length}
-                          >
-                            Select All
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSelectedAccountIds([])}
-                            className="text-xs h-6 px-2"
-                            disabled={selectedAccountIds.length === 0}
-                          >
-                            Clear All
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                    {selectedAccountIds.length === 0 && (
-                      <p className="text-xs text-red-500 mt-1">Please select at least one account</p>
-                    )}
+                    <select
+                      id="addAccount"
+                      className="w-full p-2 border border-gray-300 dark:border-gray-700 rounded-md bg-white dark:bg-gray-900 text-black dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                      value={addAccountId}
+                      onChange={(e) => setAddAccountId(e.target.value)}
+                    >
+                      <option value="" disabled>
+                        Choose an account
+                      </option>
+                      {accounts.map((account) => (
+                        <option key={account.id} value={account.id.toString()}>
+                          {account.displayName} (@{account.handle})
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   <div>
@@ -948,7 +835,7 @@ function Schedule({ schedulings }: ScheduleProps) {
                       placeholder="What's on your mind?"
                     />
                     
-                    {/* Hashtag Selector */}
+                    {/* Hashtag Group Selector */}
                     <div className="mt-2">
                       <HashtagGroupSelector 
                         onInsert={insertHashtags}
@@ -961,44 +848,18 @@ function Schedule({ schedulings }: ScheduleProps) {
                   <div>
                     <Label className="text-sm font-medium">Media</Label>
                     <div className="mt-1 space-y-3">
-                      {/* ✅ NOUVEAU: Avertissement si Twitter est sélectionné */}
-                      {isTwitterSelected && (
-                        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-600 text-amber-800 dark:text-amber-300 px-4 py-3 rounded-lg">
-                          <div className="flex items-center gap-2">
-                            <Twitter className="h-4 w-4" />
-                            <div>
-                              <p className="font-medium text-sm">Media upload disabled for Twitter</p>
-                              <p className="text-xs mt-1">
-                                Due to Twitter API limitations, media uploads are not supported. 
-                                Select only Bluesky accounts to enable media uploads.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Media Upload Button */}
+                      {/* Upload Button */}
                       <div className="flex items-center gap-2">
                         <Button
                           type="button"
                           variant="outline"
                           size="sm"
                           onClick={() => fileInputRef.current?.click()}
-                          disabled={
-                            isTwitterSelected || 
-                            selectedImages.length >= 4 || 
-                            selectedVideos.length >= 1 ||
-                            selectedAccountIds.length === 0
-                          }
-                          className={`flex items-center gap-2 ${
-                            isTwitterSelected ? 'opacity-50 cursor-not-allowed' : ''
-                          }`}
+                          disabled={selectedImages.length >= 4 || selectedVideos.length >= 1}
+                          className="flex items-center gap-2"
                         >
                           <FileText className="h-4 w-4" />
-                          {isTwitterSelected 
-                            ? 'Media Disabled (Twitter selected)' 
-                            : `Add Media (${selectedImages.length + selectedVideos.length}/${selectedImages.length > 0 ? '4' : '1'})`
-                          }
+                          Add Media ({selectedImages.length + selectedVideos.length}/{selectedImages.length > 0 ? '4' : '1'})
                         </Button>
                         <input
                           ref={fileInputRef}
@@ -1007,7 +868,6 @@ function Schedule({ schedulings }: ScheduleProps) {
                           accept="image/*,video/*"
                           className="hidden"
                           onChange={(e) => handleMediaSelect(e.target.files)}
-                          disabled={isTwitterSelected}
                         />
                         {(selectedImages.length > 0 || selectedVideos.length > 0) && (
                           <Button
@@ -1022,17 +882,14 @@ function Schedule({ schedulings }: ScheduleProps) {
                         )}
                       </div>
 
-                      {/* Media Instructions */}
+                      {/* Hint */}
                       <p className="text-xs text-muted-foreground">
-                        {isTwitterSelected 
-                          ? '⚠️ Media uploads are disabled when Twitter accounts are selected'
-                          : '💡 Upload up to 4 images OR 1 video (max 10MB for images, 50MB for videos)'
-                        }
+                        💡 Upload up to 4 images OR 1 video (max 10MB for images, 50MB for videos)
                       </p>
 
                       {/* Video Validation Error */}
                       {videoValidationError && (
-                        <div className="bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-300 px-4 py-3 rounded relative">
+                        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative">
                           <div className="flex items-center gap-2">
                             <strong className="font-bold">Video Error:</strong>
                             <span className="block sm:inline">{videoValidationError}</span>
@@ -1132,7 +989,7 @@ function Schedule({ schedulings }: ScheduleProps) {
                         </div>
                       )}
 
-                      {/* Content Warnings */}
+                      {/* Content Warnings for media */}
                       {(selectedImages.length > 0 || selectedVideos.length > 0) && (
                         <div className="space-y-3 pt-4 border-t border-gray-200 dark:border-gray-700">
                           <div className="flex items-center justify-between">
@@ -1211,7 +1068,7 @@ function Schedule({ schedulings }: ScheduleProps) {
                       onClick={saveAdd}
                       className="flex-1 bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-300 disabled:text-white transition-colors"
                       disabled={
-                        !addMessage.trim() || (!addDateTime && !selectedTimeSlot) || selectedAccountIds.length === 0
+                        !addMessage.trim() || (!addDateTime && !selectedTimeSlot) || !addAccountId
                       }
                     >
                       Schedule Post
@@ -1221,17 +1078,11 @@ function Schedule({ schedulings }: ScheduleProps) {
                       onClick={() => {
                         setShowAddModal(false)
                         setAddMessage('')
-                        setSelectedAccountIds([])
                         setAddDateTime('')
-                        setSelectedTimeSlot('')
+                        setAddAccountId('')
                         setSelectedDate('')
-                        setSelectedImages([])
-                        setSelectedVideos([])
-                        setImagePreviews([])
-                        setImageAltTexts([])
-                        setVideoAltTexts([])
-                        setContentWarnings([])
-                        setVideoValidationError('')
+                        setSelectedTimeSlot('')
+                        clearAllMedia()
                       }}
                       className="flex-1"
                     >

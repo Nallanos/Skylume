@@ -50,8 +50,8 @@ function AddAICampaign() {
     keywords: [] as string[],
     excludeKeywords: [] as string[],
     targetCount: 50,
-    interestedThreshold: 0.7,
-    moderatelyInterestedThreshold: 0.5
+    interestedThreshold: 0.49,
+    moderatelyInterestedThreshold: 0.35
   })
 
   const handleAddKeyword = () => {
@@ -407,11 +407,11 @@ function AddAICampaign() {
                       max="1"
                       step="0.01"
                       value={data.interestedThreshold}
-                      onChange={(e) => setData('interestedThreshold', parseFloat(e.target.value) || 0.7)}
+                      onChange={(e) => setData('interestedThreshold', parseFloat(e.target.value) || 0.49)}
                       className="mt-1"
                     />
                     <p className="text-xs text-muted-foreground mt-1">
-                      Default: 0.70 - Higher values require stronger keyword match
+                      Default: 0.49 (49% similarity) - Higher values require stronger keyword match
                     </p>
                   </div>
                   
@@ -426,11 +426,11 @@ function AddAICampaign() {
                       max="1"
                       step="0.01"
                       value={data.moderatelyInterestedThreshold}
-                      onChange={(e) => setData('moderatelyInterestedThreshold', parseFloat(e.target.value) || 0.5)}
+                      onChange={(e) => setData('moderatelyInterestedThreshold', parseFloat(e.target.value) || 0.35)}
                       className="mt-1"
                     />
                     <p className="text-xs text-muted-foreground mt-1">
-                      Default: 0.50 - Minimum similarity for potential interest
+                      Default: 0.35 (35% similarity) - Minimum similarity for potential interest
                     </p>
                   </div>
                 </div>

@@ -14,7 +14,7 @@ export default class QueueWorker extends BaseCommand {
 
     try {
       // Utiliser SchedulingQueueManager au lieu de SchedulingService
-      const { SchedulingQueueManager } = await import('../app/bluesky/scheduling_manager.js')
+      const { SchedulingQueueManager } = await import('../app/services/scheduling_manager.js')
       
       // Créer une instance et démarrer la queue
       const { container } = await import('@adonisjs/core')
