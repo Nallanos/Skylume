@@ -287,14 +287,16 @@ function Schedule({ schedulings }: ScheduleProps) {
     const days = []
     const today = new Date()
 
-    for (let i = 1; i <= 7; i++) {
-      // Next 7 days
+    for (let i = 0; i <= 7; i++) {
+      // Today + Next 7 days (8 days total)
       const date = new Date(today)
       date.setDate(today.getDate() + i)
 
       const dateKey = date.toISOString().split('T')[0]
       const dayName =
-        i === 1
+        i === 0
+          ? 'Today'
+          : i === 1
           ? 'Tomorrow'
           : date.toLocaleDateString('en-US', {
               weekday: 'long',

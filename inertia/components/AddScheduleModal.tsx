@@ -30,7 +30,7 @@ interface Account {
   id: string
   handle: string
   displayName: string
-  platform?: 'bluesky' | 'twitter' // Optional platform
+  platform: 'bluesky' | 'twitter' // Required platform property
   username?: string
   profileImageUrl?: string
 }
@@ -347,18 +347,31 @@ export default function AddScheduleModal({ isOpen, onClose, user, accounts }: Ad
 
       // Use POST with FormData to handle file uploads
       const formData = new FormData()
-      formData.append('account_handles', selectedAccounts.join(',')) // Multiple accounts
+      
+      // ✅ FIX: Use the same format as schedule.tsx for account selection
+      // Convert account IDs to the platform:id format expected by backend
+      const accountIds = selectedAccounts.map(accountId => {
+        // Find the account to determine its platform
+        const account = accounts.find(acc => acc.id.toString() === accountId)
+        if (account) {
+          return `${account.platform}:${account.id}`
+        }
+        // Fallback: assume bluesky if platform not found
+        return `bluesky:${accountId}`
+      })
+      
+      formData.append('selected_accounts', JSON.stringify(accountIds))
       formData.append('message', message.trim())
       formData.append('schedule_time', scheduleDateTime.toISOString())
       
-      // Append images
-      selectedImages.forEach((image, index) => {
-        formData.append(`images[${index}]`, image)
+      // Append images with proper array format
+      selectedImages.forEach((image) => {
+        formData.append('images[]', image)
       })
 
-      // Append videos
-      selectedVideos.forEach((video, index) => {
-        formData.append(`videos[${index}]`, video)
+      // Append videos with proper array format
+      selectedVideos.forEach((video) => {
+        formData.append('videos[]', video)
       })
 
       // Append image alt texts

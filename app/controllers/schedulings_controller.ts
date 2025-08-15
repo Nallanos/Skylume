@@ -317,10 +317,17 @@ export default class SchedulingsController {
     }
 
     public async editPost({ request, response, session }: HttpContext) {
-        const { id, message, schedule_time } = request.all()
+        // ✅ FIX: Use scheduleId instead of id to match frontend payload
+        const { scheduleId, message, schedule_time } = request.all()
+
+        if (!scheduleId) {
+            console.log('[DEBUG] No schedule ID provided for edit')
+            session.flash('error', 'Schedule ID is required')
+            return response.redirect('/schedule')
+        }
 
         try {
-            const scheduling = await Scheduling.findOrFail(id)
+            const scheduling = await Scheduling.findOrFail(scheduleId)
             scheduling.message = message
             scheduling.scheduleTime = DateTime.fromISO(schedule_time)
             await scheduling.save()
@@ -340,8 +347,15 @@ export default class SchedulingsController {
             return response.redirect('/dashboard')
         }
 
-        const { id: scheduleId } = request.params()
+        // ✅ FIX: Read scheduleId from request body instead of params
+        const { scheduleId } = request.all()
         console.log('[DEBUG] deletePost called with ID:', scheduleId)
+
+        if (!scheduleId) {
+            console.log('[DEBUG] No schedule ID provided')
+            session.flash('error', 'Schedule ID is required')
+            return response.redirect('/schedule')
+        }
 
         try {
             const scheduling = await Scheduling.query()
