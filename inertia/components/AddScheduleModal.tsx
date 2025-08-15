@@ -30,7 +30,7 @@ interface Account {
   id: string
   handle: string
   displayName: string
-  platform?: 'bluesky' | 'twitter' | 'threads' // Optional platform
+  platform?: 'bluesky' | 'twitter' // Optional platform
   username?: string
   profileImageUrl?: string
 }

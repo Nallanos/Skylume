@@ -50,7 +50,7 @@ interface Account {
   id: string | number
   handle: string
   displayName: string
-  platform: 'bluesky' | 'twitter' | 'threads'
+  platform: 'bluesky' | 'twitter'
   username?: string // For Twitter (different from handle)
   profileImageUrl?: string
   avatar?: string

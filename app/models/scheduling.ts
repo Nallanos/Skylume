@@ -1,7 +1,6 @@
 import { BaseModel, belongsTo, column } from '@adonisjs/lucid/orm'
 import Account from './account.js'
 import TwitterAccount from './twitter_account.js'
-import ThreadsAccount from './threads_account.js'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 import User from './user.js'
 import { DateTime } from 'luxon'
@@ -15,9 +14,6 @@ export default class Scheduling extends BaseModel {
 
   @column({ columnName: 'twitter_account_id' })
   declare twitterAccountId: number | null
-
-  @column({ columnName: 'threads_account_id' })
-  declare threadsAccountId: number | null
 
   @column()
   declare message: string
@@ -205,19 +201,6 @@ export default class Scheduling extends BaseModel {
       }
     }
   })
-  declare threadsSettings: string
-
-  @column({ 
-    prepare: (value: any) => JSON.stringify(value),
-    consume: (value: string) => {
-      if (!value) return {}
-      try {
-        return JSON.parse(value)
-      } catch {
-        return {}
-      }
-    }
-  })
   declare platformStatuses: string
 
   @column({ 
@@ -257,9 +240,6 @@ export default class Scheduling extends BaseModel {
 
   @belongsTo(() => TwitterAccount, { foreignKey: 'twitterAccountId' })
   declare twitterAccount: BelongsTo<typeof TwitterAccount>
-
-  @belongsTo(() => ThreadsAccount, { foreignKey: 'threadsAccountId' })
-  declare threadsAccount: BelongsTo<typeof ThreadsAccount>
 
   @belongsTo(() => User, { foreignKey: 'userId' })
   declare user: BelongsTo<typeof User>

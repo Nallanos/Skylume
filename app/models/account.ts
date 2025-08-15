@@ -65,16 +65,6 @@ export default class Account extends BaseModel {
   @column()
   declare twitterUsername: string | null
 
-  // Threads-specific credentials
-  @column()
-  declare threadsAccessToken: string | null
-
-  @column()
-  declare threadsUserId: string | null
-
-  @column()
-  declare threadsUsername: string | null
-
   // Platform-specific settings
   @column({
     serialize: (value: string) => value ? JSON.parse(value) : {}
@@ -85,14 +75,8 @@ export default class Account extends BaseModel {
   @column()
   declare twitterRateLimited: boolean
 
-  @column()
-  declare threadsRateLimited: boolean
-
   @column.dateTime()
   declare twitterRateLimitReset: DateTime | null
-
-  @column.dateTime()
-  declare threadsRateLimitReset: DateTime | null
 
   @computed()
   get at_session(): AtpSessionData | undefined {

@@ -16,10 +16,9 @@ interface Account {
   postsCount: number
   engagementRate?: string
   isRateLimited?: boolean
-  platform: 'bluesky' | 'twitter' | 'threads'
+  platform: 'bluesky' | 'twitter'
   username?: string
   twitterUserId?: string
-  threadsUserId?: string
   profileImageUrl?: string
 }
 
@@ -37,10 +36,9 @@ interface User {
 interface DashboardProps {
   accounts: Account[]
   twitterAccounts: Account[]
-  threadsAccounts: Account[]
 }
 
-function Dashboard({ accounts, twitterAccounts, threadsAccounts }: DashboardProps) {
+function Dashboard({ accounts, twitterAccounts }: DashboardProps) {
   const { props } = usePage()
   const user = props.user as User
   const [isAddAccountModalOpen, setIsAddAccountModalOpen] = useState(false)
@@ -48,8 +46,7 @@ function Dashboard({ accounts, twitterAccounts, threadsAccounts }: DashboardProp
   // Combine all accounts
   const allAccounts = [
     ...accounts.map(acc => ({ ...acc, platform: 'bluesky' as const })),
-    ...twitterAccounts.map(acc => ({ ...acc, platform: 'twitter' as const })),
-    ...threadsAccounts.map(acc => ({ ...acc, platform: 'threads' as const }))
+    ...twitterAccounts.map(acc => ({ ...acc, platform: 'twitter' as const }))
   ]
 
   const handlePlatformSelect = (platform: string) => {
@@ -60,9 +57,6 @@ function Dashboard({ accounts, twitterAccounts, threadsAccounts }: DashboardProp
         break
       case 'twitter':
         window.location.href = '/auth/twitter'
-        break
-      case 'threads':
-        window.location.href = '/auth/threads'
         break
     }
   }

@@ -2,7 +2,6 @@ import Scheduling from '#models/scheduling'
 import Account from '#models/account'
 import AccountManager from '#services/account_manager'
 import TwitterService from '#services/twitter_service'
-import ThreadsService from '#services/threads_service'
 import { inject } from '@adonisjs/core'
 
 export interface PostResult {
@@ -51,9 +50,6 @@ export default class CrosspostManager {
             break
           case 'twitter':
             result = await this.postToTwitter(scheduling, account)
-            break
-          case 'threads':
-            result = await this.postToThreads(scheduling, account)
             break
           default:
             result = {
@@ -173,37 +169,6 @@ export default class CrosspostManager {
   }
 
   /**
-   * Post to Threads
-   */
-  private async postToThreads(scheduling: Scheduling, account: Account): Promise<PostResult> {
-    try {
-      const threadsService = new ThreadsService(account)
-      
-      const options = {
-        text: scheduling.message,
-        media: scheduling.hasImages() ? JSON.parse(scheduling.images) : [],
-        altTexts: Array.isArray(scheduling.altTexts) ? scheduling.altTexts : JSON.parse(scheduling.altTexts || '[]')
-      }
-
-      const postId = await threadsService.createPost(options)
-      await threadsService.updateAccountRateLimit(account)
-
-      return {
-        platform: 'threads',
-        success: true,
-        postId
-      }
-    } catch (error) {
-      await new ThreadsService().updateAccountRateLimit(account, error)
-      return {
-        platform: 'threads',
-        success: false,
-        error: error instanceof Error ? error.message : 'Unknown error'
-      }
-    }
-  }
-
-  /**
    * Validate crosspost configuration
    */
   public validateCrosspostConfiguration(scheduling: Scheduling, account: Account): string[] {
@@ -221,15 +186,6 @@ export default class CrosspostManager {
           }
           break
         
-        case 'threads':
-          if (!account.threadsAccessToken) {
-            errors.push(`Threads account not connected for ${account.handle}`)
-          }
-          if (account.threadsRateLimited) {
-            errors.push(`Threads account is rate limited for ${account.handle}`)
-          }
-          break
-        
         case 'bluesky':
           if (!account.appPassword && !account.session) {
             errors.push(`Bluesky account not properly configured for ${account.handle}`)
@@ -244,10 +200,6 @@ export default class CrosspostManager {
     // Check character limits for different platforms
     if (platforms.includes('twitter') && scheduling.message.length > 280) {
       errors.push('Message exceeds Twitter character limit (280)')
-    }
-    
-    if (platforms.includes('threads') && scheduling.message.length > 500) {
-      errors.push('Message exceeds Threads character limit (500)')
     }
 
     // Check media limits

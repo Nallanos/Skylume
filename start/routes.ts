@@ -63,7 +63,6 @@ const session_controller = () => import('#controllers/session_controller')
 const account_controller = () => import('#controllers/account_controller')
 const oauth_metadata_controller = () => import('#controllers/oauth_metadata_controller')
 const twitter_auth_controller = () => import('#controllers/twitter_auth_controller')
-const threads_auth_controller = () => import('#controllers/threads_auth_controller')
 const stripe_controller = () => import('#controllers/stripes_controller')
 const feed_controller = () => import('#controllers/feeds_controller')
 const analytics_controller = () => import('#controllers/analytics_controller')
@@ -186,12 +185,6 @@ router.get('/dashboard', async ({ auth, inertia }) => {
       .where('user_id', user.id)
       .orderBy('followers_count', 'desc')
 
-    // Get Threads accounts
-    const { default: ThreadsAccount } = await import('#models/threads_account')
-    const threadsAccounts = await ThreadsAccount.query()
-      .where('user_id', user.id)
-      .orderBy('followers_count', 'desc')
-
     // Get scheduling count for the user
     const { default: Scheduling } = await import('#models/scheduling')
     const schedulings = await Scheduling.query().where('userId', user.id).where('status', 'pending')
@@ -205,10 +198,6 @@ router.get('/dashboard', async ({ auth, inertia }) => {
         ...acc.toJSON(),
         platform: 'twitter'
       })),
-      threadsAccounts: threadsAccounts.map(acc => ({
-        ...acc.toJSON(),
-        platform: 'threads'
-      })),
       user: {
         ...user.toJSON(),
         scheduledCount: scheduledCount,
@@ -218,7 +207,7 @@ router.get('/dashboard', async ({ auth, inertia }) => {
   } else {
     // User not authenticated, show AddAccount component
     console.log('User not authenticated, showing AddAccount component')
-    return inertia.render('dashboard', { accounts: [], twitterAccounts: [], threadsAccounts: [] })
+    return inertia.render('dashboard', { accounts: [], twitterAccounts: [] })
   }
 })
 
@@ -657,7 +646,7 @@ router
 | CROSSPOSTING AUTHENTICATION ROUTES
 |--------------------------------------------------------------------------
 | Routes for connecting and managing crossposting accounts
-| Includes: Twitter OAuth, Threads OAuth, disconnect functionality
+| Includes: Twitter OAuth, disconnect functionality
 |
 */
 
@@ -670,17 +659,6 @@ router
 
 router
   .post('/auth/twitter/disconnect/:id', [twitter_auth_controller, 'disconnect'])
-  .use(middleware.auth())
-
-router
-  .get('/auth/threads', [threads_auth_controller, 'initiateAuth'])
-  .use(middleware.auth())
-
-router
-  .get('/auth/threads/callback', [threads_auth_controller, 'callback'])
-
-router
-  .post('/auth/threads/disconnect/:id', [threads_auth_controller, 'disconnect'])
   .use(middleware.auth())
 
 /*
@@ -793,23 +771,4 @@ router
   })
   .use(middleware.auth())
 
-/*
-|--------------------------------------------------------------------------
-| THREADS API ROUTES
-|--------------------------------------------------------------------------
-| Routes for Threads posting functionality
-|
-*/
 
-const ThreadsPostController = () => import('#controllers/threads_post_controller')
-
-// Threads posting routes
-router
-  .group(() => {
-    router.post('/text', [ThreadsPostController, 'createTextPost'])
-    router.post('/image', [ThreadsPostController, 'createImagePost'])
-    router.post('/carousel', [ThreadsPostController, 'createCarouselPost'])
-    router.get('/limits/:accountId', [ThreadsPostController, 'getPostingLimits'])
-  })
-  .prefix('/api/threads/posts')
-  .use(middleware.auth())
