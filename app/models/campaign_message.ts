@@ -34,6 +34,9 @@ export default class CampaignMessage extends BaseModel {
   @column()
   declare priorityOrder: number
 
+  @column()
+  declare facets: string | null
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

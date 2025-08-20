@@ -25,6 +25,7 @@ import {
   Upload,
   Video,
 } from 'lucide-react'
+import LinkManager from './LinkManager'
 
 interface Account {
   id: string
@@ -76,7 +77,19 @@ export default function AddScheduleModal({ isOpen, onClose, user, accounts }: Ad
   const [videoAltTexts, setVideoAltTexts] = useState<string[]>([])
   const [videoValidationError, setVideoValidationError] = useState<string>('')
 
+  // ✅ NOUVEAU: État pour les liens explicites rich text
+  const [explicitLinks, setExplicitLinks] = useState<{text: string, url: string}[]>([])
+  const [showLinkModal, setShowLinkModal] = useState(false)
+  const [selectedText, setSelectedText] = useState('')
+  const [linkUrl, setLinkUrl] = useState('')
+
   const isFreeLimitReached = user.plan === 'free' && user.isScheduledLimitReached
+
+  // ✅ NOUVEAU: Détecter si seulement Bluesky est sélectionné pour permettre rich text
+  const isOnlyBlueskySelected = selectedAccounts.length > 0 && selectedAccounts.every(accountId => {
+    const account = accounts.find(acc => acc.id.toString() === accountId)
+    return account?.platform === 'bluesky'
+  })
 
   // Logique de hauteur optimisée
   const getModalHeight = () => {
@@ -363,6 +376,9 @@ export default function AddScheduleModal({ isOpen, onClose, user, accounts }: Ad
       formData.append('selected_accounts', JSON.stringify(accountIds))
       formData.append('message', message.trim())
       formData.append('schedule_time', scheduleDateTime.toISOString())
+      
+      // ✅ NOUVEAU: Ajouter les liens explicites pour rich text
+      formData.append('explicit_links', JSON.stringify(explicitLinks))
       
       // Append images with proper array format
       selectedImages.forEach((image) => {
@@ -759,6 +775,17 @@ export default function AddScheduleModal({ isOpen, onClose, user, accounts }: Ad
                     </button>
                   )}
                 </div>
+
+                {/* ✅ NOUVEAU: Rich Text Links Manager - Seulement pour Bluesky */}
+                {isOnlyBlueskySelected && (
+                  <div className="space-y-2">
+                    <LinkManager
+                      links={explicitLinks}
+                      onLinksChange={setExplicitLinks}
+                      disabled={isFreeLimitReached}
+                    />
+                  </div>
+                )}
 
                 {/* Date and Time - Compact */}
                 <div className="grid grid-cols-2 gap-3">

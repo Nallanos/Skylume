@@ -100,6 +100,19 @@ export default class Scheduling extends BaseModel {
   declare videoAltTexts: string
 
   @column({ 
+    prepare: (value: any) => JSON.stringify(value),
+    consume: (value: string) => {
+      if (!value) return []
+      try {
+        return JSON.parse(value)
+      } catch {
+        return []
+      }
+    }
+  })
+  declare facets: string
+
+  @column({ 
     columnName: 'video_thumbnails',
     prepare: (value: any) => JSON.stringify(value),
     consume: (value: string) => {

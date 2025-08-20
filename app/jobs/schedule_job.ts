@@ -50,8 +50,11 @@ const handle = async (data: ScheduleJobPayload): Promise<void> => {
         const contentWarnings = schedule.contentWarnings ? (Array.isArray(schedule.contentWarnings) ? schedule.contentWarnings : JSON.parse(schedule.contentWarnings || '[]')) : []
         const videos = schedule.videos ? (Array.isArray(schedule.videos) ? schedule.videos : JSON.parse(schedule.videos || '[]')) : []
         const videoAltTexts = schedule.videoAltTexts ? (Array.isArray(schedule.videoAltTexts) ? schedule.videoAltTexts : JSON.parse(schedule.videoAltTexts || '[]')) : []
+        
+        // ✅ NOUVEAU: Parse rich text facets
+        const facets = schedule.facets ? (Array.isArray(schedule.facets) ? schedule.facets : JSON.parse(schedule.facets || '[]')) : []
 
-        console.log(`[WORKER] 📊 Media summary: ${images.length} images, ${videos.length} videos for ${platform}`)
+        console.log(`[WORKER] 📊 Media summary: ${images.length} images, ${videos.length} videos, ${facets.length} facets for ${platform}`)
 
         // Platform-specific posting logic
         if (platform === 'bluesky') {
@@ -60,9 +63,20 @@ const handle = async (data: ScheduleJobPayload): Promise<void> => {
             const accountService = new AccountService(agent)
             await accountService.createOrResumeSession(account);
             
+            // ✅ NOUVEAU: Préparer les données de post avec facets
+            const postData: any = {
+                text: schedule.message
+            }
+            
+            // Ajouter les facets rich text si présents
+            if (facets.length > 0) {
+                postData.facets = facets
+                console.log(`[WORKER] 🎨 Adding ${facets.length} rich text facets to Bluesky post`)
+            }
+            
             // Use the new posting methods for better functionality
             if (videos.length > 0) {
-                console.log(`[WORKER] 🎥 Posting video to Bluesky`)
+                console.log(`[WORKER] 🎥 Posting video to Bluesky with rich text`)
                 const mappedWarnings = contentWarnings.length > 0 ? contentWarnings.map((warning: string) => {
                     const warningMap: { [key: string]: string } = {
                         'adult': 'porn',
@@ -76,15 +90,17 @@ const handle = async (data: ScheduleJobPayload): Promise<void> => {
                     return warningMap[warning] || warning;
                 }) : undefined;
                 
+                // ✅ MODIFIÉ: Utiliser postWithVideoPaths avec facets
                 await accountService.postWithVideoPaths(
                     account, 
                     schedule.message, 
                     videos, 
                     videoAltTexts, 
-                    mappedWarnings as any
+                    mappedWarnings as any,
+                    facets // Ajouter les facets
                 );
             } else if (contentWarnings.length > 0 && images.length > 0) {
-                console.log(`[WORKER] 🖼️ Posting images with content warnings to Bluesky`)
+                console.log(`[WORKER] 🖼️ Posting images with content warnings and rich text to Bluesky`)
                 const mappedWarnings = contentWarnings.map((warning: string) => {
                     const warningMap: { [key: string]: string } = {
                         'adult': 'porn',
@@ -103,11 +119,12 @@ const handle = async (data: ScheduleJobPayload): Promise<void> => {
                     schedule.message, 
                     images, 
                     altTexts, 
-                    mappedWarnings as any
+                    mappedWarnings as any,
+                    facets // Ajouter les facets
                 );
             } else {
-                console.log(`[WORKER] 📝 Posting to Bluesky`)
-                await accountService.post(account, schedule.message, images, altTexts, contentWarnings);
+                console.log(`[WORKER] 📝 Posting rich text to Bluesky`)
+                await accountService.post(account, schedule.message, images, altTexts, contentWarnings, facets);
             }
         } else if (platform === 'twitter') {
             console.log(`[WORKER] 🐦 Posting to Twitter`)

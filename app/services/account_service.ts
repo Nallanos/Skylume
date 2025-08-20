@@ -43,6 +43,7 @@ interface PostOptions {
   images?: PostImage[];
   videos?: PostVideo[];
   labels?: string[]; // "porn", "nudity", "sexual", "graphic-media", etc.
+  facets?: any[]; // Rich text facets for Bluesky
 }
 
 type ContentWarningType = 'porn' | 'nudity' | 'sexual' | 'graphic-media' | 'gore';
@@ -632,13 +633,14 @@ export default class AccountService {
         }
     }
 
-    public async post(account: Account, message: string, images?: string[], altTexts?: string[], contentWarnings?: string[]) {
+    public async post(account: Account, message: string, images?: string[], altTexts?: string[], contentWarnings?: string[], facets?: any[]) {
         try {
             console.log('[DEBUG] AccountService.post() - Legacy method called, forwarding to new implementation')
             console.log('  - message:', message)
             console.log('  - images:', images)
             console.log('  - altTexts:', altTexts)
             console.log('  - contentWarnings:', contentWarnings)
+            console.log('  - facets:', facets?.length || 0, 'rich text facets')
             
             // Convert legacy contentWarnings to new ContentWarningType format
             const mappedWarnings: ContentWarningType[] = [];
@@ -668,13 +670,15 @@ export default class AccountService {
                     message,
                     images,
                     altTexts || [],
-                    mappedWarnings.length > 0 ? mappedWarnings : undefined
+                    mappedWarnings.length > 0 ? mappedWarnings : undefined,
+                    facets
                 );
             } else {
                 // For text-only posts, use createPostWithMedia
                 return await this.createPostWithMedia(account, {
                     text: message,
-                    labels: mappedWarnings.length > 0 ? mappedWarnings : undefined
+                    labels: mappedWarnings.length > 0 ? mappedWarnings : undefined,
+                    facets: facets || undefined
                 });
             }
         } catch (err) {
@@ -816,6 +820,12 @@ export default class AccountService {
                 createdAt: new Date().toISOString(),
             };
 
+            // ✅ NOUVEAU: Ajout des facets rich text si présents
+            if (options.facets && options.facets.length > 0) {
+                postRecord.facets = options.facets;
+                console.log(`[DEBUG] Adding ${options.facets.length} rich text facets to post:`, JSON.stringify(postRecord.facets, null, 2));
+            }
+
             // Ajout des images si présentes (et pas de vidéos)
             if (uploadedImages.length > 0 && uploadedVideos.length === 0) {
                 postRecord.embed = {
@@ -905,7 +915,8 @@ export default class AccountService {
         text: string, 
         imagePaths: string[], 
         altTexts: string[] = [], 
-        contentWarnings?: ContentWarningType[]
+        contentWarnings?: ContentWarningType[],
+        facets?: any[]
     ): Promise<any> {
         try {
             console.log('[DEBUG] Creating post with image paths:', imagePaths);
@@ -940,7 +951,8 @@ export default class AccountService {
             return this.createPostWithMedia(account, {
                 text,
                 images,
-                labels: contentWarnings
+                labels: contentWarnings,
+                facets: facets || undefined
             });
             
         } catch (err) {
@@ -957,7 +969,8 @@ export default class AccountService {
         text: string,
         videoPaths: string[],
         videoAltTexts: string[] = [],
-        contentWarnings?: ContentWarningType[]
+        contentWarnings?: ContentWarningType[],
+        facets?: any[]
     ): Promise<any> {
         try {
             console.log('[DEBUG] Creating post with video paths:', videoPaths);
@@ -992,7 +1005,8 @@ export default class AccountService {
             return this.createPostWithMedia(account, {
                 text,
                 videos,
-                labels: contentWarnings
+                labels: contentWarnings,
+                facets: facets || undefined
             });
             
         } catch (err) {

@@ -7,26 +7,40 @@ export default class CampaignMessageService {
   /**
    * Créer des messages par défaut pour une campagne
    */
-  public async createDefaultMessages(campaignId: number): Promise<void> {
+  public async createDefaultMessages(campaignId: number, customMessage?: string, facets?: string): Promise<void> {
     try {
       console.log(`🔧 Creating default messages for campaign ${campaignId}`)
 
-      // Messages par défaut pour chaque niveau d'intérêt
-    const defaultMessages = [
-      {
-        interestLevel: 'interested' as const,
-        message: 'Hi! I noticed we share similar interests based on your profile. Would love to connect and discuss further!',
-      },
-      {
-        interestLevel: 'moderately_interested' as const,
-        message: 'Hello! Your profile caught my attention. I think we might have some common ground. Looking forward to connecting!',
-      }
-    ]      // Créer les messages
+      // Utiliser le message personnalisé ou les messages par défaut
+      const defaultMessages = customMessage ? [
+        {
+          interestLevel: 'interested' as const,
+          message: customMessage,
+          facets: facets || null
+        },
+        {
+          interestLevel: 'moderately_interested' as const,
+          message: customMessage,
+          facets: facets || null
+        }
+      ] : [
+        {
+          interestLevel: 'interested' as const,
+          message: 'Hi! I noticed we share similar interests based on your profile. Would love to connect and discuss further!',
+          facets: null
+        },
+        {
+          interestLevel: 'moderately_interested' as const,
+          message: 'Hello! Your profile caught my attention. I think we might have some common ground. Looking forward to connecting!',
+          facets: null
+        }
+      ]      // Créer les messages
       for (const messageData of defaultMessages) {
         await CampaignMessage.create({
           dmCampaignId: campaignId,
           interestLevel: messageData.interestLevel,
           message: messageData.message,
+          facets: messageData.facets, // ✅ NOUVEAU: Inclure les facets
           isActive: true,
           enabled: true,
           executionOrder: 0

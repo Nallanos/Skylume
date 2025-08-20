@@ -83,6 +83,10 @@ export default class DmCampaign extends BaseModel {
   @column()
   declare excludeKeywordsEmbeddings: string | null
 
+  // ✅ NOUVEAU: Champ pour les facets rich text
+  @column()
+  declare messageFacets: string | null
+
   // Seuils personnalisables pour la classification
   @column()
   declare interestedThreshold: number

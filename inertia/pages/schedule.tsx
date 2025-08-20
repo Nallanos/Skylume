@@ -4,6 +4,9 @@ import Layout from '../components/Layout'
 import StreakDisplay from '../components/StreakDisplay'
 import HashtagGroupSelector from '../components/HashtagGroupSelector'
 import ContentWarningModal from '../components/ContentWarningModal'
+import RichTextHighlightTextarea from '../components/RichTextHighlightTextarea'
+import GmailStyleLinkManager from '../components/GmailStyleLinkManager'
+import LinkHighlightTextarea from '../components/LinkHighlightTextarea'
 import CustomSelect, { type Option } from '../components/ui/CustomSelect'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
@@ -202,7 +205,13 @@ function Schedule({ schedulings }: ScheduleProps) {
   const [contentWarnings, setContentWarnings] = useState<string[]>([])
   const [showContentWarningModal, setShowContentWarningModal] = useState(false)
   const [videoValidationError, setVideoValidationError] = useState<string>('')
+  
+  // ✅ NOUVEAU: État pour les liens explicites rich text
+  const [explicitLinks, setExplicitLinks] = useState<{text: string, url: string}[]>([])
+  
   const fileInputRef = useRef<HTMLInputElement>(null)
+  // ✅ NOUVEAU: Référence au textarea pour l'insertion de liens
+  const messageTextareaRef = useRef<HTMLTextAreaElement>(null)
 
   // ✅ NOUVEAU: Détecter si Twitter est sélectionné pour désactiver les médias
   const isTwitterSelected = useMemo(() => {
@@ -213,6 +222,19 @@ function Schedule({ schedulings }: ScheduleProps) {
   const isOnlyBlueskySelected = useMemo(() => {
     return selectedAccountIds.length > 0 && selectedAccountIds.every(accountId => accountId.startsWith('bluesky:'))
   }, [selectedAccountIds])
+
+  // ✅ NOUVEAU: Récupérer le premier compte sélectionné pour la preview
+  const previewAccount = useMemo(() => {
+    if (selectedAccountIds.length === 0) return null
+    
+    const firstAccountId = selectedAccountIds[0]
+    const [platform, id] = firstAccountId.split(':')
+    const account = accounts.find(acc => 
+      acc.platform === platform && acc.id.toString() === id
+    )
+    
+    return account || null
+  }, [selectedAccountIds, accounts])
 
   // Convert accounts to CustomSelect options with proper platform handling
   const accountOptions = useMemo((): Option[] => {
@@ -319,6 +341,36 @@ function Schedule({ schedulings }: ScheduleProps) {
     if (!confirm('Are you sure you want to delete this scheduled post?')) return
     await router.put('/schedule/delete', { scheduleId: schedule_id })
   }, [])
+
+  // ✅ NOUVEAU: Fonction pour insérer un lien dans le textarea (style Gmail)
+  const handleLinkInsert = useCallback((text: string, url: string) => {
+    const textarea = messageTextareaRef.current
+    if (!textarea) return
+
+    const start = textarea.selectionStart
+    const end = textarea.selectionEnd
+    const currentMessage = addMessage
+    
+    // Insérer le texte du lien à la position du curseur
+    const newMessage = 
+      currentMessage.substring(0, start) +
+      text +
+      currentMessage.substring(end)
+    
+    // Mettre à jour le message
+    setAddMessage(newMessage)
+    
+    // Ajouter le lien à la liste des liens explicites
+    const newLink = { text, url }
+    const updatedLinks = [...explicitLinks, newLink]
+    setExplicitLinks(updatedLinks)
+    
+    // Remettre le focus et placer le curseur après le texte inséré
+    setTimeout(() => {
+      textarea.focus()
+      textarea.setSelectionRange(start + text.length, start + text.length)
+    }, 0)
+  }, [addMessage, explicitLinks])
 
   const saveEdit = useCallback(async () => {
     if (!editingSchedule) return
@@ -434,6 +486,11 @@ function Schedule({ schedulings }: ScheduleProps) {
       formData.append('content_warnings', JSON.stringify(contentWarnings))
     }
 
+    // ✅ NOUVEAU: Ajouter les liens explicites pour rich text
+    if (explicitLinks.length > 0) {
+      formData.append('explicit_links', JSON.stringify(explicitLinks))
+    }
+
     // ✅ Une seule requête pour tous les comptes sélectionnés
     try {
       await router.post('/schedule/create', formData)
@@ -455,8 +512,9 @@ function Schedule({ schedulings }: ScheduleProps) {
     setImageAltTexts([])
     setVideoAltTexts([])
     setContentWarnings([])
+    setExplicitLinks([]) // ✅ NOUVEAU: Reset des liens explicites
     setShowAddModal(false)
-  }, [addMessage, selectedAccountIds, addDateTime, selectedDate, selectedTimeSlot, selectedImages, selectedVideos, imageAltTexts, videoAltTexts, contentWarnings, accounts])
+  }, [addMessage, selectedAccountIds, addDateTime, selectedDate, selectedTimeSlot, selectedImages, selectedVideos, imageAltTexts, videoAltTexts, contentWarnings, explicitLinks, accounts])
 
   const startEdit = useCallback((schedule: Scheduling) => {
     setEditingSchedule({ ...schedule })
@@ -782,17 +840,18 @@ function Schedule({ schedulings }: ScheduleProps) {
                     <Label htmlFor="message" className="text-sm font-medium">
                       Message
                     </Label>
-                    <textarea
-                      id="message"
-                      className="w-full p-3 border rounded-lg resize-none h-32 mt-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    <RichTextHighlightTextarea
                       value={editingSchedule.message}
-                      onChange={(e) =>
+                      onChange={(newMessage) =>
                         setEditingSchedule({
                           ...editingSchedule,
-                          message: e.target.value,
+                          message: newMessage,
                         })
                       }
                       placeholder="What's on your mind?"
+                      rows={6}
+                      className="mt-1 min-h-[150px] w-full px-3 py-2 text-sm bg-background border border-input rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      showPreview={true}
                     />
                   </div>
 
@@ -942,21 +1001,71 @@ function Schedule({ schedulings }: ScheduleProps) {
                     <Label htmlFor="addMessage" className="text-sm font-medium">
                       Message
                     </Label>
-                    <textarea
-                      id="addMessage"
-                      className="w-full p-3 border border-gray-800 rounded-lg resize-none h-32 mt-1 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white text-black dark:bg-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500"
+                    <LinkHighlightTextarea
+                      ref={messageTextareaRef}
                       value={addMessage}
-                      onChange={(e) => setAddMessage(e.target.value)}
+                      onChange={setAddMessage}
+                      links={explicitLinks}
                       placeholder="What's on your mind?"
+                      rows={6}
+                      className="mt-1 min-h-[150px] w-full px-3 py-2 text-sm bg-background border border-input rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                      showPreview={true}
+                      previewAccount={previewAccount}
                     />
                     
-                    {/* Hashtag Selector */}
-                    <div className="mt-2">
-                      <HashtagGroupSelector 
-                        onInsert={insertHashtags}
-                        className="w-full sm:w-auto"
-                      />
+                    {/* Actions sous le textarea */}
+                    <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
+                      <div className="flex items-center gap-2">
+                        <HashtagGroupSelector 
+                          onInsert={insertHashtags}
+                          className="w-auto"
+                        />
+                        {/* ✅ NOUVEAU: Smart Links Manager pour Bluesky uniquement */}
+                        {isOnlyBlueskySelected && (
+                          <GmailStyleLinkManager
+                            onLinkInsert={handleLinkInsert}
+                            disabled={false}
+                          />
+                        )}
+                      </div>
+                      <span>{addMessage.length}/300 characters</span>
                     </div>
+
+                    {/* ✅ NOUVEAU: Affichage des liens configurés */}
+                    {explicitLinks.length > 0 && (
+                      <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                        <Label className="text-sm font-medium mb-2 block">Configured Links ({explicitLinks.length})</Label>
+                        <div className="space-y-2">
+                          {explicitLinks.map((link, index) => (
+                            <div key={index} className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2">
+                                  <span className="font-medium text-sm">
+                                    &quot;{link.text}&quot;
+                                  </span>
+                                  <span className="text-xs text-muted-foreground">→</span>
+                                  <span className="text-xs text-blue-600 dark:text-blue-400 truncate">
+                                    {link.url}
+                                  </span>
+                                </div>
+                              </div>
+                              <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => {
+                                  const updatedLinks = explicitLinks.filter((_, i) => i !== index)
+                                  setExplicitLinks(updatedLinks)
+                                }}
+                                className="ml-2 flex-shrink-0"
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   {/* Media Section */}
@@ -1233,6 +1342,7 @@ function Schedule({ schedulings }: ScheduleProps) {
                         setImageAltTexts([])
                         setVideoAltTexts([])
                         setContentWarnings([])
+                        setExplicitLinks([]) // ✅ NOUVEAU: Reset des liens explicites
                         setVideoValidationError('')
                       }}
                       className="flex-1"

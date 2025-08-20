@@ -5,12 +5,15 @@ import Account from "#models/account";
 import TwitterAccount from "#models/twitter_account";
 import { inject } from "@adonisjs/core";
 import { DateTime } from 'luxon'
+import RichTextService from '../services/rich_text_service.js'
+import type { ExplicitLink } from '../../types/rich_text.js'
 
 
 @inject()
 export default class SchedulingsController {
     constructor(
-        protected scheduling_manager: SchedulingQueueManager) {
+        protected scheduling_manager: SchedulingQueueManager,
+        protected richTextService: RichTextService) {
     }
 
     public async schedulePost({ request, response, auth, session }: HttpContext) {
@@ -29,20 +32,28 @@ export default class SchedulingsController {
 
         console.log("Current schedule count:", schedules.length)
 
-        const { message, schedule_time, selected_accounts } = request.all()
-        console.log('[DEBUG] Received crosspost request:', { message: message?.slice(0, 50) + '...', schedule_time, selected_accounts })
+        const { message, schedule_time, selected_accounts, explicit_links = '[]' } = request.all()
+        console.log('[DEBUG] Received crosspost request:', { message: message?.slice(0, 50) + '...', schedule_time, selected_accounts, explicit_links })
 
         // ✅ NOUVEAU: Parser les comptes sélectionnés depuis JSON
         let accountIds: string[] = []
+        let explicitLinks: ExplicitLink[] = []
         try {
             if (typeof selected_accounts === 'string') {
                 accountIds = JSON.parse(selected_accounts)
             } else if (Array.isArray(selected_accounts)) {
                 accountIds = selected_accounts
             }
+
+            // Parser les liens explicites
+            if (typeof explicit_links === 'string') {
+                explicitLinks = JSON.parse(explicit_links)
+            } else if (Array.isArray(explicit_links)) {
+                explicitLinks = explicit_links
+            }
         } catch (error) {
-            console.error('[DEBUG] Failed to parse selected_accounts:', error)
-            session.flash('error', 'Invalid account selection format')
+            console.error('[DEBUG] Failed to parse selected_accounts or explicit_links:', error)
+            session.flash('error', 'Invalid account selection or links format')
             return response.redirect('/schedule')
         }
 
@@ -56,6 +67,14 @@ export default class SchedulingsController {
         if (!message || !schedule_time) {
             console.log('[DEBUG] Missing required fields')
             session.flash('error', 'Message and schedule time are required')
+            return response.redirect('/schedule')
+        }
+
+        // Valider les liens explicites
+        const linkValidation = this.richTextService.validateExplicitLinks(explicitLinks)
+        if (!linkValidation.valid) {
+            console.log('[DEBUG] Invalid explicit links:', linkValidation.errors)
+            session.flash('error', `Invalid links: ${linkValidation.errors.join(', ')}`)
             return response.redirect('/schedule')
         }
 
@@ -76,6 +95,14 @@ export default class SchedulingsController {
         }
 
         try {
+            // ✅ NOUVEAU: Traiter le rich text UNE SEULE FOIS avant les comptes multiples
+            console.log('[DEBUG] Processing rich text for message...')
+            const parsedRichText = await this.richTextService.parseText(message, explicitLinks)
+            console.log('[DEBUG] Rich text processed:', { 
+                facetsCount: parsedRichText.facets.length,
+                explicitLinksCount: explicitLinks.length
+            })
+
             // ✅ NOUVEAU: Traiter les médias UNE SEULE FOIS avant les comptes multiples
             console.log('[DEBUG] Processing media files once for all accounts...')
             const { imageUrls, videoUrls, altTexts, contentWarnings } = await this.extractMediaFromRequest(request)
@@ -85,9 +112,9 @@ export default class SchedulingsController {
                 videoCount: videoUrls.length 
             })
 
-            // ✅ NOUVEAU: Créer les schedulings pour chaque compte avec les MÊMES médias
+            // ✅ NOUVEAU: Créer les schedulings pour chaque compte avec les MÊMES médias et rich text
             const schedulePromises = accountIds.map(accountId => 
-                this.createScheduleForAccount(accountId, message, schedule_time, imageUrls, videoUrls, altTexts, contentWarnings, user)
+                this.createScheduleForAccount(accountId, message, schedule_time, imageUrls, videoUrls, altTexts, contentWarnings, parsedRichText, user)
             )
 
             const scheduleResults = await Promise.all(schedulePromises)
@@ -113,7 +140,7 @@ export default class SchedulingsController {
         }
     }
 
-    // ✅ MODIFIÉ: Méthode helper pour créer un schedule avec médias pré-traités
+    // ✅ MODIFIÉ: Méthode helper pour créer un schedule avec médias pré-traités et rich text
     private async createScheduleForAccount(
         accountId: string, 
         message: string, 
@@ -122,6 +149,7 @@ export default class SchedulingsController {
         videoUrls: string[],
         altTexts: string[],
         contentWarnings: string[],
+        parsedRichText: { text: string; facets: any[] },
         user: any
     ): Promise<{ success: boolean; platform?: string; error?: string }> {
         try {
@@ -184,6 +212,12 @@ export default class SchedulingsController {
             scheduling.message = message
             scheduling.scheduleTime = DateTime.fromISO(schedule_time)
             scheduling.status = 'pending'
+
+            // ✅ NOUVEAU: Stocker les facets rich text (seulement pour Bluesky)
+            if (platform === 'bluesky' && parsedRichText.facets.length > 0) {
+                scheduling.facets = JSON.stringify(parsedRichText.facets)
+                console.log('[DEBUG] Stored rich text facets for Bluesky:', parsedRichText.facets.length)
+            }
 
             // ✅ Ajouter les médias PRÉ-TRAITÉS (mêmes pour tous les comptes)
             if (imageUrls.length > 0) {

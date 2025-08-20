@@ -38,12 +38,12 @@ export default class DmCampaignsController {
 
     public async createDmCampaign({ request, response, auth, session }: HttpContext) {
         try {
-            const { name, accountHandle, strategy, keywords, excludeKeywords, targetCount, interestedThreshold, moderatelyInterestedThreshold } = request.only([
-                "name", "accountHandle", "strategy", "keywords", "excludeKeywords", "targetCount", "interestedThreshold", "moderatelyInterestedThreshold"
+            const { name, accountHandle, strategy, keywords, excludeKeywords, targetCount, interestedThreshold, moderatelyInterestedThreshold, message, explicitLinks } = request.only([
+                "name", "accountHandle", "strategy", "keywords", "excludeKeywords", "targetCount", "interestedThreshold", "moderatelyInterestedThreshold", "message", "explicitLinks"
             ])
             const user = auth.getUserOrFail()
 
-            // Validation des données requises - message temporairement optionnel
+            // Validation des données requises
             if (!name || !accountHandle || !keywords || keywords.length === 0) {
                 throw new Error("Name, account handle and keywords are required")
             }
@@ -54,11 +54,15 @@ export default class DmCampaignsController {
                 ? formatKeywordsForStorage(excludeKeywords) 
                 : null
 
+            // ✅ NOUVEAU: Traiter les liens explicites pour rich text
+            const processedExplicitLinks = explicitLinks && explicitLinks.length > 0
+                ? JSON.stringify(explicitLinks)
+                : null
+
             const campaign = await DmCampaign.create({
                 name,
                 strategy: strategy || 'semantic_analysis',
                 accountHandle,
-                // message supprimé temporairement
                 user_id: user.id,
                 keywords: processedKeywords,
                 excludeKeywords: processedExcludeKeywords,
@@ -66,11 +70,16 @@ export default class DmCampaignsController {
                 interestedThreshold: interestedThreshold || 0.7,
                 moderatelyInterestedThreshold: moderatelyInterestedThreshold || 0.5,
                 analysisStatus: 'pending',
-                checkConversationsStatus: 'pending'
+                checkConversationsStatus: 'pending',
+                messageFacets: processedExplicitLinks // ✅ NOUVEAU: Stocker les liens explicites
             })
 
             // Créer les messages par défaut pour la campagne
-            await this.campaignMessageService.createDefaultMessages(campaign.id)
+            await this.campaignMessageService.createDefaultMessages(
+                campaign.id, 
+                message, 
+                processedExplicitLinks || undefined
+            )
 
             session.flash("success", "Campaign created successfully!")
             return response.redirect("/campaign")
