@@ -2,32 +2,37 @@ import { Head, router } from '@inertiajs/react'
 import Layout from '../components/Layout'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
-import { Input } from '../components/ui/input'
-import { Label } from '../components/ui/label'
-import { Settings, User as UserIcon, Shield } from 'lucide-react'
-import { useState } from 'react'
+import { Settings, Shield } from 'lucide-react'
 
 interface ProfileProps {
   user: any
 }
 
 function Profile({ user }: ProfileProps) {
-  const [email, setEmail] = useState(user?.email || '')
-  const [isUpdatingEmail, setIsUpdatingEmail] = useState(false)
-
-  const handleUpdateEmail = async () => {
-    if (!email.trim() || email === user?.email) return
-    
-    setIsUpdatingEmail(true)
+  const handleCustomerPortal = async () => {
     try {
-      await router.put('/profile/update-email', { email })
-      // The backend will handle the redirect
+      await router.post('/customer-portal')
     } catch (error) {
-      console.error('Failed to update email:', error)
-    } finally {
-      setIsUpdatingEmail(false)
+      console.error('Error accessing customer portal:', error)
     }
   }
+
+  const handleCancelSubscription = async () => {
+    if (confirm('Are you sure you want to cancel your subscription? You will lose access to premium features at the end of your billing period.')) {
+      try {
+        await router.post('/cancel-subscription')
+      } catch (error) {
+        console.error('Error cancelling subscription:', error)
+      }
+    }
+  }
+
+  const handleDeleteAccount = () => {
+    if (confirm('Are you sure you want to delete your account? This action is irreversible and will also cancel any active subscriptions.')) {
+      router.delete('/delete')
+    }
+  }
+
   return (
     <>
       <Head title="Profile Settings" />
@@ -44,54 +49,6 @@ function Profile({ user }: ProfileProps) {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Account Information */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <UserIcon className="h-5 w-5" />
-                  Account Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="email">Email</Label>
-                  <div className="flex gap-2">
-                    <Input
-                      id="email"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      placeholder="Enter your email address"
-                    />
-                    <Button 
-                      onClick={handleUpdateEmail}
-                      disabled={isUpdatingEmail || !email.trim() || email === user?.email}
-                      size="sm"
-                    >
-                      {isUpdatingEmail ? 'Saving...' : 'Save'}
-                    </Button>
-                  </div>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {user?.email ? 'Update your email address' : 'Set your email address for notifications'}
-                  </p>
-                </div>
-
-                <div>
-                  <Label htmlFor="plan">Current Plan</Label>
-                  <Input
-                    id="plan"
-                    value={user?.plan || 'Free'}
-                    disabled
-                    className="bg-muted capitalize"
-                  />
-                </div>
-
-                <Button variant="outline" className="w-full">
-                  Change Password
-                </Button>
-              </CardContent>
-            </Card>
-
             {/* Plan Information */}
             <Card>
               <CardHeader>
@@ -108,67 +65,44 @@ function Profile({ user }: ProfileProps) {
                         {user?.plan || 'Free'} Plan
                       </h3>
                       <p className="text-sm text-blue-700 dark:text-blue-300">
-                        {user?.plan === 'pro' ? 'All features unlocked' : 'Limited features'}
+                        {user?.plan === 'pro' ? '€10/month - All features unlocked' : 
+                         user?.plan === 'business' ? '€19/month - Business features' : 
+                         'Limited features'}
                       </p>
                     </div>
                     <div className="text-right">
                       <div className="text-lg font-bold text-blue-900 dark:text-blue-100">
-                        {user?.plan === 'pro' ? '$29' : '$0'}
+                        {user?.plan === 'pro' ? '€10' : 
+                         user?.plan === 'business' ? '€19' : 
+                         '€0'}
                       </div>
                       <div className="text-sm text-blue-700 dark:text-blue-300">/month</div>
                     </div>
                   </div>
                 </div>
 
-                {user?.plan !== 'pro' && (
+                {(!user?.plan || user?.plan === 'free') && (
                   <Button className="w-full" asChild>
-                    <a href="/plan/change">Upgrade to Pro</a>
+                    <a href="/pricing">Upgrade Plan</a>
                   </Button>
                 )}
 
-                {user?.plan === 'pro' && (
-                  <Button variant="outline" className="w-full">
-                    Manage Subscription
-                  </Button>
+                {(user?.plan === 'pro' || user?.plan === 'business') && (
+                  <div className="space-y-3">
+                    <Button 
+                      variant="destructive" 
+                      className="w-full" 
+                      onClick={handleCancelSubscription}
+                    >
+                      Cancel Subscription
+                    </Button>
+                  </div>
                 )}
-              </CardContent>
-            </Card>
-
-            {/* Preferences */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Settings className="h-5 w-5" />
-                  Preferences
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Email Notifications</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Receive updates about your accounts
-                    </p>
-                  </div>
-                  <Button variant="outline" size="sm">
-                    Configure
-                  </Button>
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div>
-                    <Label>Data Export</Label>
-                    <p className="text-sm text-muted-foreground">Download your data</p>
-                  </div>
-                  <Button variant="outline" size="sm">
-                    Export
-                  </Button>
-                </div>
               </CardContent>
             </Card>
 
             {/* Danger Zone */}
-            <Card className="border-destructive/50">
+            <Card className="border-destructive/50 md:col-span-2">
               <CardHeader>
                 <CardTitle className="text-destructive">Danger Zone</CardTitle>
               </CardHeader>
@@ -177,21 +111,12 @@ function Profile({ user }: ProfileProps) {
                   <h4 className="font-medium mb-2">Delete Account</h4>
                   <p className="text-sm text-muted-foreground mb-4">
                     Permanently delete your account and all associated data. This action cannot be
-                    undone.
+                    undone. Any active subscriptions will be automatically cancelled.
                   </p>
                   <Button
                     variant="destructive"
-                    className="w-full"
-                    onClick={() => {
-                      if (
-                        confirm(
-                          'Are you sure you want to delete your account? This action is irreversible.'
-                        )
-                      ) {
-                        // This will be handled by the sidebar component or we can implement it here
-                        window.location.href = '/delete-account-confirmation'
-                      }
-                    }}
+                    className="w-full max-w-sm"
+                    onClick={handleDeleteAccount}
                   >
                     Delete Account
                   </Button>

@@ -1,8 +1,19 @@
 import { Head } from '@inertiajs/react'
-import { Check, X, Sun, Moon, ArrowRight } from 'lucide-react'
+import { Check, X, Sun, Moon, ArrowRight, Star, Zap, Crown } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
+import { Badge } from '../components/ui/badge'
 import { useState, useEffect } from 'react'
+
+interface User {
+  id: string
+  email: string
+  plan: string
+}
+
+interface Props {
+  user?: User
+}
 
 // Components
 const Navigation = ({ darkMode, toggleTheme }: { darkMode: boolean; toggleTheme: () => void }) => (
@@ -20,15 +31,9 @@ const Navigation = ({ darkMode, toggleTheme }: { darkMode: boolean; toggleTheme:
         </div>
       </div>
 
-      {/* Spacer */}
-      <div className="flex-1"></div>
-
-      {/* Boutons droite */}
-      <div className="flex items-center space-x-4">
-        <a
-          href="/pricing"
-          className="text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300 font-medium transition-colors border-b-2 border-blue-600 dark:border-blue-400 pb-1"
-        >
+      {/* Navigation Links */}
+      <div className="hidden md:flex items-center space-x-6">
+        <a href="/pricing" className="text-blue-600 dark:text-blue-400 font-medium border-b-2 border-blue-600 dark:border-blue-400 pb-1">
           Pricing
         </a>
         <a
@@ -55,14 +60,13 @@ const Navigation = ({ darkMode, toggleTheme }: { darkMode: boolean; toggleTheme:
   </nav>
 )
 
-// Hook personnalisé pour la gestion du thème
+// Custom hook for theme management
 const useTheme = () => {
   const [darkMode, setDarkMode] = useState(false)
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setMounted(true)
-    // Vérifier d'abord localStorage, sinon utiliser la préférence système
     const savedTheme = localStorage.getItem('darkMode')
     const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches
     const isDark = savedTheme ? savedTheme === 'true' : systemDark
@@ -90,42 +94,106 @@ const useTheme = () => {
   return { darkMode, mounted, toggleTheme }
 }
 
-function Pricing() {
+function Pricing({ user }: Props) {
   const { darkMode, mounted, toggleTheme } = useTheme()
 
-  // Éviter le flash avant hydratation
+  // Avoid flash before hydration
   if (!mounted) {
     return null
   }
 
+  const handleUpgrade = (planKey: string) => {
+    // For free plan, redirect to dashboard
+    if (planKey === 'free') {
+      window.location.href = '/dashboard'
+      return
+    }
+    
+    // For paid plans, redirect directly to Stripe checkout
+    if (planKey === 'pro' || planKey === 'business') {
+      window.location.href = `/stripe/checkout/${planKey}`
+      return
+    }
+    
+    // Fallback for other cases
+    window.location.href = '/dashboard'
+  }
+
   const plans = [
     {
-      name: 'Alpha Access',
-      price: '0',
-      period: 'during alpha',
-      originalPrice: '10',
-      description: 'Free access to all features during alpha testing',
+      name: 'Freemium',
+      key: 'free',
+      price: 0,
+      period: 'Free',
+      description: 'Perfect to discover Bluesky',
+      icon: Star,
+      iconColor: 'text-gray-500',
+      cardBorder: 'border-gray-200 dark:border-gray-700',
       features: [
-        'Unlimited Bluesky accounts',
-        'Unlimited scheduled posts',
-        'Advanced analytics',
-        'Audience insights',
-        'Bulk scheduling',
-        'AI audience analysis',
-        'DM campaigns',
-        'Priority support',
-        'All future features',
+        { name: '7 simultaneous scheduled posts', included: true },
+        { name: '2 Bluesky accounts maximum', included: true },
+        { name: 'Basic analytics', included: true },
+        { name: '2 custom feeds', included: true },
+        { name: '5 follower analyses/month', included: true },
+        { name: '200 follow actions/day', included: true },
+        { name: 'DM Campaigns', included: false },
+        { name: 'Advanced analytics', included: false }
       ],
-      limitations: [],
-      buttonText: 'Get Alpha Access',
-      buttonVariant: 'default' as const,
-      popular: true,
+      buttonText: user?.plan === 'free' ? 'Current plan' : 'Start for free',
+      buttonVariant: 'outline' as const,
+      popular: false
     },
+    {
+      name: 'Pro',
+      key: 'pro',
+      price: 10,
+      period: '/month',
+      description: 'For serious creators',
+      icon: Zap,
+      iconColor: 'text-blue-500',
+      cardBorder: 'border-blue-500 shadow-lg scale-105',
+      features: [
+        { name: 'Unlimited scheduled posts', included: true },
+        { name: 'Unlimited Bluesky accounts', included: true },
+        { name: 'Advanced analytics', included: true },
+        { name: 'Unlimited feeds', included: true },
+        { name: 'Unlimited follower analyses', included: true },
+        { name: 'Unlimited follow actions', included: true },
+        { name: 'DM Campaigns (analysis)', included: true },
+        { name: 'DM campaigns execution', included: false }
+      ],
+      buttonText: user?.plan === 'pro' ? 'Current plan' : 'Upgrade to Pro',
+      buttonVariant: 'default' as const,
+      popular: true
+    },
+    {
+      name: 'Business',
+      key: 'business',
+      price: 19,
+      period: '/month',
+      description: 'For businesses and agencies',
+      icon: Crown,
+      iconColor: 'text-purple-500',
+      cardBorder: 'border-purple-500',
+      features: [
+        { name: 'Unlimited scheduled posts', included: true },
+        { name: 'Unlimited Bluesky accounts', included: true },
+        { name: 'Advanced analytics', included: true },
+        { name: 'Unlimited feeds', included: true },
+        { name: 'Unlimited follower analyses', included: true },
+        { name: 'Unlimited follow actions', included: true },
+        { name: 'DM Campaigns (analysis)', included: true },
+        { name: 'DM campaigns execution', included: true }
+      ],
+      buttonText: user?.plan === 'business' ? 'Current plan' : 'Upgrade to Business',
+      buttonVariant: 'default' as const,
+      popular: false
+    }
   ]
 
   return (
     <>
-      <Head title="Pricing - BluePilot">
+      <Head title="Pricing - Bluesky Copilot">
         <script
           dangerouslySetInnerHTML={{
             __html: `
@@ -150,125 +218,187 @@ function Pricing() {
           {/* Header */}
           <div className="text-center mb-16">
             <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight text-gray-900 dark:text-white">
-              Free During{' '}
-              <span className="bg-gradient-to-r from-blue-600 to-blue-800 bg-clip-text text-transparent">
-                Alpha Phase
+              Choose your{' '}
+              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+                plan
               </span>
             </h1>
-            <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto mb-4">
-              Get unlimited access to all features completely free during our alpha testing phase.
+            <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto mb-8">
+              Powerful tools to automate and grow your presence on Bluesky
             </p>
-            <div className="inline-flex items-center gap-2 bg-blue-100 dark:bg-blue-900/30 px-4 py-2 rounded-full text-sm font-medium text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
-              🚀 Alpha Price: <span className="font-bold">$0</span> → Post-Alpha: <span className="font-bold">$10/month</span>
-            </div>
+            
+            {user && (
+              <div className="inline-flex items-center px-4 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-full text-sm font-medium">
+                Current plan: <strong className="ml-1 capitalize">{user.plan}</strong>
+              </div>
+            )}
           </div>
 
           {/* Pricing Cards */}
-          <div className="flex justify-center max-w-md mx-auto">
-            {plans.map((plan, index) => (
-              <Card
-                key={index}
-                className="relative transition-all duration-300 hover:shadow-xl border-blue-500 shadow-lg w-full bg-white dark:bg-gray-800/50"
-              >
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <span className="bg-gradient-to-r from-blue-500 to-blue-700 text-white px-4 py-1 rounded-full text-sm font-medium">
-                    Alpha Access
-                  </span>
-                </div>
-
-                <CardHeader className="text-center pb-8">
-                  <CardTitle className="text-2xl font-bold text-gray-900 dark:text-white">{plan.name}</CardTitle>
-                  <div className="mt-4">
-                    <div className="flex items-center justify-center gap-2">
-                      <span className="text-4xl font-bold text-gray-900 dark:text-white">${plan.price}</span>
-                      <span className="text-gray-600 dark:text-gray-400">/{plan.period}</span>
+          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+            {plans.map((plan) => {
+              const Icon = plan.icon
+              const isCurrentPlan = user?.plan === plan.key
+              
+              return (
+                <Card 
+                  key={plan.key} 
+                  className={`relative transition-all duration-300 hover:shadow-xl ${plan.cardBorder} bg-white dark:bg-gray-800/50`}
+                >
+                  {plan.popular && (
+                    <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
+                      <Badge className="bg-blue-500 hover:bg-blue-600 text-white">
+                        Most popular
+                      </Badge>
                     </div>
-                    {plan.originalPrice && (
-                      <div className="mt-2">
-                        <span className="text-sm text-gray-500 dark:text-gray-400">
-                          Regular price: <span className="line-through">${plan.originalPrice}/month</span>
-                        </span>
+                  )}
+                  
+                  <CardHeader className="text-center pb-8">
+                    <div className="flex justify-center mb-4">
+                      <div className={`p-3 rounded-full bg-gray-100 dark:bg-gray-800`}>
+                        <Icon className={`h-8 w-8 ${plan.iconColor}`} />
                       </div>
-                    )}
-                  </div>
-                  <p className="text-gray-600 dark:text-gray-400 mt-2">{plan.description}</p>
-                </CardHeader>
-
-                <CardContent className="space-y-6">
-                  {/* Features */}
-                  <div className="space-y-3">
-                    {plan.features.map((feature, featureIndex) => (
-                      <div key={featureIndex} className="flex items-center gap-3">
-                        <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
-                        <span className="text-sm text-gray-700 dark:text-gray-300">{feature}</span>
+                    </div>
+                    <CardTitle className="text-2xl font-bold text-gray-900 dark:text-white">{plan.name}</CardTitle>
+                    <div className="mt-4">
+                      <div className="flex items-center justify-center gap-1">
+                        <span className="text-4xl font-bold text-gray-900 dark:text-white">{plan.price}€</span>
+                        <span className="text-gray-600 dark:text-gray-400">{plan.period}</span>
                       </div>
-                    ))}
-                  </div>
-
-                  {/* Limitations */}
-                  {plan.limitations.length > 0 && (
-                    <div className="space-y-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                      {plan.limitations.map((limitation, limitIndex) => (
-                        <div key={limitIndex} className="flex items-center gap-3">
-                          <X className="h-4 w-4 text-red-400 flex-shrink-0" />
-                          <span className="text-sm text-gray-500 dark:text-gray-400">{limitation}</span>
+                    </div>
+                    <p className="text-gray-600 dark:text-gray-400 mt-2">{plan.description}</p>
+                  </CardHeader>
+                  
+                  <CardContent className="space-y-6">
+                    {/* Features */}
+                    <div className="space-y-3">
+                      {plan.features.map((feature, index) => (
+                        <div key={index} className="flex items-center gap-3">
+                          {feature.included ? (
+                            <Check className="h-4 w-4 text-green-500 flex-shrink-0" />
+                          ) : (
+                            <X className="h-4 w-4 text-gray-400 flex-shrink-0" />
+                          )}
+                          <span className={`text-sm ${feature.included ? 'text-gray-700 dark:text-gray-300' : 'text-gray-500 dark:text-gray-400'}`}>
+                            {feature.name}
+                          </span>
                         </div>
                       ))}
                     </div>
-                  )}
+                    
+                    {/* CTA Button */}
+                    <div className="pt-6">
+                      <Button 
+                        variant={plan.buttonVariant} 
+                        className={`w-full ${
+                          plan.popular 
+                            ? 'bg-blue-600 hover:bg-blue-700 text-white' 
+                            : plan.key === 'business'
+                            ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                            : ''
+                        }`}
+                        size="lg"
+                        disabled={isCurrentPlan}
+                        onClick={() => handleUpgrade(plan.key)}
+                      >
+                        {plan.buttonText}
+                        {!isCurrentPlan && plan.key !== 'free' && (
+                          <ArrowRight className="ml-2 h-4 w-4" />
+                        )}
+                      </Button>
+                    </div>
+                    
+                    {isCurrentPlan && (
+                      <div className="text-center">
+                        <Badge variant="outline" className="text-green-600 border-green-600">
+                          ✓ Your current plan
+                        </Badge>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
 
-                  {/* CTA Button */}
-                  <div className="pt-6">
-                    <Button 
-                      variant={plan.buttonVariant} 
-                      className={`w-full ${plan.popular ? 'bg-blue-600 hover:bg-blue-700 text-white' : ''}`} 
-                      size="lg"
-                      onClick={() => window.location.href = '/dashboard'}
-                    >
-                      {plan.buttonText}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+          {/* Comparison Table */}
+          <div className="mt-20 max-w-4xl mx-auto">
+            <h2 className="text-2xl font-bold text-center mb-8 text-gray-900 dark:text-white">
+              Detailed feature comparison
+            </h2>
+            <div className="overflow-x-auto">
+              <table className="w-full border-collapse bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-lg">
+                <thead>
+                  <tr className="bg-gray-50 dark:bg-gray-700">
+                    <th className="text-left p-4 font-semibold">Feature</th>
+                    <th className="text-center p-4 font-semibold">Freemium</th>
+                    <th className="text-center p-4 font-semibold">Pro</th>
+                    <th className="text-center p-4 font-semibold">Business</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="border-t border-gray-200 dark:border-gray-600">
+                    <td className="p-4">Scheduled posts</td>
+                    <td className="text-center p-4">7 simultaneous</td>
+                    <td className="text-center p-4">Unlimited</td>
+                    <td className="text-center p-4">Unlimited</td>
+                  </tr>
+                  <tr className="border-t border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
+                    <td className="p-4">Bluesky accounts</td>
+                    <td className="text-center p-4">2 max</td>
+                    <td className="text-center p-4">Unlimited</td>
+                    <td className="text-center p-4">Unlimited</td>
+                  </tr>
+                  <tr className="border-t border-gray-200 dark:border-gray-600">
+                    <td className="p-4">Follower analyses</td>
+                    <td className="text-center p-4">5/month</td>
+                    <td className="text-center p-4">Unlimited</td>
+                    <td className="text-center p-4">Unlimited</td>
+                  </tr>
+                  <tr className="border-t border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
+                    <td className="p-4">Follow/unfollow actions</td>
+                    <td className="text-center p-4">200/day</td>
+                    <td className="text-center p-4">Unlimited</td>
+                    <td className="text-center p-4">Unlimited</td>
+                  </tr>
+                  <tr className="border-t border-gray-200 dark:border-gray-600">
+                    <td className="p-4">DM Campaigns</td>
+                    <td className="text-center p-4"><X className="h-4 w-4 text-red-500 mx-auto" /></td>
+                    <td className="text-center p-4">Analysis only</td>
+                    <td className="text-center p-4">Full execution</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           </div>
 
           {/* FAQ Section */}
           <div className="mt-20 max-w-3xl mx-auto">
-            <h2 className="text-2xl font-bold text-center mb-8 text-gray-900 dark:text-white">Frequently Asked Questions</h2>
+            <h2 className="text-2xl font-bold text-center mb-8 text-gray-900 dark:text-white">Frequently asked questions</h2>
             <div className="space-y-6">
               <Card className="bg-white dark:bg-gray-800/50 border-gray-200 dark:border-gray-700">
                 <CardContent className="p-6">
-                  <h3 className="font-semibold mb-2 text-gray-900 dark:text-white">Is it really free during alpha?</h3>
+                  <h3 className="font-semibold mb-2 text-gray-900 dark:text-white">Can I change my plan anytime?</h3>
                   <p className="text-gray-600 dark:text-gray-300">
-                    Yes! All features are completely free during our alpha testing phase. This helps us gather feedback and improve the platform.
+                    Yes, you can upgrade or downgrade your plan at any time. Changes are effective immediately and billed pro-rata.
                   </p>
                 </CardContent>
               </Card>
 
               <Card className="bg-white dark:bg-gray-800/50 border-gray-200 dark:border-gray-700">
                 <CardContent className="p-6">
-                  <h3 className="font-semibold mb-2 text-gray-900 dark:text-white">What happens after the alpha phase?</h3>
+                  <h3 className="font-semibold mb-2 text-gray-900 dark:text-white">What happens if I exceed my limits?</h3>
                   <p className="text-gray-600 dark:text-gray-300">
-                    After alpha, the platform will be $10/month. Alpha users will get advance notice and special pricing offers.
+                    You'll receive a notification inviting you to upgrade your plan. Your existing data won't be deleted, but you won't be able to create new content until you upgrade, or wait for 1 month to reset your limits.
                   </p>
                 </CardContent>
               </Card>
 
               <Card className="bg-white dark:bg-gray-800/50 border-gray-200 dark:border-gray-700">
                 <CardContent className="p-6">
-                  <h3 className="font-semibold mb-2 text-gray-900 dark:text-white">How long will the alpha phase last?</h3>
+                  <h3 className="font-semibold mb-2 text-gray-900 dark:text-white">Are there hidden fees?</h3>
                   <p className="text-gray-600 dark:text-gray-300">
-                    The alpha phase will continue as we refine features and gather user feedback. We'll give at least 30 days notice before transitioning to paid plans.
-                  </p>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-white dark:bg-gray-800/50 border-gray-200 dark:border-gray-700">
-                <CardContent className="p-6">
-                  <h3 className="font-semibold mb-2 text-gray-900 dark:text-white">Do I need a credit card?</h3>
-                  <p className="text-gray-600 dark:text-gray-300">
-                    No credit card required during the alpha phase. Simply sign up and start using all features immediately.
+                    No, our prices are transparent. No setup, configuration, or cancellation fees. You only pay your monthly subscription.
                   </p>
                 </CardContent>
               </Card>
@@ -279,19 +409,27 @@ function Pricing() {
           <div className="text-center mt-16">
             <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">Ready to get started?</h2>
             <p className="text-gray-600 dark:text-gray-300 mb-6">
-              Join our alpha program and get unlimited access to all features for free
+              Join thousands of users growing their audience on Bluesky
             </p>
-            <div className="flex gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <Button 
+                size="lg" 
+                variant="outline"
+                onClick={() => window.location.href = '/dashboard'}
+              >
+                Start for free
+              </Button>
               <Button 
                 size="lg" 
                 className="bg-blue-600 hover:bg-blue-700 text-white"
-                onClick={() => window.location.href = '/dashboard'}
+                onClick={() => handleUpgrade('pro')}
               >
-                Get Alpha Access Free
+                Try Pro - $10/month
+                <ArrowRight className="ml-2 h-4 w-4" />
               </Button>
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
-              Free during alpha → $10/month after launch
+              No credit card required for free trial
             </p>
           </div>
         </div>

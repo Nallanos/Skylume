@@ -53,7 +53,8 @@ export const middleware = router.named({
   auth: () => import('#middleware/auth_middleware'),
   api_auth: () => import('#middleware/api_auth_middleware'),
   json_validation: () => import('#middleware/json_validation_middleware'),
-  rate_limit: () => import('#middleware/rate_limit_middleware')
+  rate_limit: () => import('#middleware/rate_limit_middleware'),
+  planLimit: () => import('#middleware/plan_limit_middleware')
 })
 
 import './scheduling_worker.js'

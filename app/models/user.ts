@@ -11,7 +11,7 @@ import Scheduling from './scheduling.js'
 import FollowersHistory from './followers_history.js'
 import HashtagGroup from './hashtag_group.js'
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
-  uids: ['email'],
+  uids: ['id'],
   passwordColumnName: 'password',
 })
 
@@ -20,7 +20,7 @@ export default class User extends compose(BaseModel, AuthFinder) {
   declare id: string
 
   @column()
-  declare email: string
+  declare email: string | null
 
   @column()
   declare plan: string
@@ -87,6 +87,25 @@ export default class User extends compose(BaseModel, AuthFinder) {
 
   @column()
   declare marketing_consent: boolean
+
+  // Nouvelles colonnes pour le suivi des limites
+  @column()
+  declare followerLoadingsThisMonth: number
+
+  @column()
+  declare dailyFollowActionsCount: number
+
+  @column.date()
+  declare lastFollowActionDate: DateTime | null
+
+  @column()
+  declare planLimitsReached: string | null
+
+  @column.dateTime()
+  declare planUpgradedAt: DateTime | null
+
+  @column.dateTime()
+  declare planDowngradedAt: DateTime | null
 
   @computed()
   get scheduledCount(): number {

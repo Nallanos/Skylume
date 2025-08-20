@@ -67,7 +67,7 @@ export default class AccountController {
         user = await auth.authenticate()
       } catch {
         // Create or find user based on handle
-        const existingUser = await User.findBy('email', handle)
+        const existingUser = await User.find(handle)
         
         if (existingUser) {
           await auth.use('web').login(existingUser)
@@ -242,7 +242,8 @@ export default class AccountController {
       } catch {
         console.log('No authenticated user, proceeding with login/creation for:', credential)
         
-        const existingUser = await User.findBy('email', handle)
+        // First, try to find user by handle (since handle is the unique identifier)
+        const existingUser = await User.find(handle)
 
         if (existingUser) {
           await auth.use('web').login(existingUser, !!remember_me)
@@ -351,18 +352,18 @@ export default class AccountController {
 
   private async createUser(handle: string, password: string) {
     try {
-      // Check if user already exists
-      const userAlreadyExists = await User.findBy('email', handle)
+      // Check if user already exists by ID (handle)
+      const userAlreadyExists = await User.find(handle)
       if (userAlreadyExists) {
         console.log('User already exists:', handle)
         return userAlreadyExists
       }
 
-      // Create new user
+      // Create new user with handle as ID and null email
       console.log('Creating new user:', handle)
       const newUser = await User.create({
         id: handle,
-        email: handle,
+        email: null, // Don't use handle as email
         password: password,
         createdAt: DateTime.now()
       })

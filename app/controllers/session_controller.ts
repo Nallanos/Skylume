@@ -1,9 +1,12 @@
 import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import redis from '@adonisjs/redis/services/main'
+import { Stripe } from 'stripe'
 
 @inject()
 export default class SessionController {
+    private stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
+    
     constructor() { }
 
     public async logout({ auth, response, session }: HttpContext) {
@@ -43,6 +46,25 @@ export default class SessionController {
             const user = await auth.authenticate()
             if (!user) throw new Error("User not found")
             
+            console.log(`[DELETE USER] Starting account deletion for user: ${user.id}`)
+            
+            // Cancel Stripe subscription if exists
+            if (user.subscriptionsId) {
+                try {
+                    console.log(`[DELETE USER] Cancelling Stripe subscription: ${user.subscriptionsId}`)
+                    await this.stripe.subscriptions.cancel(user.subscriptionsId, {
+                        invoice_now: false,
+                        prorate: false // Don't prorate on account deletion
+                    })
+                    console.log(`[DELETE USER] ✅ Stripe subscription cancelled successfully`)
+                } catch (stripeError: any) {
+                    console.error('[DELETE USER] ⚠️ Error cancelling Stripe subscription:', stripeError.message)
+                    // Continue with account deletion even if Stripe cancellation fails
+                    // Log this for manual cleanup if needed
+                    console.error(`[DELETE USER] Manual cleanup may be required for subscription: ${user.subscriptionsId}`)
+                }
+            }
+            
             // Clean up OAuth tokens before deleting user
             const oauthTokenKey = `oauth_tokens:${user.id}`
             await redis.del(oauthTokenKey)
@@ -56,8 +78,10 @@ export default class SessionController {
             // Clear session
             session.clear()
             
-            // Delete user
+            // Delete user (this will also cascade delete related accounts, etc.)
             await user.delete()
+            
+            console.log(`[DELETE USER] ✅ User ${user.id} deleted successfully`)
             
             return response.redirect('/')
         } catch (error) {

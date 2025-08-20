@@ -12,6 +12,7 @@ import {
   Moon,
   Sun,
   Users,
+  Shield,
 } from 'lucide-react'
 import {
   DropdownMenu,
@@ -205,10 +206,10 @@ function Sidebar({ user, account }: SidebarProps) {
             {/* User info */}
             <div className="min-w-0 flex-1">
               <div className="text-sm font-semibold text-foreground truncate">
-                {user?.email?.split('@')[0] || 'User'}
+                {user?.id?.split('@')[0] || 'User'}
               </div>
               <div className="text-xs text-muted-foreground truncate">
-                {user?.subscription?.plan || 'Free'} Plan
+                {(user?.plan || 'free').charAt(0).toUpperCase() + (user?.plan || 'free').slice(1)} Plan
               </div>
             </div>
 
@@ -250,21 +251,21 @@ function Sidebar({ user, account }: SidebarProps) {
                 <DropdownMenuItem asChild>
                   <Link href="/profile" className="flex items-center">
                     <Settings className="h-4 w-4 mr-2" />
-                    Settings
+                    Profile Settings
                   </Link>
                 </DropdownMenuItem>
 
                 <DropdownMenuItem asChild>
-                  <Link href="/plan/change" className="flex items-center text-foreground hover:text-blue-600 dark:hover:text-blue-400">
-                    <span className="mr-2">✨</span>
-                    {user?.plan === 'pro' ? 'Manage Plan' : 'Upgrade to Pro'}
+                  <Link href="/pricing" className="flex items-center text-foreground hover:text-blue-600 dark:hover:text-blue-400">
+                    <Shield className="h-4 w-4 mr-2" />
+                    { 'Upgrade Plan'}
                   </Link>
                 </DropdownMenuItem>
 
                 <DropdownMenuSeparator />
 
                 <DropdownMenuItem onClick={handleLogout}>
-                  <div className="flex items-center text-amber-600 dark:text-amber-500">
+                  <div className="flex items-center text-orange-600 dark:text-orange-500">
                     <svg
                       className="h-4 w-4 mr-2"
                       fill="none"
@@ -278,7 +279,7 @@ function Sidebar({ user, account }: SidebarProps) {
                         d="M15.75 9V5.25A2.25 2.25 0 0013.5 3h-6a2.25 2.25 0 00-2.25 2.25v13.5A2.25 2.25 0 007.5 21h6a2.25 2.25 0 002.25-2.25V15M12 9l-3 3m0 0l3 3m-3-3h12.75"
                       />
                     </svg>
-                    Logout
+                    Sign Out
                   </div>
                 </DropdownMenuItem>
 
