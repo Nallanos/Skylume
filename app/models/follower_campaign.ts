@@ -1,9 +1,10 @@
 import { DateTime } from 'luxon'
 import { BaseModel, column, belongsTo } from '@adonisjs/lucid/orm'
 import DmCampaign from './dm_campaign.js'
+import CampaignGroup from './campaign_group.js'
 import type { BelongsTo } from '@adonisjs/lucid/types/relations'
 
-type InterestLevel = 'interested' | 'moderately_interested' | 'not_interested' | 'excluded' | 'cannot_determine'
+export type InterestLevel = 'interested' | 'moderately_interested' | 'not_interested' | 'excluded' | 'cannot_determine'
 type BioQuality = 'good' | 'poor' | 'empty' | 'spam'
 
 export default class FollowerCampaign extends BaseModel {
@@ -59,6 +60,13 @@ export default class FollowerCampaign extends BaseModel {
   @column({ columnName: 'already_contacted' })
   declare alreadyContacted: boolean
 
+  // Nouveaux champs pour le système de groupes et variables
+  @column({ columnName: 'campaign_group_id' })
+  declare campaignGroupId: number | null
+
+  @column({ columnName: 'followers_count' })
+  declare followersCount: number | null
+
   @column({
     serialize: (value: string | null) => {
       if (!value) return null
@@ -83,6 +91,9 @@ export default class FollowerCampaign extends BaseModel {
 
   @belongsTo(() => DmCampaign, { foreignKey: 'dm_campaign_id' })
   declare dmCampaign: BelongsTo<typeof DmCampaign>
+
+  @belongsTo(() => CampaignGroup, { foreignKey: 'campaignGroupId' })
+  declare campaignGroup: BelongsTo<typeof CampaignGroup>
 
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime

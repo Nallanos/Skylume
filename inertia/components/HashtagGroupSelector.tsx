@@ -50,9 +50,8 @@ function HashtagGroupSelector({ onInsert, className }: Props) {
   }, [isOpen])
 
   const handleInsertGroup = (group: HashtagGroup) => {
-    // Ajouter # devant chaque hashtag
-    const formattedHashtags = group.hashtags.map(tag => `#${tag}`)
-    onInsert(formattedHashtags)
+    // ✅ CORRIGÉ: Ne pas ajouter le # ici, la fonction onInsert s'en charge
+    onInsert(group.hashtags)
     setIsOpen(false)
   }
 

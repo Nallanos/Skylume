@@ -374,7 +374,7 @@ function DMCampaigns() {
                             </Link>
                             
                             {(interested + moderate) > 0 && (
-                              <Link href={`/campaign/${campaign.id}/execute`}>
+                              <Link href={`/dashboard/campaigns/${campaign.id}/execution`}>
                                 <Button size="sm">
                                   <Target className="h-4 w-4 mr-2" />
                                   Execute Campaign

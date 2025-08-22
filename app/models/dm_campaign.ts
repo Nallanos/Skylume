@@ -5,6 +5,9 @@ import User from './user.js'
 import Account from './account.js'
 import FollowerCampaign from './follower_campaign.js'
 import CampaignMessage from './campaign_message.js'
+import CampaignVariable from './campaign_variable.js'
+import CampaignGroup from './campaign_group.js'
+import CampaignGroupMessage from './campaign_group_message.js'
 import type { ManyToMany, BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 
 type AnalysisStatus = 'pending' | 'in_progress' | 'completed' | 'failed'
@@ -126,4 +129,13 @@ export default class DmCampaign extends BaseModel {
 
   @hasMany(() => CampaignMessage, { foreignKey: 'dmCampaignId' })
   declare messages: HasMany<typeof CampaignMessage>
+
+  @hasMany(() => CampaignVariable, { foreignKey: 'campaignId' })
+  declare variables: HasMany<typeof CampaignVariable>
+
+  @hasMany(() => CampaignGroup, { foreignKey: 'campaignId' })
+  declare groups: HasMany<typeof CampaignGroup>
+
+  @hasMany(() => CampaignGroupMessage, { foreignKey: 'campaignId' })
+  declare groupMessages: HasMany<typeof CampaignGroupMessage>
 }

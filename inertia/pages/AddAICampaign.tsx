@@ -1,8 +1,6 @@
 import { Head, usePage, Link, useForm } from '@inertiajs/react'
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import Layout from '../components/Layout'
-import GmailStyleLinkManager from '../components/GmailStyleLinkManager'
-import LinkHighlightTextarea from '../components/LinkHighlightTextarea'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -15,7 +13,6 @@ import {
   X,
   Brain,
   ArrowLeft,
-  Target,
   Lightbulb
 } from 'lucide-react'
 
@@ -42,14 +39,9 @@ function AddAICampaign() {
   const [excludeKeywords, setExcludeKeywords] = useState<string[]>([])
   const [keywordInput, setKeywordInput] = useState('')
   const [excludeKeywordInput, setExcludeKeywordInput] = useState('')
-  
-  // ✅ NOUVEAU: Référence au textarea et liens explicites
-  const messageTextareaRef = useRef<HTMLTextAreaElement>(null)
-  const [explicitLinks, setExplicitLinks] = useState<{text: string, url: string}[]>([])
 
   const { data, setData, post, processing, errors } = useForm({
     name: '',
-    message: '',
     accountHandle: '',
     strategy: 'semantic_analysis',
     keywords: [] as string[],
@@ -57,39 +49,7 @@ function AddAICampaign() {
     targetCount: 50,
     interestedThreshold: 0.49,
     moderatelyInterestedThreshold: 0.35,
-    explicitLinks: [] as {text: string, url: string}[]
   })
-
-  // ✅ NOUVEAU: Fonction pour insérer un lien dans le textarea (style Gmail)
-  const handleLinkInsert = (text: string, url: string) => {
-    const textarea = messageTextareaRef.current
-    if (!textarea) return
-
-    const start = textarea.selectionStart
-    const end = textarea.selectionEnd
-    const currentMessage = data.message
-    
-    // Insérer le texte du lien à la position du curseur
-    const newMessage = 
-      currentMessage.substring(0, start) +
-      text +
-      currentMessage.substring(end)
-    
-    // Mettre à jour le message
-    setData('message', newMessage)
-    
-    // Ajouter le lien à la liste des liens explicites
-    const newLink = { text, url }
-    const updatedLinks = [...explicitLinks, newLink]
-    setExplicitLinks(updatedLinks)
-    setData('explicitLinks', updatedLinks)
-    
-    // Remettre le focus et placer le curseur après le texte inséré
-    setTimeout(() => {
-      textarea.focus()
-      textarea.setSelectionRange(start + text.length, start + text.length)
-    }, 0)
-  }
 
   const handleAddKeyword = () => {
     if (keywordInput.trim() && !keywords.includes(keywordInput.trim())) {
@@ -137,10 +97,6 @@ function AddAICampaign() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    
-    // ✅ NOUVEAU: Mettre à jour les données avec les liens explicites
-    setData('explicitLinks', explicitLinks)
-    
     post('/campaign/create')
   }
 
@@ -173,6 +129,12 @@ function AddAICampaign() {
               <p className="text-muted-foreground mt-1">
                 Set up an AI-powered campaign with semantic targeting
               </p>
+              <div className="mt-2 p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
+                <p className="text-sm text-blue-700 dark:text-blue-300">
+                  <Lightbulb className="h-4 w-4 inline mr-1" />
+                  <strong>New:</strong> Messages and targeting groups will be configured in the dashboard after analysis is complete.
+                </p>
+              </div>
             </div>
           </div>
 
@@ -393,86 +355,6 @@ function AddAICampaign() {
                 </CardContent>
               </Card>
             </div>
-
-            {/* Message Content */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Target className="h-5 w-5" />
-                  Message Content
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <Label htmlFor="message">Direct Message</Label>
-                  <LinkHighlightTextarea
-                    ref={messageTextareaRef}
-                    value={data.message}
-                    onChange={(value) => setData('message', value)}
-                    links={explicitLinks}
-                    placeholder="Hi! I noticed you're interested in [topic]. I'd love to connect and share some insights about..."
-                    rows={5}
-                    className="mt-1 min-h-[120px] w-full px-3 py-2 text-sm bg-background border border-input rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                    showPreview={true}
-                    previewAccount={accounts && accounts.find(acc => acc.handle === data.accountHandle) ? {
-                      ...accounts.find(acc => acc.handle === data.accountHandle)!,
-                      platform: 'bluesky' as const
-                    } : null}
-                  />
-                  <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
-                    <div className="flex items-center gap-2">
-                      <span>Keep it personal and engaging</span>
-                      <GmailStyleLinkManager
-                        onLinkInsert={handleLinkInsert}
-                        disabled={processing}
-                      />
-                    </div>
-                    <span>{data.message.length}/280 characters</span>
-                  </div>
-                  {errors.message && (
-                    <p className="text-sm text-red-600 mt-1">{errors.message}</p>
-                  )}
-                </div>
-
-                {/* ✅ NOUVEAU: Affichage des liens configurés */}
-                {explicitLinks.length > 0 && (
-                  <div className="border-t pt-4">
-                    <Label className="text-sm font-medium mb-2 block">Configured Links ({explicitLinks.length})</Label>
-                    <div className="space-y-2">
-                      {explicitLinks.map((link, index) => (
-                        <div key={index} className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2">
-                              <span className="font-medium text-sm">
-                                &quot;{link.text}&quot;
-                              </span>
-                              <span className="text-xs text-muted-foreground">→</span>
-                              <span className="text-xs text-blue-600 dark:text-blue-400 truncate">
-                                {link.url}
-                              </span>
-                            </div>
-                          </div>
-                          <Button
-                            type="button"
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => {
-                              const updatedLinks = explicitLinks.filter((_, i) => i !== index)
-                              setExplicitLinks(updatedLinks)
-                              setData('explicitLinks', updatedLinks)
-                            }}
-                            disabled={processing}
-                            className="ml-2 flex-shrink-0"
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
 
             {/* Advanced Settings - AI Thresholds */}
             <Card className="border-purple-200 dark:border-purple-800">

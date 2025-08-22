@@ -15,22 +15,7 @@ import Feed from '#models/feed'
 /*
 |--------------------------------------------------------------------------
 | STATIC PAGES
-|-router
-  .post('/campaign/:id/execute', [dm_campaigns_controller, 'executeCampaign'])
-  .use(middleware.auth())
-  .use(middleware.planLimit({
-    feature: 'dmCampaigns',
-    redirectOnLimit: '/pricing',
-    jsonOnLimit: true
-  }))
-router
-  .post('/api/campaigns/:id/execute', [dm_campaigns_controller, 'executeCampaign'])
-  .use(middleware.auth())
-  .use(middleware.planLimit({
-    feature: 'dmCampaigns',
-    redirectOnLimit: '/pricing',
-    jsonOnLimit: true
-  }))-------------------------------------------------------------------
+|--------------------------------------------------------------------------
 | Routes pour les pages statiques et d'information
 |
 */
@@ -85,8 +70,16 @@ const analytics_controller = () => import('#controllers/analytics_controller')
 const follower_analysis_controller = () => import('#controllers/follower_analysis_controller')
 const follower_tracker_controller = () => import('#controllers/follower_tracker_controller')
 const python_controller_methods = () => import('#controllers/python_controller_methods')
-const dm_campaigns_controller = () => import('#controllers/dm_campaigns_controller')
+const dm_campaigns_controller = () => import('#controllers/campaigns/dm_campaigns_basic_controller')
+const dm_campaign_analysis_controller = () => import('#controllers/campaigns/dm_campaign_analysis_controller')
+const dm_campaign_stats_controller = () => import('#controllers/campaigns/dm_campaign_stats_controller')
+const campaign_conversations_controller = () => import('#controllers/campaigns/campaign_conversations_controller')
+const campaign_messages_controller = () => import('#controllers/campaigns/campaign_messages_controller')
+const campaign_execution_controller = () => import('#controllers/campaigns/campaign_execution_controller')
 const hashtag_groups_controller = () => import('#controllers/hashtag_groups_controller')
+const campaign_variables_controller = () => import('#controllers/campaigns/campaign_variables_controller')
+const campaign_groups_controller = () => import('#controllers/campaigns/campaign_groups_controller')
+const campaign_previews_controller = () => import('#controllers/campaigns/campaign_previews_controller')
 
 /*
 |--------------------------------------------------------------------------
@@ -547,7 +540,12 @@ router
 
 // Campaign Dashboard - Individual campaign view
 router
-  .get('/campaign/:id', [dm_campaigns_controller, 'getCampaignDashboardPage'])
+  .get('/campaign/:id', [dm_campaign_stats_controller, 'getCampaignDashboardPage'])
+  .use(middleware.auth())
+
+// Campaign Execution - Direct execution page
+router
+  .get('/dashboard/campaigns/:id/execution', [dm_campaign_stats_controller, 'getCampaignDashboardPage'])
   .use(middleware.auth())
 
 router
@@ -565,81 +563,159 @@ router
   .delete('/campaign/delete/:campaign_id', [dm_campaigns_controller, 'removeDmCampaign'])
   .use(middleware.auth())
 router
-  .post('/campaign/start/:campaign_id', [dm_campaigns_controller, 'startCampaign'])
+  .post('/campaign/start/:campaign_id', [dm_campaign_analysis_controller, 'executeCampaign'])
   .use(middleware.auth())
 
 // ===== DM CAMPAIGNS ANALYSIS & EXECUTION =====
 router
-  .post('/campaign/:id/analyze', [dm_campaigns_controller, 'analyzeFollowers'])
+  .post('/campaign/:id/analyze', [dm_campaign_analysis_controller, 'analyzeFollowers'])
   .use(middleware.auth())
 router
   .put('/campaign/:id/update', [dm_campaigns_controller, 'updateCampaign'])
   .use(middleware.auth())
 router
-  .post('/campaign/:id/execute', [dm_campaigns_controller, 'executeCampaign'])
+  .post('/campaign/:id/execute', [dm_campaign_analysis_controller, 'executeCampaign'])
   .use(middleware.auth())
 router
-  .post('/campaign/:id/count-responses', [dm_campaigns_controller, 'countResponses'])
+  .post('/campaign/:id/count-responses', [campaign_conversations_controller, 'countResponses'])
   .use(middleware.auth())
 router
-  .get('/campaign/:id/stats', [dm_campaigns_controller, 'getCampaignStatsPage'])
+  .get('/campaign/:id/stats', [dm_campaign_stats_controller, 'getCampaignStatsPage'])
   .use(middleware.auth())
 router
-  .get('/api/campaign/:id/stats', [dm_campaigns_controller, 'getCampaignStats'])
+  .get('/api/campaign/:id/stats', [dm_campaign_stats_controller, 'getCampaignStats'])
   .use(middleware.auth())
 router
-  .get('/api/campaign/:id/followers', [dm_campaigns_controller, 'getAnalyzedFollowers'])
+  .get('/api/campaign/:id/followers', [dm_campaign_stats_controller, 'getAnalyzedFollowers'])
   .use(middleware.auth())
 router
-  .get('/api/campaign/:id/followers-paginated', [dm_campaigns_controller, 'getAnalyzedFollowersPaginatedApi'])
+  .get('/api/campaign/:id/followers-paginated', [dm_campaign_stats_controller, 'getAnalyzedFollowersPaginatedApi'])
   .use(middleware.auth())
 
 // ===== NOUVELLES ROUTES - MESSAGES MULTIPLES =====
 router
-  .get('/campaign/:id/messages', [dm_campaigns_controller, 'getCampaignMessages'])
+  .get('/campaign/:id/messages', [campaign_messages_controller, 'getCampaignMessages'])
   .use(middleware.auth())
 router
-  .post('/campaign/:id/messages', [dm_campaigns_controller, 'createCampaignMessage'])
+  .post('/campaign/:id/messages', [campaign_messages_controller, 'createCampaignMessage'])
   .use(middleware.auth())
 router
-  .put('/campaign/:id/messages/:messageId', [dm_campaigns_controller, 'updateCampaignMessage'])
+  .put('/campaign/:id/messages/:messageId', [campaign_messages_controller, 'updateCampaignMessage'])
   .use(middleware.auth())
 router
-  .delete('/campaign/:id/messages/:messageId', [dm_campaigns_controller, 'deleteCampaignMessage'])
+  .delete('/campaign/:id/messages/:messageId', [campaign_messages_controller, 'deleteCampaignMessage'])
   .use(middleware.auth())
 
 // ===== NOUVELLES ROUTES - TRACKING CONVERSATIONS =====
 router
-  .post('/campaign/:id/check-conversations', [dm_campaigns_controller, 'checkConversations'])
+  .post('/campaign/:id/check-conversations', [campaign_conversations_controller, 'checkConversations'])
   .use(middleware.auth())
 router
-  .post('/campaign/:id/mark-contacted/:followerId', [dm_campaigns_controller, 'markAsContacted'])
+  .post('/campaign/:id/mark-contacted/:followerId', [campaign_conversations_controller, 'markAsContacted'])
   .use(middleware.auth())
 router
-  .get('/campaign/:id/conversation-status', [dm_campaigns_controller, 'getConversationStatus'])
+  .get('/campaign/:id/conversation-status', [campaign_conversations_controller, 'getConversationStatus'])
   .use(middleware.auth())
 router
-  .post('/campaign/:id/mark-all-existing-conversations', [dm_campaigns_controller, 'markAllExistingConversationsAsContacted'])
+  .post('/campaign/:id/mark-all-existing-conversations', [campaign_conversations_controller, 'markAllExistingConversationsAsContacted'])
   .use(middleware.auth())
 
 // ===== NOUVELLES ROUTES - EXECUTION DES CAMPAGNES =====
 router
-  .get('/api/campaigns/:id/execution/config', [dm_campaigns_controller, 'getExecutionConfig'])
+  .get('/api/campaigns/:id/execution/config', [campaign_execution_controller, 'getExecutionConfig'])
   .use(middleware.auth())
 router
-  .post('/api/campaigns/:id/execution/config', [dm_campaigns_controller, 'saveExecutionConfig'])
+  .post('/api/campaigns/:id/execution/config', [campaign_execution_controller, 'saveExecutionConfig'])
   .use(middleware.auth())
 router
-  .get('/api/campaigns/:id/execution/preview', [dm_campaigns_controller, 'getExecutionPreview'])
+  .get('/api/campaigns/:id/execution/preview', [campaign_execution_controller, 'getExecutionPreview'])
   .use(middleware.auth())
 router
-  .get('/api/campaigns/:id/execution/validate', [dm_campaigns_controller, 'validateExecutionConfig'])
+  .get('/api/campaigns/:id/execution/validate', [campaign_execution_controller, 'validateExecutionConfig'])
   .use(middleware.auth())
 router
-  .post('/api/campaigns/:id/execution/reset-counts', [dm_campaigns_controller, 'resetMessageCounts'])
+  .post('/api/campaigns/:id/execution/reset-counts', [campaign_execution_controller, 'resetMessageCounts'])
   .use(middleware.auth())
 router
-  .post('/api/campaigns/:id/execute', [dm_campaigns_controller, 'executeCampaign'])
+  .post('/api/campaigns/:id/execute', [dm_campaign_analysis_controller, 'executeCampaign'])
+  .use(middleware.auth())
+
+// ===== NOUVELLES ROUTES - VARIABLES ET GROUPES =====
+// Variables de campagne
+router
+  .get('/campaign/:id/variables', [campaign_variables_controller, 'index'])
+  .use(middleware.auth())
+router
+  .post('/campaign/:id/variables', [campaign_variables_controller, 'store'])
+  .use(middleware.auth())
+router
+  .put('/campaign/:id/variables/:variableId', [campaign_variables_controller, 'update'])
+  .use(middleware.auth())
+router
+  .delete('/campaign/:id/variables/:variableId', [campaign_variables_controller, 'destroy'])
+  .use(middleware.auth())
+router
+  .post('/campaign/:id/variables/validate-message', [campaign_variables_controller, 'validateMessage'])
+  .use(middleware.auth())
+
+// Groupes de campagne
+router
+  .get('/campaign/:id/groups', [campaign_groups_controller, 'index'])
+  .use(middleware.auth())
+router
+  .post('/campaign/:id/groups', [campaign_groups_controller, 'store'])
+  .use(middleware.auth())
+router
+  .put('/campaign/:id/groups/:groupId', [campaign_groups_controller, 'update'])
+  .use(middleware.auth())
+router
+  .delete('/campaign/:id/groups/:groupId', [campaign_groups_controller, 'destroy'])
+  .use(middleware.auth())
+router
+  .post('/campaign/:id/groups/reorder', [campaign_groups_controller, 'reorder'])
+  .use(middleware.auth())
+router
+  .post('/campaign/:id/groups/estimate', [campaign_groups_controller, 'estimate'])
+  .use(middleware.auth())
+router
+  .get('/campaign/:id/groups/estimations', [campaign_groups_controller, 'estimations'])
+  .use(middleware.auth())
+router
+  .post('/campaign/:id/groups/assign', [campaign_groups_controller, 'assignFollowers'])
+  .use(middleware.auth())
+router
+  .get('/campaign/:id/groups/:groupId/followers', [campaign_groups_controller, 'getGroupFollowers'])
+  .use(middleware.auth())
+router
+  .get('/campaign/:id/groups/:groupId/preview', [campaign_previews_controller, 'previewMessage'])
+  .use(middleware.auth())
+router
+  .post('/campaign/:id/groups/reset', [campaign_groups_controller, 'resetAssignments'])
+  .use(middleware.auth())
+
+// Messages de groupes
+router
+  .post('/campaign/:id/groups/:groupId/messages', [campaign_messages_controller, 'createCampaignMessage'])
+  .use(middleware.auth())
+router
+  .put('/campaign/:id/groups/:groupId/messages/:messageId', [campaign_messages_controller, 'updateCampaignMessage'])
+  .use(middleware.auth())
+router
+  .delete('/campaign/:id/groups/:groupId/messages/:messageId', [campaign_messages_controller, 'deleteCampaignMessage'])
+  .use(middleware.auth())
+
+// Prévisualisation et validation
+router
+  .post('/campaign/:id/preview-message', [campaign_previews_controller, 'previewMessage'])
+  .use(middleware.auth())
+router
+  .get('/campaign/:id/validate-messages', [campaign_previews_controller, 'validateAllMessages'])
+  .use(middleware.auth())
+router
+  .get('/campaign/:id/personalization-stats', [campaign_previews_controller, 'getStats'])
+  .use(middleware.auth())
+router
+  .get('/campaign/:id/sample-followers', [campaign_previews_controller, 'getSampleFollowers'])
   .use(middleware.auth())
 
 /*

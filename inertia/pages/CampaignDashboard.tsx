@@ -6,7 +6,10 @@ import { Button } from '../components/ui/button'
 import { Badge } from '../components/ui/badge'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs'
 import CampaignExecutionCard from '../components/CampaignExecutionCard'
+import VariableManager from '../components/VariableManager'
+import GroupManager from '../components/GroupManager'
 import {
   Dialog,
   DialogContent,
@@ -16,6 +19,14 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '../components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '../components/ui/dropdown-menu'
 import {
   Users,
   Target,
@@ -28,6 +39,9 @@ import {
   Save,
   Brain,
   X,
+  Variable,
+  Group,
+  Play,
 } from 'lucide-react'
 
 interface User {
@@ -51,6 +65,39 @@ interface Campaign {
   moderatelyInterestedThreshold?: number
   createdAt: string
   updatedAt: string
+  variables?: CampaignVariable[]
+  groups?: CampaignGroup[]
+}
+
+interface CampaignVariable {
+  id: number
+  campaign_id: number
+  name: string
+  type: string
+  configuration: Record<string, any>
+  created_at: string
+  updated_at: string
+}
+
+interface CampaignGroup {
+  id: number
+  campaign_id: number
+  name: string
+  conditions: Record<string, any>
+  priority: number
+  estimated_targets: number
+  created_at: string
+  updated_at: string
+  messages: CampaignGroupMessage[]
+}
+
+interface CampaignGroupMessage {
+  id: number
+  campaign_group_id: number
+  content: string
+  weight: number
+  created_at: string
+  updated_at: string
 }
 
 interface FollowerCampaign {
@@ -114,11 +161,14 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
   const [isPolling, setIsPolling] = useState(false)
   const [loading, setLoading] = useState(false)
   const [isEditingSettings, setIsEditingSettings] = useState(false)
+  const [activeTab, setActiveTab] = useState('overview')
+  const [variables, setVariables] = useState<CampaignVariable[]>(campaign?.variables || [])
+  const [groups, setGroups] = useState<CampaignGroup[]>(campaign?.groups || [])
   const [editedCampaign, setEditedCampaign] = useState({
     name: campaign.name,
     // message field removed - now handled by campaign messages
     targetCount: campaign.targetCount,
-    keywords: campaign.keywords,
+    keywords: campaign.keywords || '[]',
     excludeKeywords: campaign.excludeKeywords || '[]',
     interestedThreshold: campaign.interestedThreshold || 0.7,
     moderatelyInterestedThreshold: campaign.moderatelyInterestedThreshold || 0.5
@@ -185,6 +235,32 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
       alert('Error updating campaign. Please try again.')
     } finally {
       setSaving(false)
+    }
+  }
+
+  // Refresh campaign variables
+  const refreshVariables = async () => {
+    try {
+      const response = await fetch(`/campaign/${campaign.id}/variables`)
+      if (response.ok) {
+        const result = await response.json()
+        setVariables(result.data || [])
+      }
+    } catch (error) {
+      console.error('Failed to refresh variables:', error)
+    }
+  }
+
+  // Refresh campaign groups
+  const refreshGroups = async () => {
+    try {
+      const response = await fetch(`/campaign/${campaign.id}/groups`)
+      if (response.ok) {
+        const data = await response.json()
+        setGroups(data.groups || [])
+      }
+    } catch (error) {
+      console.error('Failed to refresh groups:', error)
     }
   }
 
@@ -549,23 +625,24 @@ Are you sure you want to proceed with executing this campaign?`
       <Layout user={user}>
         <div className="p-6 max-w-7xl mx-auto space-y-6">
           {/* Header */}
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="flex items-center gap-4">
               <Link href="/campaign" className="p-2 hover:bg-accent rounded-lg transition-colors">
                 <ArrowLeft className="h-5 w-5" />
               </Link>
               <div>
-                <h1 className="text-3xl font-bold text-foreground">{campaign.name}</h1>
+                <h1 className="text-2xl lg:text-3xl font-bold text-foreground">{campaign.name}</h1>
                 <p className="text-muted-foreground">Campaign for @{campaign.accountHandle}</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-2 lg:gap-3">
               <Dialog open={isEditingSettings} onOpenChange={setIsEditingSettings}>
                 <DialogTrigger asChild>
-                  <Button variant="outline" className="flex items-center gap-2">
+                  <Button variant="outline" className="flex items-center gap-2" size="sm">
                     <Settings className="h-4 w-4" />
-                    Edit Settings
+                    <span className="hidden sm:inline">Edit Settings</span>
+                    <span className="sm:hidden">Edit</span>
                   </Button>
                 </DialogTrigger>
                 <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
@@ -711,9 +788,10 @@ Are you sure you want to proceed with executing this campaign?`
               </Dialog>
 
               <Link href={`/campaign/${campaign.id}/stats`}>
-                <Button variant="outline" className="flex items-center gap-2">
+                <Button variant="outline" className="flex items-center gap-2" size="sm">
                   <BarChart3 className="h-4 w-4" />
-                  View Stats
+                  <span className="hidden sm:inline">View Stats</span>
+                  <span className="sm:hidden">Stats</span>
                 </Button>
               </Link>
 
@@ -723,9 +801,11 @@ Are you sure you want to proceed with executing this campaign?`
                   onClick={handleStartAnalysis}
                   disabled={loading}
                   className="flex items-center gap-2"
+                  size="sm"
                 >
                   <Brain className="h-4 w-4" />
-                  Re-analyze
+                  <span className="hidden sm:inline">Re-analyze</span>
+                  <span className="sm:hidden">Re-analyze</span>
                 </Button>
               )}
 
@@ -734,48 +814,51 @@ Are you sure you want to proceed with executing this campaign?`
                   onClick={handleStartAnalysis} 
                   disabled={loading}
                   className="flex items-center gap-2"
+                  size="sm"
                 >
                   <Brain className="h-4 w-4" />
-                  Start Analysis
-                </Button>
-              )}
-
-              {localCampaign.analysisStatus === 'completed' && (
-                <Button
-                  variant="outline"
-                  onClick={handleCountResponses}
-                  disabled={loading}
-                  className="flex items-center gap-2"
-                >
-                  <MessageSquare className="h-4 w-4" />
-                  Count Responses
-                </Button>
-              )}
-
-              {localCampaign.analysisStatus === 'completed' && (
-                <Button
-                  variant="outline"
-                  onClick={handleMarkExistingConversations}
-                  disabled={loading}
-                  className="flex items-center gap-2"
-                >
-                  <MessageSquare className="h-4 w-4" />
-                  Mark Existing Convos
+                  <span className="hidden sm:inline">Start Analysis</span>
+                  <span className="sm:hidden">Analyze</span>
                 </Button>
               )}
 
               {localCampaign.analysisStatus === 'completed' &&
                 localCampaign.executionStatus !== 'completed' && (
-                  <div className="flex flex-col gap-2">
-                    <Button
-                      onClick={handleExecuteCampaign}
-                      className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
-                    >
-                      <Send className="h-4 w-4" />
-                      Execute Campaign
-                    </Button>
-                  </div>
+                  <Button
+                    onClick={handleExecuteCampaign}
+                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                    size="sm"
+                  >
+                    <Send className="h-4 w-4" />
+                    <span className="hidden sm:inline">Execute Campaign</span>
+                    <span className="sm:hidden">Execute</span>
+                  </Button>
                 )}
+
+              {/* Actions Dropdown Menu */}
+              {localCampaign.analysisStatus === 'completed' && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button variant="outline" size="sm" className="flex items-center gap-2">
+                      <Settings className="h-4 w-4" />
+                      <span className="hidden sm:inline">Actions</span>
+                      <span className="sm:hidden">⋮</span>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-48">
+                    <DropdownMenuLabel>Campaign Actions</DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleCountResponses} disabled={loading}>
+                      <MessageSquare className="h-4 w-4 mr-2" />
+                      Count Responses
+                    </DropdownMenuItem>
+                    <DropdownMenuItem onClick={handleMarkExistingConversations} disabled={loading}>
+                      <MessageSquare className="h-4 w-4 mr-2" />
+                      Mark Existing Convos
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
           </div>
 
@@ -946,52 +1029,109 @@ Are you sure you want to proceed with executing this campaign?`
             </Card>
           )}
 
-          {/* Campaign Execution Card */}
-          <CampaignExecutionCard
-            campaignId={campaign.id}
-            campaignName={campaign.name}
-            analysisStatus={campaign.analysisStatus}
-          />
-
-          {/* Campaign Info */}
+          {/* Campaign Management Tabs */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
-                <MessageSquare className="h-5 w-5" />
-                Campaign Details
+                <Settings className="h-5 w-5" />
+                Campaign Management
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <div className="space-y-3">
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Target Count</p>
-                    <p className="text-sm">{localCampaign.targetCount}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium text-muted-foreground">Keywords</p>
-                    <div className="flex flex-wrap gap-1 mt-1">
-                      {parseKeywords(localCampaign.keywords).map((keyword: string, index: number) => (
-                        <Badge key={index} variant="secondary" className="text-xs">
-                          {keyword}
-                        </Badge>
-                      ))}
+              <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="overview" className="flex items-center gap-2">
+                    <BarChart3 className="h-4 w-4" />
+                    Overview
+                  </TabsTrigger>
+                  <TabsTrigger value="variables" className="flex items-center gap-2">
+                    <Variable className="h-4 w-4" />
+                    Variables
+                  </TabsTrigger>
+                  <TabsTrigger value="groups" className="flex items-center gap-2">
+                    <Group className="h-4 w-4" />
+                    Groups
+                  </TabsTrigger>
+                  <TabsTrigger value="execution" className="flex items-center gap-2">
+                    <Play className="h-4 w-4" />
+                    Execution
+                  </TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="overview" className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Target Count</p>
+                        <p className="text-sm">{localCampaign.targetCount}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Keywords</p>
+                        <div className="flex flex-wrap gap-1 mt-1">
+                          {parseKeywords(localCampaign.keywords).map((keyword: string, index: number) => (
+                            <Badge key={index} variant="secondary" className="text-xs">
+                              {keyword}
+                            </Badge>
+                          ))}
+                        </div>
+                      </div>
+                      {localCampaign.excludeKeywords && parseKeywords(localCampaign.excludeKeywords).length > 0 && (
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Exclude Keywords</p>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {parseKeywords(localCampaign.excludeKeywords).map((keyword: string, index: number) => (
+                              <Badge key={index} variant="destructive" className="text-xs">
+                                {keyword}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
                     </div>
-                  </div>
-                  {localCampaign.excludeKeywords && parseKeywords(localCampaign.excludeKeywords).length > 0 && (
-                    <div>
-                      <p className="text-sm font-medium text-muted-foreground">Exclude Keywords</p>
-                      <div className="flex flex-wrap gap-1 mt-1">
-                        {parseKeywords(localCampaign.excludeKeywords).map((keyword: string, index: number) => (
-                          <Badge key={index} variant="destructive" className="text-xs">
-                            {keyword}
-                          </Badge>
-                        ))}
+                    <div className="space-y-3">
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Variables</p>
+                        <p className="text-sm">{variables.length} defined</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Target Groups</p>
+                        <p className="text-sm">{groups.length} configured</p>
+                      </div>
+                      <div>
+                        <p className="text-sm font-medium text-muted-foreground">Total Messages</p>
+                        <p className="text-sm">
+                          {groups.reduce((acc, group) => acc + (group.messages?.length || 0), 0)} messages
+                        </p>
                       </div>
                     </div>
-                  )}
-                </div>
-              </div>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="variables" className="space-y-4">
+                  <VariableManager
+                    campaignId={campaign.id}
+                    variables={variables}
+                    onVariableUpdate={refreshVariables}
+                  />
+                </TabsContent>
+
+                <TabsContent value="groups" className="space-y-4">
+                  <GroupManager
+                    campaignId={campaign.id}
+                    groups={groups}
+                    variables={variables.map(v => ({ name: v.name, type: v.type }))}
+                    onGroupUpdate={refreshGroups}
+                  />
+                </TabsContent>
+
+                <TabsContent value="execution" className="space-y-4">
+                  <CampaignExecutionCard
+                    campaignId={campaign.id}
+                    campaignName={campaign.name}
+                    analysisStatus={campaign.analysisStatus}
+                  />
+                </TabsContent>
+              </Tabs>
             </CardContent>
           </Card>
         </div>

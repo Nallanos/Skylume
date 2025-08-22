@@ -1,10 +1,10 @@
 import DmCampaign from '#models/dm_campaign'
 import FollowerCampaign from '#models/follower_campaign'
+import CampaignVariable from '#models/campaign_variable'
+import CampaignGroup from '#models/campaign_group'
 import { HttpContext } from '@adonisjs/core/http'
 import { DateTime } from 'luxon'
 import Account from '#models/account'
-import type { MessageViewSender } from '@atproto/api/dist/client/types/chat/bsky/convo/defs.js'
-import type { ProfileView } from '@atproto/api/dist/client/types/app/bsky/actor/defs.js'
 import AccountService from '#services/account_service'
 import AccountManager from '#services/account_manager'
 import DmCampaignAnalysisService from '#services/dm_campaign_analysis_service'
@@ -14,17 +14,10 @@ import CampaignExecutionService from '#services/campaign_execution_service'
 import { formatKeywordsForStorage } from '../utils/keywords.js'
 import { inject } from '@adonisjs/core'
 
-interface AuthTokens {
-    convoAuth: any
-    messagesAuth: any
-    sendMessageAuth: any
-}
-
 @inject()
 export default class DmCampaignsController {
     // Variables d'état pour le traitement en cours
     private accountService: AccountService | undefined
-    private authTokens!: AuthTokens
     private currentAccount!: Account
     private currentDmCampaign!: DmCampaign
 
@@ -108,47 +101,23 @@ export default class DmCampaignsController {
             const campaignId = params.campaign_id || request.input('campaign_id')
             const campaign = await DmCampaign.findOrFail(campaignId)
             await campaign.delete()
+            
+            // Retourner JSON pour les requêtes AJAX
+            if (request.header('X-Requested-With') === 'XMLHttpRequest') {
+                return response.json({ success: true, message: 'Campaign deleted successfully' })
+            }
+            
+            // Redirection pour les requêtes normales
             return response.redirect().back()
         } catch (error) {
             console.error(error)
+            
+            // Retourner JSON pour les requêtes AJAX
+            if (request.header('X-Requested-With') === 'XMLHttpRequest') {
+                return response.status(500).json({ error: error.message || 'Failed to delete campaign' })
+            }
+            
             return response.status(404).json({ error: error.message })
-        }
-    }
-
-    public async startCampaign({ request, response, session, params }: HttpContext) {
-        try {
-            const campaignId = params.campaign_id || request.input('campaign_id')
-            
-            // Charger la campagne
-            this.currentDmCampaign = await DmCampaign.findOrFail(campaignId)
-            
-            // Vérifier que la campagne a un targetCount défini
-            if (!this.currentDmCampaign.targetCount || this.currentDmCampaign.targetCount <= 0) {
-                session.flash('error', 'Le nombre de cibles (targetCount) doit être défini et supérieur à 0')
-                return response.redirect().back()
-            }
-            
-            // Démarrer la campagne si elle n'est pas déjà active
-            if (!this.currentDmCampaign.status) {
-                this.currentDmCampaign.status = true
-                await this.currentDmCampaign.save()
-            }
-
-            await this.initializeCampaignContext(campaignId)
-            
-            if (!this.currentDmCampaign.status) {
-                session.flash('error', 'La campagne est désactivée')
-                return response.redirect().back()
-            }
-            
-            // Traiter les followers avec respect du targetCount
-            await this.processFollowersWithLimit()
-            await this.updateCampaignCursor()
-        } catch (error) {
-            session.flash('error', 'Erreur: ' + error.message)
-            console.error(error)
-        } finally {
-            await this.cleanupCampaign()
         }
     }
 
@@ -167,152 +136,71 @@ export default class DmCampaignsController {
         await this.refreshAuthTokens()
     }
 
-    private async processFollowersWithLimit() {
-        let cursor = this.currentDmCampaign.followersCursor || undefined
-        let messagesSent = 0
-        const targetCount = this.currentDmCampaign.targetCount || 0
-        
-        try {
-            while (await this.shouldContinueProcessing() && messagesSent < targetCount) {
-                console.log(`Fetching followers... Messages sent: ${messagesSent}/${targetCount}`)
-                if (!this.currentAccount.at_session?.did) {
-                    throw new Error('Account session or DID is missing')
+    /**
+     * Vérifier si les conditions d'un groupe correspondent à un follower
+     */
+    private checkGroupConditions(conditions: Record<string, any>, followerCampaign: FollowerCampaign): boolean {
+        if (!conditions) return false
+
+        // Si les conditions sont dans le format simple {field, operator, value}
+        if (conditions.field && conditions.operator && conditions.value !== undefined) {
+            return this.evaluateCondition(conditions, followerCampaign)
+        }
+
+        // Si les conditions sont dans un format plus complexe, itérer
+        for (const [, condition] of Object.entries(conditions)) {
+            if (typeof condition === 'object' && condition.field) {
+                if (this.evaluateCondition(condition, followerCampaign)) {
+                    return true
                 }
-                if (!this.accountService) {
-                    throw new Error('Account Service not defined in Process followers')
-                }
-                let response = await this.accountService.getFollowers(this.currentAccount, this.currentAccount.at_session.did, cursor)
-                console.log(response.cursor)
-                if (!response.cursor) {
+            }
+        }
+
+        return false
+    }
+
+    /**
+     * Évaluer une condition individuelle
+     */
+    private evaluateCondition(condition: any, followerCampaign: FollowerCampaign): boolean {
+        const { field, operator, value } = condition
+
+        console.log(`🔍 Evaluating condition:`, { field, operator, value, followerHandle: followerCampaign.followerHandle })
+
+        if (field === 'followers_count') {
+            const followerCount = followerCampaign.followersCount || 0
+            const targetValue = parseInt(value)
+
+            console.log(`📊 Comparing: ${followerCount} ${operator} ${targetValue}`)
+
+            let result = false
+            switch (operator) {
+                case 'gte': 
+                    result = followerCount >= targetValue
                     break
-                }
-                cursor = response.cursor
-                
-                // Traiter le batch avec limite
-                const remainingCount = targetCount - messagesSent
-                messagesSent += await this.processFollowersBatchWithLimit(response.followers, this.currentAccount, remainingCount)
-                
-                // Arrêter si on a atteint la limite
-                if (messagesSent >= targetCount) {
-                    console.log(`Target count reached: ${messagesSent}/${targetCount}`)
+                case 'lte': 
+                    result = followerCount <= targetValue
                     break
-                }
-            }
-            this.currentDmCampaign.followersCursor = cursor
-            await this.currentDmCampaign.save()
-        } catch (err) {
-            console.log(err)
-            return
-        }
-    }
-
-    private async processFollowersBatchWithLimit(followers: ProfileView[], account: Account, maxMessages: number): Promise<number> {
-        let messagesSent = 0
-        for (const follow of followers) {
-            if (messagesSent >= maxMessages) {
-                console.log(`Batch limit reached: ${messagesSent}/${maxMessages}`)
-                break
-            }
-            
-            try {
-                if (await this.shouldContinueProcessing()) {
-                    const messageSentToThisFollower = await this.processFollowerWithTracking(follow, account)
-                    if (messageSentToThisFollower) {
-                        messagesSent++
-                    }
-                } else {
+                case 'gt': 
+                    result = followerCount > targetValue
                     break
-                }
-            } catch (err) {
-                await this.handleFollowerError(err, follow)
+                case 'lt': 
+                    result = followerCount < targetValue
+                    break
+                case 'eq': 
+                    result = followerCount === targetValue
+                    break
+                default: 
+                    console.warn(`Unknown operator: ${operator}`)
+                    result = false
             }
+
+            console.log(`📋 Condition result: ${result}`)
+            return result
         }
-        return messagesSent
-    }
 
-    private async processFollowerWithTracking(follow: ProfileView, account: Account): Promise<boolean> {
-        console.log("Processing:", follow.handle)
-        try {
-            await this.checkAndRefreshAuth()
-            if (!this.currentAccount.at_session) {
-                throw new Error("Account session missing")
-            }
-            const did = this.currentAccount.at_session.did
-
-            const convo = await this.withRetry(
-                () => {
-                    if (!this.accountService) {
-                        throw new Error('Account Service not defined in Process followers')
-                    }
-                    return this.accountService.getConvoFromMembers(account, [did as string, follow.did])
-                },
-                'getConvoFromMembers'
-            )
-
-            if (convo) {
-                return await this.processConversationWithTracking(convo, account)
-            }
-            return false
-        } catch (err) {
-            console.error("Error while processing follower:", err)
-            if (err.message === "TypeError: Cannot read properties of undefined (reading 'token')") {
-                await this.refreshAuthTokens()
-                return await this.processFollowerWithTracking(follow, account)
-            }
-            return false
-        }
-    }
-
-    private async processConversationWithTracking(convo: any, account: Account): Promise<boolean> {
-        const messages = await this.withRetry(
-            () => {
-                if (!this.accountService) {
-                    throw new Error('Account Service not defined in Process followers')
-                }
-                return this.accountService.getMessages(account, convo.id)
-            },
-            'getMessages'
-        ) as unknown as MessageViewSender[]
-
-
-        if (messages.length === 0 && this.currentDmCampaign.strategy === "no-interaction") {
-            await this.sendCampaignMessage(convo, account)
-            await this.incrementMessageCounter()
-            return true
-        } else if (this.currentDmCampaign.strategy === "all") {
-            await this.sendCampaignMessage(convo, account)
-            await this.incrementMessageCounter()
-            return true
-        } else if (this.currentDmCampaign.strategy === "not-received" && !messages.some(
-            (msg) => typeof msg.text === "string" && msg.text.includes("TODO: Check campaign messages")
-        )) {
-            await this.sendCampaignMessage(convo, account)
-            await this.incrementMessageCounter()
-            return true
-        } else {
-            console.warn("Won't send a message, because profile doesn't match campaign expetaction:")
-            return false
-        }
-    }
-    private async sendCampaignMessage(convo: any, account: Account) {
-        await this.withRetry(
-            () => {
-                if (!this.accountService) {
-                    throw new Error('Account Service not defined in sendCampaignMessage')
-                }
-                return this.accountService.sendMessageToConvo(
-                    account,
-                    { convoId: convo.id, message: { text: "TODO: Use campaign message based on interest level" } },
-                )
-            },
-            'sendMessageToConvo'
-        )
-    }
-
-    private async checkAndRefreshAuth() {
-        if (this.isJwtExpired(this.currentAccount.at_session?.accessJwt)) {
-            await this.refreshAuthTokens()
-        }
+        console.warn(`Unknown field: ${field}`)
+        return false
     }
 
     private async refreshAuthTokens() {
@@ -327,12 +215,8 @@ export default class DmCampaignsController {
             throw new Error("Account session missing")
         }
 
-        this.authTokens = {
-            convoAuth: await this.accountService.getConvoToken(this.currentAccount),
-            messagesAuth: await this.accountService.getMessagesToken(this.currentAccount),
-            sendMessageAuth: await this.accountService.getChatToken(this.currentAccount),
-        }
-        console.warn("Tokens refreshed", this.authTokens)
+        // Note: authTokens property removed as it's no longer needed
+        console.warn("Session refreshed")
     }
 
     private async withRetry<T>(fn: () => Promise<T>, context: string): Promise<T> {
@@ -348,32 +232,6 @@ export default class DmCampaignsController {
         }
     }
 
-    private async cleanupCampaign() {
-        if (this.currentDmCampaign) {
-            this.currentDmCampaign.status = false
-            await this.currentDmCampaign.save()
-        }
-    }
-
-    private async shouldContinueProcessing(): Promise<boolean> {
-        await this.currentDmCampaign.refresh()
-        return this.currentDmCampaign.status
-    }
-
-    private async updateCampaignCursor(cursor?: string): Promise<string | undefined> {
-        if (cursor !== undefined && this.currentDmCampaign.followersCursor !== cursor) {
-            this.currentDmCampaign.followersCursor = cursor
-            await this.currentDmCampaign.save()
-        }
-        await this.delay(3000)
-        return cursor
-    }
-
-    private async incrementMessageCounter() {
-        this.currentDmCampaign.number_of_message_sent++
-        await this.currentDmCampaign.save()
-    }
-
     private isJwtExpired(token?: string): boolean {
         if (!token) return true
         try {
@@ -381,15 +239,6 @@ export default class DmCampaignsController {
             return payload.exp * 1000 < Date.now() + 5000
         } catch {
             return true
-        }
-    }
-
-    private async handleFollowerError(err: any, follow: any) {
-        if (err.statusCode === 429) {
-            const retryAfter = err.response?.headers?.['retry-after'] || 60
-            await this.delay(retryAfter * 1000)
-        } else {
-            console.error(`Erreur avec ${follow.handle}:`, err.message, err)
         }
     }
 
@@ -405,8 +254,8 @@ export default class DmCampaignsController {
             const user = auth.getUserOrFail()
             const campaignId = params.id
             
-            const { name, message, targetCount, keywords, excludeKeywords, interestedThreshold, moderatelyInterestedThreshold } = request.only([
-                'name', 'message', 'targetCount', 'keywords', 'excludeKeywords', 'interestedThreshold', 'moderatelyInterestedThreshold'
+            const { name, targetCount, keywords, excludeKeywords, interestedThreshold, moderatelyInterestedThreshold } = request.only([
+                'name', 'targetCount', 'keywords', 'excludeKeywords', 'interestedThreshold', 'moderatelyInterestedThreshold'
             ])
 
             const campaign = await DmCampaign.query()
@@ -422,9 +271,9 @@ export default class DmCampaignsController {
             }
 
             // Valider les données
-            if (!name || !message || !keywords) {
+            if (!name) {
                 return response.status(400).json({ 
-                    error: 'Name, message and keywords are required' 
+                    error: 'Name is required' 
                 })
             }
 
@@ -432,7 +281,7 @@ export default class DmCampaignsController {
             campaign.name = name
             // campaign.message removed - now handled by campaign messages
             campaign.targetCount = targetCount || campaign.targetCount
-            campaign.keywords = keywords
+            campaign.keywords = keywords || '[]'
             campaign.excludeKeywords = excludeKeywords || null
             
             // Mettre à jour les seuils si fournis
@@ -554,28 +403,17 @@ export default class DmCampaignsController {
                 .orderByRaw('RANDOM()')
                 .limit(finalTargetCount)
 
-            console.log(`Executing campaign for ${targetFollowers.length} followers (requested: ${finalTargetCount})`)
+            console.log(`📋 Found ${targetFollowers.length} target followers (requested: ${finalTargetCount})`)
+            targetFollowers.forEach(follower => {
+                console.log(`👤 @${follower.followerHandle} - ${follower.followersCount || 0} followers - Interest: ${follower.interestLevel}`)
+            })
 
             // Initialiser le contexte de campagne pour l'exécution
             await this.initializeCampaignContext(campaignId.toString())
 
-            // Traiter les followers sélectionnés
+            // Traiter par groupe au lieu de follower par follower
             let messagesSent = 0
-            for (const followerCampaign of targetFollowers) {
-                try {
-                    // Simuler l'envoi de message (à adapter selon votre logique)
-                    await this.sendMessageToFollower(followerCampaign)
-                    
-                    followerCampaign.messageSent = true
-                    followerCampaign.messageSentAt = DateTime.now()
-                    await followerCampaign.save()
-                    
-                    messagesSent++
-                    console.log(`Message sent ${messagesSent}/${finalTargetCount}`)
-                } catch (error) {
-                    console.error(`Failed to send message to ${followerCampaign.followerHandle}:`, error)
-                }
-            }
+            messagesSent = await this.executeByGroups(campaign, targetFollowers, finalTargetCount)
 
             // Mettre à jour les statistiques de la campagne
             campaign.number_of_message_sent += messagesSent
@@ -593,6 +431,422 @@ export default class DmCampaignsController {
         } catch (error) {
             console.error('Error executing campaign:', error)
             return response.status(500).json({ error: error.message })
+        }
+    }
+
+    /**
+     * Exécuter la campagne en traitant par groupe
+     */
+    private async executeByGroups(campaign: DmCampaign, targetFollowers: FollowerCampaign[], finalTargetCount: number): Promise<number> {
+        let totalMessagesSent = 0
+
+        try {
+            // Charger tous les groupes de la campagne avec leurs messages
+            await campaign.load('groups', (groupQuery) => {
+                groupQuery.preload('groupMessages')
+            })
+
+            console.log(`📊 Found ${campaign.groups.length} groups for campaign execution`)
+
+            if (campaign.groups.length === 0) {
+                throw new Error('No campaign groups found. Please create groups with messages first.')
+            }
+
+            // Traiter chaque groupe
+            for (const group of campaign.groups) {
+                console.log(`\n🔄 Processing group: "${group.name}"`)
+                console.log(`📋 Group conditions:`, group.conditions)
+
+                // Trouver les followers qui correspondent aux conditions de ce groupe
+                const matchingFollowers = this.filterFollowersByGroup(targetFollowers, group)
+                console.log(`👥 Found ${matchingFollowers.length} followers matching group conditions`)
+
+                if (matchingFollowers.length === 0) {
+                    console.log(`⏭️ Skipping group "${group.name}" - no matching followers`)
+                    continue
+                }
+
+                // Récupérer le message pour ce groupe
+                const message = this.getGroupMessage(group)
+                if (!message) {
+                    console.warn(`⚠️ No message found for group "${group.name}" - skipping`)
+                    continue
+                }
+
+                console.log(`📝 Using message: "${message.substring(0, 100)}${message.length > 100 ? '...' : ''}"`)
+
+                // Envoyer le message à tous les followers de ce groupe
+                let groupMessagesSent = 0
+                for (const followerCampaign of matchingFollowers) {
+                    if (totalMessagesSent >= finalTargetCount) {
+                        console.log(`🎯 Target count (${finalTargetCount}) reached, stopping execution`)
+                        break
+                    }
+
+                    try {
+                        await this.sendMessageToSpecificFollower(followerCampaign, message, group)
+                        
+                        followerCampaign.messageSent = true
+                        followerCampaign.messageSentAt = DateTime.now()
+                        await followerCampaign.save()
+                        
+                        groupMessagesSent++
+                        totalMessagesSent++
+                        console.log(`✅ Message sent to ${followerCampaign.followerHandle} (${totalMessagesSent}/${finalTargetCount})`)
+                        
+                    } catch (error) {
+                        console.error(`❌ Failed to send message to ${followerCampaign.followerHandle}:`, error)
+                    }
+                }
+
+                console.log(`📊 Group "${group.name}" completed: ${groupMessagesSent} messages sent`)
+
+                if (totalMessagesSent >= finalTargetCount) {
+                    break
+                }
+            }
+
+            return totalMessagesSent
+
+        } catch (error) {
+            console.error('❌ Error in executeByGroups:', error)
+            throw error
+        }
+    }
+
+    /**
+     * Filtrer les followers qui correspondent aux conditions d'un groupe
+     */
+    private filterFollowersByGroup(followers: FollowerCampaign[], group: CampaignGroup): FollowerCampaign[] {
+        const conditions = group.conditions
+        if (!conditions) {
+            console.warn(`Group "${group.name}" has no conditions, including all followers`)
+            return followers
+        }
+
+        console.log(`🔍 Filtering ${followers.length} followers for group "${group.name}"`)
+        
+        const matchingFollowers = followers.filter(async (follower) => {
+            if (follower.followersCount === 0 && this.accountService) {
+                try {
+                    const profile = await this.accountService.getProfile(follower.followerHandle!)
+                    follower.followersCount = profile?.followersCount || 0
+                    await follower.save()
+                    console.log(`✅ Follower count updated for @${follower.followerHandle}: ${follower.followersCount}`)
+                } catch (error) {
+                    console.warn(`⚠️ Failed to fetch follower count for @${follower.followerHandle}:`, error.message)
+                }
+            }
+            console.log(`📊 Follower @${follower.followerHandle} (${follower.followersCount || 0} followers)`)
+            const matches = this.checkGroupConditions(conditions, follower)
+            return matches
+        })
+
+        console.log(`🎯 Result: ${matchingFollowers.length}/${followers.length} followers match conditions`)
+        return matchingFollowers
+    }
+
+    /**
+     * Récupérer le message d'un groupe
+     */
+    private getGroupMessage(group: CampaignGroup): string | null {
+        // Priorité 1: Message simple du groupe
+        if (group.message && group.message.trim()) {
+            return group.message
+        }
+
+        // Priorité 2: Premier message des templates
+        if (group.groupMessages && group.groupMessages.length > 0) {
+            return group.groupMessages[0].messageContent
+        }
+
+        return null
+    }
+
+    /**
+     * Envoyer un message spécifique à un follower
+     */
+    private async sendMessageToSpecificFollower(followerCampaign: FollowerCampaign, message: string, group?: CampaignGroup) {
+        try {
+            console.log(`📤 Sending message to @${followerCampaign.followerHandle}`)
+            console.log(`📝 Original message: "${message}"`)
+            console.log(`🏷️ Group: ${group?.name || 'No group'}`)
+            
+            // Traiter le message avec les variables et les liens
+            const messageResult = await this.processMessageForFollower(message, followerCampaign, group)
+            
+            console.log(`✅ Processed message: "${messageResult.text}"`)
+            console.log(`🔗 Rich text facets: ${messageResult.facets?.length || 0}`)
+
+            // Récupérer la conversation avec ce follower
+            const convo = await this.withRetry(
+                () => {
+                    if (!this.accountService) {
+                        throw new Error('Account Service not defined')
+                    }
+                    return this.accountService.getConvoFromMembers(
+                        this.currentAccount, 
+                        [this.currentAccount.at_session!.did, followerCampaign.followerDid]
+                    )
+                },
+                'getConvoFromMembers'
+            )
+
+            if (convo) {
+                console.log(`💬 Sending to conversation: ${convo.id}`)
+                
+                // Utiliser les facets AT Protocol si disponibles
+                const messagePayload: any = {
+                    convoId: convo.id, 
+                    message: { 
+                        text: messageResult.text
+                    }
+                }
+
+                // Ajouter les facets pour les liens rich text si présents
+                if (messageResult.facets && messageResult.facets.length > 0) {
+                    messagePayload.message.facets = messageResult.facets
+                    console.log(`🔗 Adding ${messageResult.facets.length} rich text facets to message`)
+                }
+
+                await this.withRetry(
+                    () => {
+                        if (!this.accountService) {
+                            throw new Error('Account Service not defined')
+                        }
+                        return this.accountService.sendMessageToConvo(
+                            this.currentAccount,
+                            messagePayload
+                        )
+                    },
+                    'sendMessageToConvo'
+                )
+                console.log(`✅ Message sent successfully to @${followerCampaign.followerHandle}`)
+            } else {
+                console.error(`❌ No conversation found with @${followerCampaign.followerHandle}`)
+            }
+        } catch (error) {
+            console.error(`❌ Error sending message to @${followerCampaign.followerHandle}:`, error)
+            throw error
+        }
+    }
+
+    /**
+     * Traiter un message pour un follower : remplacer les variables et appliquer les liens
+     */
+    private async processMessageForFollower(message: string, followerCampaign: FollowerCampaign, group?: CampaignGroup): Promise<{ text: string, facets?: any[] }> {
+        let processedMessage = message
+        let facets: any[] | undefined
+
+        try {
+            // 1. Remplacer les variables avec les données du follower
+            processedMessage = await this.replaceVariablesInMessage(processedMessage, followerCampaign)
+
+            // 2. Appliquer les liens explicites du groupe si disponibles
+            if (group && group.explicitLinks) {
+                const result = this.applyExplicitLinks(processedMessage, group.explicitLinks)
+                processedMessage = result.text
+                facets = result.facets
+            }
+
+            console.log(`📝 Original message: "${message}"`)
+            console.log(`🔄 Processed message: "${processedMessage}"`)
+            console.log(`🔗 Facets generated: ${facets?.length || 0}`)
+
+            return { text: processedMessage, facets }
+
+        } catch (error) {
+            console.error('Error processing message:', error)
+            return { text: message } // Retourner le message original en cas d'erreur
+        }
+    }
+
+    /**
+     * Remplacer les variables dans un message
+     */
+    private async replaceVariablesInMessage(message: string, followerCampaign: FollowerCampaign): Promise<string> {
+        let processedMessage = message
+        
+        console.log(`🔄 Processing variables for message: "${message}"`)
+        console.log(`👤 Follower: @${followerCampaign.followerHandle} (${followerCampaign.followersCount || 0} followers)`)
+
+        // Récupérer les variables de la campagne
+        const campaign = await DmCampaign.find(followerCampaign.dmCampaignId)
+        if (!campaign) {
+            console.log(`❌ Campaign not found for ID: ${followerCampaign.dmCampaignId}`)
+            return message
+        }
+
+        await campaign.load('variables')
+        console.log(`📋 Found ${campaign.variables.length} variables in campaign`)
+        
+        if (campaign.variables.length === 0) {
+            console.log(`⚠️ No variables found for campaign ${campaign.id}. Variables in DB:`)
+            // Let's check if there are any variables at all
+            const allVariables = await this.checkCampaignVariables(campaign.id)
+            console.log(`🔍 Direct query found ${allVariables.length} variables`)
+        }
+        
+        // Remplacer chaque variable trouvée dans le message
+        for (const variable of campaign.variables) {
+            const variablePattern = new RegExp(`\\{\\{${variable.name}\\}\\}`, 'g')
+            const variableValue = await this.getVariableValue(variable, followerCampaign)
+            const oldMessage = processedMessage
+            processedMessage = processedMessage.replace(variablePattern, variableValue)
+            
+            console.log(`🔧 Variable "${variable.name}": "${variableValue}" (type: ${variable.type})`)
+            if (oldMessage !== processedMessage) {
+                console.log(`✅ Replaced "{{${variable.name}}}" with "${variableValue}"`)
+            } else {
+                console.log(`⚠️ Variable "{{${variable.name}}}" not found in message`)
+            }
+        }
+
+        console.log(`🏁 Final processed message: "${processedMessage}"`)
+        return processedMessage
+    }
+
+    /**
+     * Helper method to check campaign variables directly
+     */
+    private async checkCampaignVariables(campaignId: number) {
+        const { default: CampaignVariable } = await import('#models/campaign_variable')
+        return await CampaignVariable.query().where('campaign_id', campaignId)
+    }
+
+    /**
+     * Obtenir la valeur d'une variable pour un follower
+     */
+    private async getVariableValue(variable: any, followerCampaign: FollowerCampaign): Promise<string> {
+        switch (variable.type) {
+            case 'follower_count':
+                // Fix: Fetch real follower count from Bluesky if missing or 0
+                let count = followerCampaign.followersCount || 0
+                
+                if (count === 0 && this.accountService) {
+                    try {
+                        console.log(`🔍 Fetching real follower count for @${followerCampaign.followerHandle} from Bluesky...`)
+                        
+                        // Fetch profile directly using the follower's handle or DID
+                        const profile = await this.accountService.getProfile(followerCampaign.followerHandle || followerCampaign.followerDid)
+                        
+                        if (profile && profile.followersCount) {
+                            count = profile.followersCount
+                            
+                            // Update the followerCampaign record with the real count
+                            followerCampaign.followersCount = count
+                            await followerCampaign.save()
+                            
+                            console.log(`✅ Updated follower count for @${followerCampaign.followerHandle}: ${count}`)
+                        }
+                    } catch (error) {
+                        console.warn(`⚠️ Failed to fetch follower count for @${followerCampaign.followerHandle}:`, error.message)
+                    }
+                }
+                
+                console.log(`📊 Follower count for @${followerCampaign.followerHandle}: ${count}`)
+                console.log(`🔧 Variable "${variable.name}" configuration:`, variable.configuration)
+                
+                if (count >= 1000) {
+                    // Check if the variable configuration specifies "round to thousands"
+                    const config = variable.configuration || {}
+                    
+                    if (config.rounding === 'thousands') {
+                        // Round to nearest thousand first, then convert to k
+                        const roundedThousands = Math.round(count / 1000)
+                        console.log(`📊 Rounded ${count} to ${roundedThousands}k (round to thousands)`)
+                        return roundedThousands + 'k'
+                    } else {
+                        // Default: show with one decimal place
+                        console.log(`📊 Formatted ${count} to ${(count / 1000).toFixed(1)}k (decimal format)`)
+                        return (count / 1000).toFixed(1) + 'k'
+                    }
+                }
+                return count.toString()
+            
+            case 'display_name':
+                return followerCampaign.followerHandle || 'Friend'
+            
+            case 'handle':
+                return `@${followerCampaign.followerHandle}`
+            
+            default:
+                console.log(`⚠️ Unknown variable type: ${variable.type}, using default value`)
+                return variable.defaultValue || `{{${variable.name}}}`
+        }
+    }
+
+    /**
+     * Appliquer les liens explicites à un message en utilisant les facets AT Protocol
+     */
+    private applyExplicitLinks(message: string, explicitLinks: any): { text: string, facets?: any[] } {
+        let processedMessage = message
+        let facets: any[] = []
+
+        // Validation et conversion en array si nécessaire
+        let linksArray: Array<{text: string, url: string}> = []
+        
+        if (!explicitLinks) {
+            console.log(`🔗 No explicit links to process`)
+            return { text: message }
+        }
+
+        // Si c'est une string JSON, la parser
+        if (typeof explicitLinks === 'string') {
+            try {
+                linksArray = JSON.parse(explicitLinks)
+            } catch (error) {
+                console.error(`🔗 Error parsing explicitLinks JSON:`, error)
+                return { text: message }
+            }
+        } else if (Array.isArray(explicitLinks)) {
+            linksArray = explicitLinks
+        } else {
+            console.error(`🔗 explicitLinks is not an array or JSON string, type:`, typeof explicitLinks, 'value:', explicitLinks)
+            return { text: message }
+        }
+
+        if (!Array.isArray(linksArray) || linksArray.length === 0) {
+            console.log(`🔗 No valid explicit links found`)
+            return { text: message }
+        }
+
+        console.log(`🔗 Processing ${linksArray.length} explicit links with AT Protocol facets`)
+
+        // Traiter chaque lien et créer les facets correspondants
+        linksArray.forEach((link, index) => {
+            if (link && link.text && link.url) {
+                // Trouver la position du texte du lien dans le message
+                const linkTextIndex = processedMessage.indexOf(link.text)
+                
+                if (linkTextIndex !== -1) {
+                    // Créer un facet AT Protocol pour ce lien
+                    const facet = {
+                        index: {
+                            byteStart: new TextEncoder().encode(processedMessage.substring(0, linkTextIndex)).length,
+                            byteEnd: new TextEncoder().encode(processedMessage.substring(0, linkTextIndex + link.text.length)).length
+                        },
+                        features: [{
+                            $type: 'app.bsky.richtext.facet#link',
+                            uri: link.url
+                        }]
+                    }
+                    
+                    facets.push(facet)
+                    console.log(`🔗 Created AT Protocol facet for "${link.text}" -> "${link.url}"`)
+                } else {
+                    console.warn(`🔗 Link text "${link.text}" not found in message`)
+                }
+            } else {
+                console.warn(`🔗 Invalid link at index ${index}:`, link)
+            }
+        })
+
+        console.log(`🏁 Final message with ${facets.length} facets for AT Protocol`)
+        
+        return {
+            text: processedMessage,
+            facets: facets.length > 0 ? facets : undefined
         }
     }
 
@@ -632,6 +886,16 @@ export default class DmCampaignsController {
                 .where('user_id', user.id)
                 .firstOrFail()
 
+            // Récupérer les variables de la campagne
+            const variables = await CampaignVariable.query()
+                .where('campaign_id', campaignId)
+                .orderBy('created_at', 'asc')
+
+            // Récupérer les groupes de la campagne
+            const groups = await CampaignGroup.query()
+                .where('campaign_id', campaignId)
+                .orderBy('order', 'asc')
+
             // Calculer les statistiques
             const stats = await this.calculateCampaignStats(campaign)
 
@@ -641,9 +905,22 @@ export default class DmCampaignsController {
                 .orderBy('similarity_score', 'desc')
                 .limit(100)
 
+            // Enrichir l'objet campaign avec les variables et groupes
+            const enrichedCampaign = {
+                ...campaign.toJSON(),
+                variables: variables.map((v: any) => v.toJSON()),
+                groups: groups.map((g: any) => {
+                    const groupJson = g.toJSON()
+                    return {
+                        ...groupJson,
+                        priority: groupJson.order, // Alias pour la compatibilité frontend
+                    }
+                })
+            }
+
             return inertia.render('CampaignDashboard', {
                 user: user.toJSON(),
-                campaign: campaign.toJSON(),
+                campaign: enrichedCampaign,
                 stats,
                 followers: followers.map((f) => {
                     try {
@@ -854,7 +1131,7 @@ export default class DmCampaignsController {
                 excluded: campaign.excludedFollowers || 0,
                 cannotDetermine: campaign.cannotDetermineFollowers || 0,
                 messagesSent: campaign.number_of_message_sent || 0,
-                responsesReceived: 0 // TODO: calculer depuis FollowerCampaign quand disponible
+                responsesReceived: 0
             }
 
             return {
@@ -1091,48 +1368,6 @@ export default class DmCampaignsController {
     }
 
     /**
-     * Envoyer un message à un follower spécifique
-     */
-    private async sendMessageToFollower(followerCampaign: FollowerCampaign) {
-        try {
-            // Récupérer la conversation avec ce follower
-            const convo = await this.withRetry(
-                () => {
-                    if (!this.accountService) {
-                        throw new Error('Account Service not defined')
-                    }
-                    return this.accountService.getConvoFromMembers(
-                        this.currentAccount, 
-                        [this.currentAccount.at_session!.did, followerCampaign.followerDid]
-                    )
-                },
-                'getConvoFromMembers'
-            )
-
-            if (convo) {
-                await this.withRetry(
-                    () => {
-                        if (!this.accountService) {
-                            throw new Error('Account Service not defined')
-                        }
-                        return this.accountService.sendMessageToConvo(
-                            this.currentAccount,
-                            { 
-                                convoId: convo.id, 
-                                message: { text: "TODO: Use campaign message based on interest level" } 
-                            }
-                        )
-                    },
-                    'sendMessageToConvo'
-                )
-            }
-        } catch (error) {
-            console.error(`Error sending message to ${followerCampaign.followerHandle}:`, error)
-            throw error
-        }
-    }
-
-    /**
      * Compter les réponses reçues pour une campagne
      */
     public async countResponses({ params, response, auth }: HttpContext) {
@@ -1347,7 +1582,7 @@ export default class DmCampaignsController {
     public async createCampaignMessage({ params, request, response }: HttpContext) {
         try {
             const campaignId = params.id
-            const { interestLevel, message, subject } = request.only(['interestLevel', 'message', 'subject'])
+            const { interestLevel, message } = request.only(['interestLevel', 'message'])
 
             if (!interestLevel || !message) {
                 return response.status(400).json({
@@ -1359,8 +1594,8 @@ export default class DmCampaignsController {
             const campaignMessage = await this.campaignMessageService.createMessage({
                 dmCampaignId: campaignId,
                 interestLevel,
-                message,
-                subject
+                message
+                // Note: subject field removed as it doesn't exist in the interface
             })
 
             return response.json({
@@ -1513,7 +1748,7 @@ export default class DmCampaignsController {
             const campaignId = params.id
 
             // Vérifier que la campagne appartient à l'utilisateur
-            const campaign = await DmCampaign.query()
+            await DmCampaign.query()
                 .where('id', campaignId)
                 .where('user_id', user.id)
                 .firstOrFail()
@@ -1659,7 +1894,7 @@ export default class DmCampaignsController {
                 .firstOrFail()
 
             // Sauvegarder la configuration
-            await this.campaignExecutionService.saveExecutionConfig(campaignId, config)
+            await this.campaignExecutionService.saveExecutionConfig(campaignId, config as any)
             
             return response.json({
                 success: true,
