@@ -78,12 +78,23 @@ export default class SchedulingsController {
             return response.redirect('/schedule')
         }
 
-        // Vérifier la limite pour les comptes gratuits
-        if (schedules.length + accountIds.length > 5 && user.plan == "free") {
-            user.isScheduledLimitReached = true
-            await user.save()
-            session.flash('error', `You have reached the free plan limit. Cannot schedule ${accountIds.length} more posts.`)
-            return response.redirect('/schedule')
+        // Vérifier la limite pour les comptes gratuits avec PlanService
+        if (user.plan === "free") {
+            const currentScheduledCount = schedules.length
+            const newPostsCount = accountIds.length
+            const totalAfterScheduling = currentScheduledCount + newPostsCount
+            
+            // Utiliser PlanService pour obtenir la limite exacte
+            const { PlanService } = await import('#services/plan_service')
+            const planLimits = PlanService.getLimitsForPlan(user.plan)
+            const maxPosts = planLimits.maxScheduledPosts
+            
+            if (PlanService.isLimitReached(totalAfterScheduling, maxPosts)) {
+                user.isScheduledLimitReached = true
+                await user.save()
+                session.flash('error', `You have reached the free plan limit (${maxPosts} scheduled posts). Cannot schedule ${newPostsCount} more posts.`)
+                return response.redirect('/schedule')
+            }
         }
 
         // Vérifier que la date n'est pas dans le passé

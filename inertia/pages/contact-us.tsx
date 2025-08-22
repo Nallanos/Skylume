@@ -178,7 +178,7 @@ function ContactUs() {
                 <CardContent className="p-6">
                   <h3 className="font-semibold mb-2">Can I schedule posts in advance?</h3>
                   <p className="text-muted-foreground text-sm">
-                    Yes! All plans include post scheduling. Free users get 5 scheduled posts per
+                    Yes! All plans include post scheduling. Free users get 7 scheduled posts per
                     month, while Pro users get unlimited scheduling.
                   </p>
                 </CardContent>

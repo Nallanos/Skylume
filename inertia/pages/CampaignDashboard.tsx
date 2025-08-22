@@ -7,7 +7,6 @@ import { Badge } from '../components/ui/badge'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs'
-import CampaignExecutionCard from '../components/CampaignExecutionCard'
 import VariableManager from '../components/VariableManager'
 import GroupManager from '../components/GroupManager'
 import {
@@ -1039,7 +1038,7 @@ Are you sure you want to proceed with executing this campaign?`
             </CardHeader>
             <CardContent>
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-4">
+                <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="overview" className="flex items-center gap-2">
                     <BarChart3 className="h-4 w-4" />
                     Overview
@@ -1051,10 +1050,6 @@ Are you sure you want to proceed with executing this campaign?`
                   <TabsTrigger value="groups" className="flex items-center gap-2">
                     <Group className="h-4 w-4" />
                     Groups
-                  </TabsTrigger>
-                  <TabsTrigger value="execution" className="flex items-center gap-2">
-                    <Play className="h-4 w-4" />
-                    Execution
                   </TabsTrigger>
                 </TabsList>
 
@@ -1121,14 +1116,6 @@ Are you sure you want to proceed with executing this campaign?`
                     groups={groups}
                     variables={variables.map(v => ({ name: v.name, type: v.type }))}
                     onGroupUpdate={refreshGroups}
-                  />
-                </TabsContent>
-
-                <TabsContent value="execution" className="space-y-4">
-                  <CampaignExecutionCard
-                    campaignId={campaign.id}
-                    campaignName={campaign.name}
-                    analysisStatus={campaign.analysisStatus}
                   />
                 </TabsContent>
               </Tabs>
