@@ -41,6 +41,7 @@ import {
   Variable,
   Group,
   Play,
+  Square,
 } from 'lucide-react'
 
 interface User {
@@ -85,6 +86,7 @@ interface CampaignGroup {
   conditions: Record<string, any>
   priority: number
   estimated_targets: number
+  target_count: number
   created_at: string
   updated_at: string
   messages: CampaignGroupMessage[]
@@ -464,6 +466,36 @@ Are you sure you want to proceed with executing this campaign?`
     }
   }
 
+  const handleStopExecution = async () => {
+    if (!confirm('Are you sure you want to stop the campaign execution?')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/campaign/${campaign.id}/stop`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setLocalCampaign((prev) => ({ ...prev, executionStatus: 'stopped' }))
+          alert('Campaign execution stopped successfully!')
+        }
+      } else {
+        const errorData = await response.json()
+        alert(errorData.error || 'Failed to stop campaign execution')
+      }
+    } catch (error) {
+      console.error('Error stopping campaign execution:', error)
+      alert('Error stopping campaign execution. Please try again.')
+    }
+  }
+
   const handleCountResponses = async () => {
     setLoading(true)
     try {
@@ -822,7 +854,8 @@ Are you sure you want to proceed with executing this campaign?`
               )}
 
               {localCampaign.analysisStatus === 'completed' &&
-                localCampaign.executionStatus !== 'completed' && (
+                localCampaign.executionStatus !== 'completed' && 
+                localCampaign.executionStatus !== 'running' && (
                   <Button
                     onClick={handleExecuteCampaign}
                     className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
@@ -833,6 +866,18 @@ Are you sure you want to proceed with executing this campaign?`
                     <span className="sm:hidden">Execute</span>
                   </Button>
                 )}
+
+              {localCampaign.executionStatus === 'running' && (
+                <Button
+                  onClick={handleStopExecution}
+                  className="flex items-center gap-2 bg-red-600 hover:bg-red-700"
+                  size="sm"
+                >
+                  <Square className="h-4 w-4" />
+                  <span className="hidden sm:inline">Stop Execution</span>
+                  <span className="sm:hidden">Stop</span>
+                </Button>
+              )}
 
               {/* Actions Dropdown Menu */}
               {localCampaign.analysisStatus === 'completed' && (

@@ -11,6 +11,7 @@ export const groupSimpleCreateValidator = vine.compile(
     }),
     priority: vine.number().min(0).optional(),
     message: vine.string().trim().optional(),
+    target_count: vine.number().min(0).optional(),
     explicit_links: vine.array(
       vine.object({
         text: vine.string().trim().minLength(1),
@@ -30,6 +31,7 @@ export const groupSimpleUpdateValidator = vine.compile(
     }).optional(),
     priority: vine.number().min(0).optional(),
     message: vine.string().trim().optional(),
+    target_count: vine.number().min(0).optional(),
     explicit_links: vine.array(
       vine.object({
         text: vine.string().trim().minLength(1),

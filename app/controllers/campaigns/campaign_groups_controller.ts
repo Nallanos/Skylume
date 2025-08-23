@@ -29,6 +29,7 @@ export default class CampaignGroupsController {
           ...groupJson,
           priority: groupJson.order, // Alias pour la compatibilité frontend
           estimated_targets: estimation?.estimatedCount || 0, // ✅ Nom correct pour le frontend
+          target_count: groupJson.targetCount || 0, // ✅ Map targetCount to target_count for frontend
           // ✅ S'assurer que explicit_links est inclus et correctement parsé
           explicit_links: groupJson.explicitLinks || [],
         }
@@ -63,7 +64,8 @@ export default class CampaignGroupsController {
         payload.conditions, // Format simple : { field, operator, value }
         payload.message || '', // message depuis le frontend
         payload.priority || 1,
-        payload.explicit_links || undefined // ✅ NOUVEAU: passer les liens explicites
+        payload.explicit_links || undefined, // ✅ NOUVEAU: passer les liens explicites
+        payload.target_count || 0 // ✅ NOUVEAU: passer le target count
       )
       
       return response.created({
@@ -102,6 +104,9 @@ export default class CampaignGroupsController {
       }
       if (payload.message !== undefined) {
         updateData.message = payload.message
+      }
+      if (payload.target_count !== undefined) {
+        updateData.target_count = payload.target_count
       }
       if (payload.explicit_links !== undefined) {
         updateData.explicitLinks = payload.explicit_links // ✅ NOUVEAU: gérer les liens explicites

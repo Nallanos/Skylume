@@ -19,8 +19,9 @@ export interface CampaignGroup {
   conditions: Record<string, any>
   priority: number
   estimated_targets: number
+  target_count: number
   message?: string
-  explicitLinks?: Array<{ text: string, url: string }>
+  explicitLinks?: Array<{text: string, url: string}>
   created_at: string
   updated_at: string
 }
@@ -73,7 +74,8 @@ export default function GroupManager({ campaignId, groups: initialGroups, variab
       value: ''
     },
     priority: 0,
-    message: ''
+    message: '',
+    target_count: 0
   })
 
   const reset = () => {
@@ -85,7 +87,8 @@ export default function GroupManager({ campaignId, groups: initialGroups, variab
         value: ''
       },
       priority: 0,
-      message: ''
+      message: '',
+      target_count: 0
     })
     setErrors({})
     setExplicitLinks([]) // ✅ NOUVEAU: Reset des liens
@@ -318,7 +321,8 @@ export default function GroupManager({ campaignId, groups: initialGroups, variab
         value: group.conditions?.value || ''
       },
       priority: group.priority,
-      message: group.message || ''
+      message: group.message || '',
+      target_count: group.target_count || 0
     })
     // ✅ NOUVEAU: Charger les liens existants
     setExplicitLinks(group.explicitLinks || [])
@@ -470,6 +474,25 @@ export default function GroupManager({ campaignId, groups: initialGroups, variab
               </div>
 
               <div>
+                <Label htmlFor="target_count">Target Count</Label>
+                <Input
+                  id="target_count"
+                  type="number"
+                  value={data.target_count}
+                  onChange={(e) => setData({ ...data, target_count: parseInt(e.target.value) || 0 })}
+                  placeholder="Number of targets for this group"
+                  min="0"
+                  className={errors.target_count ? 'border-red-500' : ''}
+                />
+                {errors.target_count && (
+                  <p className="text-sm text-red-500 mt-1">{errors.target_count}</p>
+                )}
+                <p className="text-sm text-muted-foreground mt-1">
+                  Number of users to target specifically for this group
+                </p>
+              </div>
+
+              <div>
                 <Label htmlFor="message">Message Template</Label>
                 <Textarea
                   ref={messageTextareaRef}
@@ -602,8 +625,13 @@ export default function GroupManager({ campaignId, groups: initialGroups, variab
                           </Badge>
                           <Badge variant="outline" className="text-xs">
                             <Users className="h-3 w-3 mr-1" />
-                            {group.estimated_targets} targets
+                            {group.estimated_targets} estimated
                           </Badge>
+                          {group.target_count > 0 && (
+                            <Badge variant="default" className="text-xs bg-blue-500">
+                              Target: {group.target_count}
+                            </Badge>
+                          )}
                         </div>
                         {group.message && (
                           <div className="mt-2 p-2 bg-muted rounded text-sm">
@@ -716,6 +744,25 @@ export default function GroupManager({ campaignId, groups: initialGroups, variab
                     </div>
                   </div>
                 )}
+              </div>
+
+              <div>
+                <Label htmlFor="edit-target_count">Target Count</Label>
+                <Input
+                  id="edit-target_count"
+                  type="number"
+                  value={data.target_count}
+                  onChange={(e) => setData({ ...data, target_count: parseInt(e.target.value) || 0 })}
+                  placeholder="Number of targets for this group"
+                  min="0"
+                  className={errors.target_count ? 'border-red-500' : ''}
+                />
+                {errors.target_count && (
+                  <p className="text-sm text-red-500 mt-1">{errors.target_count}</p>
+                )}
+                <p className="text-sm text-muted-foreground mt-1">
+                  Number of users to target specifically for this group
+                </p>
               </div>
 
               <div>

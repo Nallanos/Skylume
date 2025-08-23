@@ -41,7 +41,8 @@ export default class GroupService {
     conditions: GroupConditions | SimpleConditions,
     message: string,
     order?: number,
-    explicitLinks?: Array<{text: string, url: string}>
+    explicitLinks?: Array<{text: string, url: string}>,
+    targetCount?: number
   ): Promise<CampaignGroup> {
     // Normaliser les conditions vers le format uniforme pour la sauvegarde
     let normalizedConditions: any
@@ -76,7 +77,7 @@ export default class GroupService {
       conditions: normalizedConditions,
       message,
       order,
-      targetCount: 0, // Sera calculé plus tard
+      targetCount: targetCount || 0,
       messagesSent: 0,
       explicitLinks: explicitLinksData,
     })
@@ -104,6 +105,7 @@ export default class GroupService {
       conditions: GroupConditions | SimpleConditions
       message: string
       order: number
+      target_count: number
       explicitLinks: Array<{text: string, url: string}>
     }>
   ): Promise<CampaignGroup> {
@@ -128,7 +130,14 @@ export default class GroupService {
       updates.explicitLinks = explicitLinksJson as any
     }
 
-    group.merge(updates)
+    // Map target_count to targetCount for database
+    const mergeUpdates: any = { ...updates }
+    if (updates.target_count !== undefined) {
+      mergeUpdates.targetCount = updates.target_count
+      delete mergeUpdates.target_count
+    }
+
+    group.merge(mergeUpdates)
     await group.save()
 
     return group
