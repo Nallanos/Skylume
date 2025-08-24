@@ -31,8 +31,8 @@ export default class DmCampaignsController {
 
     public async createDmCampaign({ request, response, auth, session }: HttpContext) {
         try {
-            const { name, accountHandle, strategy, keywords, excludeKeywords, targetCount, interestedThreshold, moderatelyInterestedThreshold, message, explicitLinks } = request.only([
-                "name", "accountHandle", "strategy", "keywords", "excludeKeywords", "targetCount", "interestedThreshold", "moderatelyInterestedThreshold", "message", "explicitLinks"
+            const { name, accountHandle, strategy, keywords, excludeKeywords, interestedThreshold, moderatelyInterestedThreshold, message, explicitLinks } = request.only([
+                "name", "accountHandle", "strategy", "keywords", "excludeKeywords", "interestedThreshold", "moderatelyInterestedThreshold", "message", "explicitLinks"
             ])
             const user = auth.getUserOrFail()
 
@@ -59,7 +59,7 @@ export default class DmCampaignsController {
                 user_id: user.id,
                 keywords: processedKeywords,
                 excludeKeywords: processedExcludeKeywords,
-                targetCount: targetCount || 50,
+                targetCount: 0, // Désormais géré par les groupes individuels
                 interestedThreshold: interestedThreshold || 0.7,
                 moderatelyInterestedThreshold: moderatelyInterestedThreshold || 0.5,
                 analysisStatus: 'pending',
@@ -254,8 +254,8 @@ export default class DmCampaignsController {
             const user = auth.getUserOrFail()
             const campaignId = params.id
             
-            const { name, targetCount, keywords, excludeKeywords, interestedThreshold, moderatelyInterestedThreshold } = request.only([
-                'name', 'targetCount', 'keywords', 'excludeKeywords', 'interestedThreshold', 'moderatelyInterestedThreshold'
+            const { name, keywords, excludeKeywords, interestedThreshold, moderatelyInterestedThreshold } = request.only([
+                'name', 'keywords', 'excludeKeywords', 'interestedThreshold', 'moderatelyInterestedThreshold'
             ])
 
             const campaign = await DmCampaign.query()
@@ -280,7 +280,6 @@ export default class DmCampaignsController {
             // Mettre à jour la campagne
             campaign.name = name
             // campaign.message removed - now handled by campaign messages
-            campaign.targetCount = targetCount || campaign.targetCount
             campaign.keywords = keywords || '[]'
             campaign.excludeKeywords = excludeKeywords || null
             
@@ -357,11 +356,10 @@ export default class DmCampaignsController {
     /**
      * Démarrer l'exécution d'une campagne avec un nombre de cibles
      */
-    public async executeCampaign({ params, request, response, auth }: HttpContext) {
+    public async executeCampaign({ params, response, auth }: HttpContext) {
         try {
             const user = auth.getUserOrFail()
             const campaignId = params.id
-            const { targetCount } = request.only(['targetCount'])
             
             const campaign = await DmCampaign.query()
                 .where('id', campaignId)
@@ -375,20 +373,25 @@ export default class DmCampaignsController {
                 })
             }
 
-            // Validation du targetCount
-            const finalTargetCount = targetCount || campaign.targetCount || 0
-            if (finalTargetCount <= 0) {
+            // Vérifier qu'il y a des groupes avec des target counts
+            await campaign.load('groups')
+            if (campaign.groups.length === 0) {
                 return response.status(400).json({ 
-                    error: 'Target count must be greater than 0' 
+                    error: 'No campaign groups found. Please create groups first.' 
                 })
             }
 
-            // Mettre à jour le nombre de cibles
-            campaign.targetCount = finalTargetCount
+            const totalTargetCount = campaign.groups.reduce((sum, group) => sum + (group.targetCount || 0), 0)
+            if (totalTargetCount <= 0) {
+                return response.status(400).json({ 
+                    error: 'At least one group must have a target count greater than 0' 
+                })
+            }
+
             campaign.executionStartedAt = DateTime.now()
             await campaign.save()
 
-            // Sélectionner les followers à cibler
+            // Sélectionner tous les followers éligibles (sans limitation par target count global)
             const targetFollowers = await FollowerCampaign.query()
                 .where('dm_campaign_id', campaignId)
                 .where('message_sent', false)
@@ -401,9 +404,9 @@ export default class DmCampaignsController {
                     END
                 `)
                 .orderByRaw('RANDOM()')
-                .limit(finalTargetCount)
 
-            console.log(`📋 Found ${targetFollowers.length} target followers (requested: ${finalTargetCount})`)
+            console.log(`📋 Found ${targetFollowers.length} eligible followers`)
+            console.log(`🎯 Total target count across all groups: ${totalTargetCount}`)
             targetFollowers.forEach(follower => {
                 console.log(`👤 @${follower.followerHandle} - ${follower.followersCount || 0} followers - Interest: ${follower.interestLevel}`)
             })
@@ -411,9 +414,9 @@ export default class DmCampaignsController {
             // Initialiser le contexte de campagne pour l'exécution
             await this.initializeCampaignContext(campaignId.toString())
 
-            // Traiter par groupe au lieu de follower par follower
+            // Traiter par groupe avec leurs target_count individuels
             let messagesSent = 0
-            messagesSent = await this.executeByGroups(campaign, targetFollowers, finalTargetCount)
+            messagesSent = await this.executeByGroups(campaign, targetFollowers)
 
             // Mettre à jour les statistiques de la campagne
             campaign.number_of_message_sent += messagesSent
@@ -437,7 +440,7 @@ export default class DmCampaignsController {
     /**
      * Exécuter la campagne en traitant par groupe
      */
-    private async executeByGroups(campaign: DmCampaign, targetFollowers: FollowerCampaign[], finalTargetCount: number): Promise<number> {
+    private async executeByGroups(campaign: DmCampaign, targetFollowers: FollowerCampaign[]): Promise<number> {
         let totalMessagesSent = 0
 
         try {
@@ -452,10 +455,11 @@ export default class DmCampaignsController {
                 throw new Error('No campaign groups found. Please create groups with messages first.')
             }
 
-            // Traiter chaque groupe
+            // Traiter chaque groupe avec son propre target_count
             for (const group of campaign.groups) {
                 console.log(`\n🔄 Processing group: "${group.name}"`)
                 console.log(`📋 Group conditions:`, group.conditions)
+                console.log(`🎯 Group target count: ${group.targetCount}`)
 
                 // Trouver les followers qui correspondent aux conditions de ce groupe
                 const matchingFollowers = this.filterFollowersByGroup(targetFollowers, group)
@@ -475,14 +479,13 @@ export default class DmCampaignsController {
 
                 console.log(`📝 Using message: "${message.substring(0, 100)}${message.length > 100 ? '...' : ''}"`)
 
-                // Envoyer le message à tous les followers de ce groupe
-                let groupMessagesSent = 0
-                for (const followerCampaign of matchingFollowers) {
-                    if (totalMessagesSent >= finalTargetCount) {
-                        console.log(`🎯 Target count (${finalTargetCount}) reached, stopping execution`)
-                        break
-                    }
+                // Limiter par le target_count du groupe (si défini et > 0)
+                const groupTargetCount = group.targetCount > 0 ? group.targetCount : matchingFollowers.length
+                const followersToProcess = matchingFollowers.slice(0, groupTargetCount)
 
+                // Envoyer le message aux followers sélectionnés pour ce groupe
+                let groupMessagesSent = 0
+                for (const followerCampaign of followersToProcess) {
                     try {
                         await this.sendMessageToSpecificFollower(followerCampaign, message, group)
                         
@@ -492,7 +495,7 @@ export default class DmCampaignsController {
                         
                         groupMessagesSent++
                         totalMessagesSent++
-                        console.log(`✅ Message sent to ${followerCampaign.followerHandle} (${totalMessagesSent}/${finalTargetCount})`)
+                        console.log(`✅ Message sent to ${followerCampaign.followerHandle} (Group: ${group.name}, ${groupMessagesSent}/${groupTargetCount})`)
                         
                     } catch (error) {
                         console.error(`❌ Failed to send message to ${followerCampaign.followerHandle}:`, error)
@@ -500,10 +503,6 @@ export default class DmCampaignsController {
                 }
 
                 console.log(`📊 Group "${group.name}" completed: ${groupMessagesSent} messages sent`)
-
-                if (totalMessagesSent >= finalTargetCount) {
-                    break
-                }
             }
 
             return totalMessagesSent

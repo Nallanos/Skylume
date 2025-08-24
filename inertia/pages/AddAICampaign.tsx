@@ -46,7 +46,6 @@ function AddAICampaign() {
     strategy: 'semantic_analysis',
     keywords: [] as string[],
     excludeKeywords: [] as string[],
-    targetCount: 50,
     interestedThreshold: 0.49,
     moderatelyInterestedThreshold: 0.35,
   })
@@ -182,25 +181,6 @@ function AddAICampaign() {
                     </Select>
                     {errors.accountHandle && (
                       <p className="text-sm text-red-600 mt-1">{errors.accountHandle}</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Label htmlFor="targetCount">Target Messages</Label>
-                    <Input
-                      id="targetCount"
-                      type="number"
-                      value={data.targetCount}
-                      onChange={(e) => setData('targetCount', parseInt(e.target.value) || 0)}
-                      min="1"
-                      max="500"
-                      className="mt-1"
-                    />
-                    <p className="text-xs text-muted-foreground mt-1">
-                      Maximum number of messages to send (1-500)
-                    </p>
-                    {errors.targetCount && (
-                      <p className="text-sm text-red-600 mt-1">{errors.targetCount}</p>
                     )}
                   </div>
                 </CardContent>

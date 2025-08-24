@@ -41,7 +41,6 @@ import {
   Variable,
   Group,
   Play,
-  Square,
 } from 'lucide-react'
 
 interface User {
@@ -85,8 +84,10 @@ interface CampaignGroup {
   name: string
   conditions: Record<string, any>
   priority: number
-  estimated_targets: number
   target_count: number
+  estimated_targets: number
+  explicitLinks?: Array<{text: string, url: string}>
+  message?: string
   created_at: string
   updated_at: string
   messages: CampaignGroupMessage[]
@@ -209,7 +210,6 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
         body: JSON.stringify({
           name: editedCampaign.name,
           // message field removed - now handled by campaign messages
-          targetCount: editedCampaign.targetCount,
           keywords: editedCampaign.keywords,
           excludeKeywords: editedCampaign.excludeKeywords,
           interestedThreshold: editedCampaign.interestedThreshold,
@@ -466,36 +466,6 @@ Are you sure you want to proceed with executing this campaign?`
     }
   }
 
-  const handleStopExecution = async () => {
-    if (!confirm('Are you sure you want to stop the campaign execution?')) {
-      return
-    }
-
-    try {
-      const response = await fetch(`/campaign/${campaign.id}/stop`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Requested-With': 'XMLHttpRequest',
-        },
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        if (data.success) {
-          setLocalCampaign((prev) => ({ ...prev, executionStatus: 'stopped' }))
-          alert('Campaign execution stopped successfully!')
-        }
-      } else {
-        const errorData = await response.json()
-        alert(errorData.error || 'Failed to stop campaign execution')
-      }
-    } catch (error) {
-      console.error('Error stopping campaign execution:', error)
-      alert('Error stopping campaign execution. Please try again.')
-    }
-  }
-
   const handleCountResponses = async () => {
     setLoading(true)
     try {
@@ -696,23 +666,6 @@ Are you sure you want to proceed with executing this campaign?`
                       />
                     </div>
 
-                    {/* Target Count */}
-                    <div>
-                      <Label htmlFor="targetCount">Target Count</Label>
-                      <Input
-                        id="targetCount"
-                        type="number"
-                        min="1"
-                        max="1000"
-                        value={editedCampaign.targetCount}
-                        onChange={(e) => setEditedCampaign(prev => ({ 
-                          ...prev, 
-                          targetCount: parseInt(e.target.value) || 0 
-                        }))}
-                        className="mt-1"
-                      />
-                    </div>
-
                     {/* Keywords */}
                     <KeywordEditor
                       title="Target Keywords"
@@ -854,8 +807,7 @@ Are you sure you want to proceed with executing this campaign?`
               )}
 
               {localCampaign.analysisStatus === 'completed' &&
-                localCampaign.executionStatus !== 'completed' && 
-                localCampaign.executionStatus !== 'running' && (
+                localCampaign.executionStatus !== 'completed' && (
                   <Button
                     onClick={handleExecuteCampaign}
                     className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
@@ -866,18 +818,6 @@ Are you sure you want to proceed with executing this campaign?`
                     <span className="sm:hidden">Execute</span>
                   </Button>
                 )}
-
-              {localCampaign.executionStatus === 'running' && (
-                <Button
-                  onClick={handleStopExecution}
-                  className="flex items-center gap-2 bg-red-600 hover:bg-red-700"
-                  size="sm"
-                >
-                  <Square className="h-4 w-4" />
-                  <span className="hidden sm:inline">Stop Execution</span>
-                  <span className="sm:hidden">Stop</span>
-                </Button>
-              )}
 
               {/* Actions Dropdown Menu */}
               {localCampaign.analysisStatus === 'completed' && (
@@ -1102,8 +1042,15 @@ Are you sure you want to proceed with executing this campaign?`
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div className="space-y-3">
                       <div>
-                        <p className="text-sm font-medium text-muted-foreground">Target Count</p>
-                        <p className="text-sm">{localCampaign.targetCount}</p>
+                        <p className="text-sm font-medium text-muted-foreground">Total Target Count</p>
+                        <p className="text-sm">
+                          {groups.reduce((sum, group) => sum + (group.target_count || 0), 0)}
+                          {groups.length > 0 && (
+                            <span className="text-muted-foreground ml-1">
+                              ({groups.length} group{groups.length !== 1 ? 's' : ''})
+                            </span>
+                          )}
+                        </p>
                       </div>
                       <div>
                         <p className="text-sm font-medium text-muted-foreground">Keywords</p>
