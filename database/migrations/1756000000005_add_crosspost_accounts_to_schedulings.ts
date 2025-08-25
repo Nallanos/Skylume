@@ -6,11 +6,9 @@ export default class extends BaseSchema {
   async up() {
     this.schema.alterTable(this.tableName, (table) => {
       table.integer('twitter_account_id').nullable()
-      table.integer('threads_account_id').nullable()
       
       // Foreign keys
       table.foreign('twitter_account_id').references('id').inTable('twitter_accounts').onDelete('SET NULL')
-      table.foreign('threads_account_id').references('id').inTable('threads_accounts').onDelete('SET NULL')
     })
   }
 

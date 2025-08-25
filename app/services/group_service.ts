@@ -1,6 +1,10 @@
 import CampaignGroup from '#models/campaign_group'
 import FollowerCampaign from '#models/follower_campaign'
 import { InterestLevel } from '#models/follower_campaign'
+import DmCampaign from '#models/dm_campaign'
+import Account from '#models/account'
+import AccountService from '#services/account_service'
+import { AtpAgent } from '@atproto/api'
 
 export type ConditionType = 'interest_level' | 'follower_count'
 export type OperatorType = 'equals' | 'greater_than' | 'less_than' | 'between' | 'at_least'
@@ -32,6 +36,53 @@ export interface GroupEstimation {
 }
 
 export default class GroupService {
+  // Cache pour les followers de campagne
+  private followersCache = new Map<number, FollowerCampaign[]>()
+  private cacheTimestamps = new Map<number, number>()
+  private readonly CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+
+  /**
+   * Obtenir les followers avec cache
+   */
+  private async getCachedFollowers(campaignId: number): Promise<FollowerCampaign[]> {
+    const now = Date.now()
+    const cacheKey = campaignId
+    
+    // Vérifier le cache
+    if (this.followersCache.has(cacheKey)) {
+      const timestamp = this.cacheTimestamps.get(cacheKey) || 0
+      if (now - timestamp < this.CACHE_TTL) {
+        console.log(`📋 Cache hit pour followers campagne ${campaignId}`)
+        return this.followersCache.get(cacheKey)!
+      }
+    }
+    
+    console.log(`🔄 Cache miss, rechargement followers campagne ${campaignId}`)
+    const followers = await FollowerCampaign.query()
+      .where('dm_campaign_id', campaignId)
+    
+    // Mettre en cache
+    this.followersCache.set(cacheKey, followers)
+    this.cacheTimestamps.set(cacheKey, now)
+    
+    return followers
+  }
+
+  /**
+   * Vider le cache pour une campagne (méthode publique)
+   */
+  async clearFollowersCache(campaignId: number): Promise<void> {
+    this.clearCacheForCampaign(campaignId)
+    console.log(`🧹 Cache vidé pour la campagne ${campaignId}`)
+  }
+
+  /**
+   * Vider le cache pour une campagne
+   */
+  private clearCacheForCampaign(campaignId: number): void {
+    this.followersCache.delete(campaignId)
+    this.cacheTimestamps.delete(campaignId)
+  }
   /**
    * Créer un nouveau groupe pour une campagne
    */
@@ -81,6 +132,12 @@ export default class GroupService {
       messagesSent: 0,
       explicitLinks: explicitLinksData,
     })
+
+    // ✅ NOUVEAU: Assigner automatiquement les followers au groupe créé
+    await this.assignFollowersToSpecificGroup(group)
+
+    // Vider le cache après création d'un groupe
+    this.clearCacheForCampaign(campaignId)
 
     return group
   }
@@ -140,6 +197,22 @@ export default class GroupService {
     group.merge(mergeUpdates)
     await group.save()
 
+    // ✅ NOUVEAU: Si les conditions ont été mises à jour, reassigner les followers
+    if (updates.conditions) {
+      console.log(`🔄 Conditions updated for group ${group.name}, reassigning followers...`)
+      
+      // D'abord, libérer tous les followers assignés à ce groupe
+      await FollowerCampaign.query()
+        .where('campaign_group_id', group.id)
+        .update({ campaign_group_id: null })
+      
+      // Puis réassigner selon les nouvelles conditions
+      await this.assignFollowersToSpecificGroup(group)
+      
+      // Vider le cache après modification des conditions
+      this.clearCacheForCampaign(group.campaignId)
+    }
+
     return group
   }
 
@@ -173,12 +246,49 @@ export default class GroupService {
   }
 
   /**
-   * Calculer les estimations pour tous les groupes d'une campagne
+   * Calculer les estimations pour tous les groupes d'une campagne (VERSION ASYNC)
+   */
+  async calculateGroupEstimationsAsync(campaignId: number): Promise<GroupEstimation[]> {
+    try {
+      console.log(`🚀 Début calcul estimations async pour campagne ${campaignId}`)
+      
+      // Charger les groupes et followers en parallèle avec cache
+      const [groups, followerCampaigns] = await Promise.all([
+        this.getCampaignGroups(campaignId),
+        this.getCachedFollowers(campaignId)
+      ])
+
+      // Calculer les estimations en parallèle pour chaque groupe
+      const estimationPromises = groups.map(async (group) => {
+        const matchingFollowers = this.filterFollowersByConditions(
+          followerCampaigns,
+          group.conditions as GroupConditions
+        )
+
+        return {
+          groupId: group.id,
+          groupName: group.name,
+          estimatedCount: matchingFollowers.length,
+          conditions: group.conditions as GroupConditions,
+        }
+      })
+
+      const estimations = await Promise.all(estimationPromises)
+      
+      console.log(`✅ Estimations async calculées pour ${estimations.length} groupes`)
+      return estimations
+    } catch (error) {
+      console.error(`❌ Erreur calcul estimations async:`, error)
+      throw error
+    }
+  }
+
+  /**
+   * Calculer les estimations pour tous les groupes d'une campagne (VERSION SYNCHRONE)
    */
   async calculateGroupEstimations(campaignId: number): Promise<GroupEstimation[]> {
     const groups = await this.getCampaignGroups(campaignId)
-    const followerCampaigns = await FollowerCampaign.query()
-      .where('dm_campaign_id', campaignId)
+    const followerCampaigns = await this.getCachedFollowers(campaignId)
 
     const estimations: GroupEstimation[] = []
 
@@ -200,13 +310,12 @@ export default class GroupService {
   }
 
   /**
-   * Estimer le nombre de targets pour des conditions données
+   * Estimer le nombre de targets pour des conditions données (AVEC CACHE)
    */
   async estimateTargetsForConditions(campaignId: number, conditions: any): Promise<number> {
     try {
-      // Récupérer tous les followers de la campagne
-      const followerCampaigns = await FollowerCampaign.query()
-        .where('dm_campaign_id', campaignId)
+      // Récupérer les followers avec cache
+      const followerCampaigns = await this.getCachedFollowers(campaignId)
 
       // Appliquer le filtre simple directement
       const matchingFollowers = this.filterFollowersBySimpleConditions(
@@ -267,6 +376,120 @@ export default class GroupService {
   }
 
   /**
+   * Enrichir les données des followers avec les vrais comptes de followers depuis l'API Bluesky
+   */
+  private async enrichFollowersData(campaignId: number, followers: FollowerCampaign[]): Promise<FollowerCampaign[]> {
+    console.log(`🔍 Enriching ${followers.length} followers with real follower counts from Bluesky API`)
+    
+    try {
+      // Récupérer la campagne pour obtenir le handle du compte
+      const campaign = await DmCampaign.findOrFail(campaignId)
+      
+      // Récupérer le compte directement par le handle
+      const account = await Account.query()
+        .where('handle', campaign.accountHandle)
+        .first()
+      
+      if (!account) {
+        console.warn(`No account found with handle ${campaign.accountHandle}, skipping enrichment`)
+        return followers
+      }
+
+      // Initialiser l'AccountService
+      const agent = new AtpAgent({ service: 'https://bsky.social' })
+      const accountService = new AccountService(agent)
+      await accountService.createOrResumeSession(account)
+
+      // Enrichir chaque follower avec son vrai compte de followers
+      const enrichedFollowers: FollowerCampaign[] = []
+      let enrichedCount = 0
+      
+      for (const follower of followers) {
+        try {
+          if (follower.followerHandle && (!follower.followersCount || follower.followersCount === 0)) {
+            // Récupérer le profil depuis l'API Bluesky seulement si pas déjà enrichi
+            const profile = await accountService.getProfile(follower.followerHandle)
+            
+            // Mettre à jour le nombre de followers
+            follower.followersCount = profile.followersCount || 0
+            console.log(`Updated ${follower.followerHandle}: ${follower.followersCount} followers`)
+            
+            // Sauvegarder en DB pour les futures utilisations
+            await follower.save()
+            enrichedCount++
+          }
+          
+          enrichedFollowers.push(follower)
+        } catch (profileError) {
+          console.warn(`Failed to fetch profile for ${follower.followerHandle}:`, profileError.message)
+          // Garder les données existantes si on ne peut pas récupérer le profil
+          enrichedFollowers.push(follower)
+        }
+      }
+
+      console.log(`✅ Successfully enriched ${enrichedCount}/${enrichedFollowers.length} followers`)
+      return enrichedFollowers
+      
+    } catch (error) {
+      console.error('Error enriching followers data:', error)
+      // Retourner les followers originaux si l'enrichissement échoue
+      return followers
+    }
+  }
+
+  /**
+   * Assigner les followers à un groupe spécifique nouvellement créé
+   */
+  async assignFollowersToSpecificGroup(group: CampaignGroup): Promise<void> {
+    console.log(`🔧 Assigning followers to new group: ${group.name} (ID: ${group.id})`)
+    
+    // Récupérer les followers non-assignés de cette campagne
+    let followerCampaigns = await FollowerCampaign.query()
+      .where('dm_campaign_id', group.campaignId)
+      .whereNull('campaign_group_id') // Seulement les non-assignés
+
+    console.log(`Found ${followerCampaigns.length} unassigned followers`)
+
+    // Enrichir les données des followers avec les vrais comptes depuis l'API Bluesky
+    followerCampaigns = await this.enrichFollowersData(group.campaignId, followerCampaigns)
+
+    // Évaluer les conditions du groupe
+    const conditions = group.conditions as GroupConditions | SimpleConditions
+    let eligibleFollowers: FollowerCampaign[] = []
+
+    console.log(`Evaluating complex conditions with conditions ${JSON.stringify(conditions)}`)
+    if (this.isSimpleConditions(conditions)) {
+      // Format simple depuis le frontend
+      eligibleFollowers = followerCampaigns.filter(fc => 
+        this.evaluateSimpleCondition(fc, conditions as SimpleConditions)
+      )
+    } else {
+      // Format complexe
+      eligibleFollowers = followerCampaigns.filter(fc => 
+        this.evaluateConditions(fc, conditions as GroupConditions)
+      )
+    }
+
+    console.log(`Found ${eligibleFollowers.length} eligible followers for group ${group.name}`)
+
+    // Assigner ces followers au groupe
+    if (eligibleFollowers.length > 0) {
+      const followerIds = eligibleFollowers.map(fc => fc.id)
+      
+      await FollowerCampaign.query()
+        .whereIn('id', followerIds)
+        .update({ campaign_group_id: group.id })
+
+      // Mettre à jour le nombre cible du groupe
+      await group.merge({ targetCount: eligibleFollowers.length }).save()
+      
+      console.log(`✅ Assigned ${eligibleFollowers.length} followers to group ${group.name}`)
+    } else {
+      console.log(`⚠️ No eligible followers found for group ${group.name}`)
+    }
+  }
+
+  /**
    * Convertir les conditions du frontend en format GroupConditions
    */
   /**
@@ -313,6 +536,61 @@ export default class GroupService {
     conditions: GroupConditions
   ): FollowerCampaign[] {
     return followers.filter(follower => this.evaluateConditions(follower, conditions))
+  }
+
+  /**
+   * Évaluer une condition simple depuis le frontend
+   */
+  private evaluateSimpleCondition(follower: FollowerCampaign, condition: SimpleConditions): boolean {
+    const { field, operator, value } = condition
+
+    switch (field) {
+      case 'interest_level':
+        const currentLevel = follower.interestLevel
+        if (operator === 'equals') {
+          return currentLevel === value
+        } else if (operator === 'at_least') {
+          // Définir la hiérarchie des niveaux d'intérêt
+          const levelHierarchy: Record<string, number> = {
+            'interested': 3,
+            'moderately_interested': 2,
+            'not_interested': 1,
+            'excluded': 0,
+            'cannot_determine': 0,
+          }
+          const currentScore = levelHierarchy[currentLevel as string] || 0
+          const targetScore = levelHierarchy[value] || 0
+          return currentScore >= targetScore
+        }
+        return false
+
+      case 'follower_count':
+      case 'followers_count':
+        const followersCount = follower.followersCount || 0
+        console.log(`Evaluating follower count condition: follower has ${followersCount}, condition is ${operator} ${value}`)
+        const targetValue = parseInt(value)
+        
+        switch (operator) {
+          case 'equals':
+            return followersCount === targetValue
+          case 'greater_than':
+            return followersCount > targetValue
+          case 'less_than':
+            return followersCount < targetValue
+          case 'gte':
+          case 'greater_than_or_equal':
+            return followersCount >= targetValue
+          case 'lte':
+          case 'less_than_or_equal':
+            return followersCount <= targetValue
+          default:
+            return false
+        }
+
+      default:
+        console.warn(`Unknown field in simple condition: ${field}`)
+        return false
+    }
   }
 
   /**

@@ -8,32 +8,44 @@ export default class CampaignGroupsController {
 
   /**
    * GET /campaign/:id/groups
-   * Récupérer tous les groupes d'une campagne avec estimations
+   * Récupérer tous les groupes d'une campagne avec estimations (OPTIMISÉ)
    */
-  async index({ params, response }: HttpContext) {
+  async index({ params, response, request }: HttpContext) {
     try {
       const campaignId = params.id
+      const includeEstimations = request.input('estimations', 'false') === 'true'
       
-      // Charger les groupes 
+      // Charger les groupes rapidement
       const groups = await CampaignGroup.query()
         .where('campaign_id', campaignId)
         .orderBy('order', 'asc')
       
-      const estimations = await this.groupService.calculateGroupEstimations(campaignId)
-      
-      // Enrichir les groupes avec les estimations
-      const enrichedGroups = groups.map(group => {
-        const estimation = estimations.find(e => e.groupId === group.id)
+      let enrichedGroups = groups.map(group => {
         const groupJson = group.toJSON()
         return {
           ...groupJson,
+          id: groupJson.id, // Assurer que l'ID est présent
           priority: groupJson.order, // Alias pour la compatibilité frontend
-          estimated_targets: estimation?.estimatedCount || 0, // ✅ Nom correct pour le frontend
-          target_count: groupJson.targetCount || 0, // ✅ Map targetCount to target_count for frontend
-          // ✅ S'assurer que explicit_links est inclus et correctement parsé
+          estimated_targets: 0, // Par défaut, sera calculé en arrière-plan
+          target_count: groupJson.targetCount || 0, // Nombre réel de followers assignés
+          messages_sent: groupJson.messagesSent || 0, // Nombre de messages envoyés
           explicit_links: groupJson.explicitLinks || [],
+          loading_estimation: !includeEstimations, // Indicateur de chargement
         }
       })
+
+      // Si les estimations sont demandées, les calculer
+      if (includeEstimations) {
+        const estimations = await this.groupService.calculateGroupEstimations(campaignId)
+        enrichedGroups = enrichedGroups.map(enrichedGroup => {
+          const estimation = estimations.find(e => e.groupId === enrichedGroup.id)
+          return {
+            ...enrichedGroup,
+            estimated_targets: estimation?.estimatedCount || 0,
+            loading_estimation: false,
+          }
+        })
+      }
       
       return response.ok({
         success: true,
@@ -43,6 +55,36 @@ export default class CampaignGroupsController {
       return response.badRequest({
         success: false,
         message: 'Failed to fetch groups',
+        error: error.message,
+      })
+    }
+  }
+
+  /**
+   * GET /campaign/:id/groups/estimations-async
+   * Calculer les estimations en arrière-plan (NOUVEAU - ASYNC)
+   */
+  async estimationsAsync({ params, response }: HttpContext) {
+    try {
+      const campaignId = params.id
+      
+      // Déclencher le calcul en arrière-plan sans bloquer
+      this.groupService.calculateGroupEstimationsAsync(campaignId)
+        .then((estimations: any[]) => {
+          console.log(`✅ Estimations calculées pour la campagne ${campaignId}:`, estimations.length)
+        })
+        .catch((error: any) => {
+          console.error(`❌ Erreur calcul estimations campagne ${campaignId}:`, error)
+        })
+      
+      return response.ok({
+        success: true,
+        message: 'Estimation calculation started in background',
+      })
+    } catch (error) {
+      return response.badRequest({
+        success: false,
+        message: 'Failed to start estimation calculation',
         error: error.message,
       })
     }
@@ -176,12 +218,14 @@ export default class CampaignGroupsController {
 
   /**
    * GET /campaign/:id/groups/estimations
-   * Obtenir les estimations de taille pour tous les groupes
+   * Obtenir les estimations de taille pour tous les groupes (OPTIMISÉ)
    */
   async estimations({ params, response }: HttpContext) {
     try {
       const campaignId = params.id
-      const estimations = await this.groupService.calculateGroupEstimations(campaignId)
+      
+      // Utiliser la version async optimisée
+      const estimations = await this.groupService.calculateGroupEstimationsAsync(campaignId)
       
       return response.ok({
         success: true,
@@ -250,6 +294,41 @@ export default class CampaignGroupsController {
   }
 
   /**
+   * GET /campaign/:id/groups/:groupId/estimation
+   * Obtenir l'estimation pour un groupe spécifique (NOUVEAU - OPTIMISÉ)
+   */
+  async getSingleEstimation({ params, response }: HttpContext) {
+    try {
+      const { id: campaignId, groupId } = params
+      
+      // Charger le groupe spécifique
+      const group = await CampaignGroup.findOrFail(groupId)
+      
+      // Estimer uniquement pour ce groupe avec cache
+      const estimation = await this.groupService.estimateTargetsForConditions(
+        campaignId,
+        group.conditions
+      )
+      
+      return response.ok({
+        success: true,
+        data: {
+          groupId: group.id,
+          groupName: group.name,
+          estimatedCount: estimation,
+          conditions: group.conditions,
+        },
+      })
+    } catch (error) {
+      return response.badRequest({
+        success: false,
+        message: 'Failed to calculate group estimation',
+        error: error.message,
+      })
+    }
+  }
+
+  /**
    * GET /campaign/:id/groups/:groupId/followers
    * Obtenir les followers d'un groupe spécifique
    */
@@ -266,6 +345,30 @@ export default class CampaignGroupsController {
       return response.badRequest({
         success: false,
         message: 'Failed to fetch group followers',
+        error: error.message,
+      })
+    }
+  }
+
+  /**
+   * POST /campaign/:id/groups/clear-cache
+   * Vider le cache des followers pour forcer le rechargement (NOUVEAU - ADMIN)
+   */
+  async clearCache({ params, response }: HttpContext) {
+    try {
+      const campaignId = params.id
+      
+      // Vider le cache pour cette campagne
+      await this.groupService.clearFollowersCache(campaignId)
+      
+      return response.ok({
+        success: true,
+        message: 'Cache cleared successfully',
+      })
+    } catch (error) {
+      return response.badRequest({
+        success: false,
+        message: 'Failed to clear cache',
         error: error.message,
       })
     }

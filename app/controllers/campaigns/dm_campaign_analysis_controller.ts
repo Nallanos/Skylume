@@ -97,44 +97,24 @@ export default class DmCampaignAnalysisController {
             }
 
             // Validation du targetCount
-            const finalTargetCount = targetCount || campaign.targetCount || 0
+            const finalTargetCount = targetCount || 0
             if (finalTargetCount <= 0) {
                 return response.status(400).json({ 
                     error: 'Target count must be greater than 0' 
                 })
             }
 
-            // Mettre à jour le nombre de cibles
-            campaign.targetCount = finalTargetCount
+            console.log(`🎯 Starting campaign execution with target count: ${finalTargetCount}`)
+
+            // Mettre à jour la campagne
             campaign.executionStartedAt = DateTime.now()
             await campaign.save()
-
-            // Sélectionner les followers à cibler
-            const targetFollowers = await FollowerCampaign.query()
-                .where('dm_campaign_id', campaignId)
-                .where('message_sent', false)
-                .whereIn('interest_level', ['interested', 'moderately_interested'])
-                .orderByRaw(`
-                    CASE interest_level 
-                        WHEN 'interested' THEN 1 
-                        WHEN 'moderately_interested' THEN 2 
-                        ELSE 3 
-                    END
-                `)
-                .orderByRaw('RANDOM()')
-                .limit(finalTargetCount)
-
-            console.log(`📋 Found ${targetFollowers.length} target followers (requested: ${finalTargetCount})`)
-            targetFollowers.forEach(follower => {
-                console.log(`👤 @${follower.followerHandle} - ${follower.followersCount || 0} followers - Interest: ${follower.interestLevel}`)
-            })
 
             // Initialiser le contexte de campagne pour l'exécution
             await this.initializeCampaignContext(campaignId.toString())
 
-            // Traiter par groupe au lieu de follower par follower
-            let messagesSent = 0
-            messagesSent = await this.executeByGroups(campaign, targetFollowers, finalTargetCount)
+            // Exécuter par groupes avec la limite globale
+            const messagesSent = await this.executeByGroups(campaign, finalTargetCount)
 
             // Mettre à jour les statistiques de la campagne
             campaign.number_of_message_sent += messagesSent
@@ -146,7 +126,7 @@ export default class DmCampaignAnalysisController {
             return response.json({ 
                 success: true,
                 messagesSent,
-                totalTargeted: targetFollowers.length
+                targetCount: finalTargetCount
             })
 
         } catch (error) {
@@ -216,7 +196,7 @@ export default class DmCampaignAnalysisController {
     /**
      * Exécuter la campagne en traitant par groupe
      */
-    private async executeByGroups(campaign: DmCampaign, targetFollowers: FollowerCampaign[], finalTargetCount: number): Promise<number> {
+    private async executeByGroups(campaign: DmCampaign, finalTargetCount: number): Promise<number> {
         let totalMessagesSent = 0
 
         try {
@@ -226,18 +206,41 @@ export default class DmCampaignAnalysisController {
             })
 
             console.log(`📊 Found ${campaign.groups.length} groups for campaign execution`)
+            console.log(`🎯 Target to reach: ${finalTargetCount} contacts`)
 
             if (campaign.groups.length === 0) {
                 console.warn(`⚠️ No groups found for campaign ${campaign.id}, cannot execute`)
                 return 0
             }
 
-            // Traiter chaque groupe
+            // Récupérer tous les followers disponibles pour cette campagne
+            const allAvailableFollowers = await FollowerCampaign.query()
+                .where('dm_campaign_id', campaign.id)
+                .where('message_sent', false)
+                .where('already_contacted', false)
+                .whereIn('interest_level', ['interested', 'moderately_interested'])
+                .orderByRaw(`
+                    CASE interest_level 
+                        WHEN 'interested' THEN 1 
+                        WHEN 'moderately_interested' THEN 2 
+                        ELSE 3 
+                    END
+                `)
+                .orderByRaw('RANDOM()')
+
+            console.log(`📋 Found ${allAvailableFollowers.length} available followers`)
+
+            // Traiter chaque groupe jusqu'à atteindre la limite globale
             for (const group of campaign.groups) {
+                if (totalMessagesSent >= finalTargetCount) {
+                    console.log(`🛑 Global target reached: ${totalMessagesSent}/${finalTargetCount}`)
+                    break
+                }
+
                 console.log(`🎯 Processing group "${group.name}"`)
                 
                 // Filtrer les followers qui correspondent aux conditions du groupe
-                const groupFollowers = this.filterFollowersByGroup(targetFollowers, group)
+                const groupFollowers = this.filterFollowersByGroup(allAvailableFollowers, group)
                 
                 if (groupFollowers.length === 0) {
                     console.log(`⚠️ No followers match conditions for group "${group.name}"`)
@@ -251,10 +254,12 @@ export default class DmCampaignAnalysisController {
                     continue
                 }
                 
+                console.log(`📤 Sending messages to ${groupFollowers.length} followers from group "${group.name}"`)
+                
                 // Envoyer des messages aux followers du groupe
                 for (const followerCampaign of groupFollowers) {
                     if (totalMessagesSent >= finalTargetCount) {
-                        console.log(`🛑 Target count reached: ${totalMessagesSent}/${finalTargetCount}`)
+                        console.log(`🛑 Global target reached: ${totalMessagesSent}/${finalTargetCount}`)
                         break
                     }
                     
@@ -266,12 +271,14 @@ export default class DmCampaignAnalysisController {
                         followerCampaign.messageSentAt = DateTime.now()
                         await followerCampaign.save()
                         
+                        // ✅ NOUVEAU: Incrémenter le compteur de la campagne
+                        await campaign.incrementAlreadyContactedCount()
+                        
                         totalMessagesSent++
                         console.log(`✅ Message sent to @${followerCampaign.followerHandle} (${totalMessagesSent}/${finalTargetCount})`)
                         
                         // Petit délai entre les messages pour éviter le rate limiting
                         await this.delay(1000)
-                        
                     } catch (error) {
                         console.error(`❌ Failed to send message to @${followerCampaign.followerHandle}:`, error)
                         // Continuer avec le follower suivant
@@ -434,6 +441,34 @@ export default class DmCampaignAnalysisController {
             )
 
             if (convo) {
+                console.log(`💬 Found conversation: ${convo.id}`)
+                
+                // VÉRIFICATION CRITIQUE : Vérifier si la conversation contient déjà des messages
+                const existingMessages = await this.withRetry(
+                    () => {
+                        if (!this.accountService) {
+                            throw new Error('Account Service not defined')
+                        }
+                        return this.accountService.getMessages(this.currentAccount, convo.id)
+                    },
+                    'getMessages'
+                ) as unknown as any[]
+
+                // Si la conversation contient déjà des messages, ne pas envoyer de nouveau message
+                if (existingMessages && existingMessages.length > 0) {
+                    console.log(`⚠️ Conversation with @${followerCampaign.followerHandle} already has ${existingMessages.length} messages. Skipping send and marking as already contacted.`)
+                    
+                    // Marquer le follower comme déjà contacté
+                    followerCampaign.alreadyContacted = true
+                    await followerCampaign.save()
+                    
+                    // Ne pas envoyer de message
+                    return
+                }
+                
+                // Si la conversation est vide, procéder à l'envoi
+                console.log(`✅ Conversation is empty, proceeding to send message`)
+                
                 // Envoyer le message avec facets pour rich text
                 await this.withRetry(
                     () => {
@@ -569,11 +604,23 @@ export default class DmCampaignAnalysisController {
                 
                 // Appliquer la configuration de rounding si présente
                 const config = variable.configuration
-                if (config && config.rounding === 'thousands') {
-                    const roundedCount = Math.round(count / 1000)
-                    const formattedValue = `${roundedCount}k`
-                    console.log(`📊 Rounded ${count} to ${formattedValue} (round to thousands)`)
-                    return formattedValue
+                if (config && config.rounding) {
+                    switch (config.rounding) {
+                        case 'thousands':
+                            const roundedToThousands = Math.round(count / 1000)
+                            const formattedThousands = `${roundedToThousands}k`
+                            console.log(`📊 Rounded ${count} to ${formattedThousands} (round to thousands)`)
+                            return formattedThousands
+                        
+                        case 'hundreds':
+                            const roundedToHundreds = Math.round(count / 100)
+                            const formattedHundreds = `${roundedToHundreds}00`
+                            console.log(`📊 Rounded ${count} to ${formattedHundreds} (round to hundreds)`)
+                            return formattedHundreds
+                        
+                        default:
+                            console.log(`⚠️ Unknown rounding type: ${config.rounding}`)
+                    }
                 }
                 
                 return count.toString()

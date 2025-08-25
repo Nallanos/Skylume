@@ -16,7 +16,7 @@ export default class CampaignConversationsController {
     constructor(
         protected accountManager: AccountManager,
         protected conversationTrackingService: ConversationTrackingService
-    ) {}
+    ) { }
 
     /**
      * Vérifier les conversations existantes pour une campagne
@@ -101,13 +101,14 @@ export default class CampaignConversationsController {
     /**
      * Marquer comme contactés tous les followers avec des conversations non vides
      */
-    public async markAllExistingConversationsAsContacted({ params, response, auth }: HttpContext) {
+    public async markAllExistingConversationsAsContacted({ params, response, auth, request }: HttpContext) {
         try {
             const user = auth.getUserOrFail()
             const campaignId = params.id
+            const forceRescan = request.input('force_rescan', false)
 
             // Vérifier que la campagne appartient à l'utilisateur
-            await DmCampaign.query()
+            const campaign = await DmCampaign.query()
                 .where('id', campaignId)
                 .where('user_id', user.id)
                 .firstOrFail()
@@ -115,17 +116,36 @@ export default class CampaignConversationsController {
             // Initialiser le contexte de campagne pour accéder aux tokens
             await this.initializeCampaignContext(campaignId)
 
-            // Récupérer tous les followers non contactés
-            const followers = await FollowerCampaign.query()
-                .where('dmCampaignId', campaignId)
-                .where('alreadyContacted', false)
+            // Récupérer tous les followers non contactés (ou tous si force_rescan)
+            let query = FollowerCampaign.query().where('dm_campaign_id', campaignId)
+            
+            if (!forceRescan) {
+                query = query.where('already_contacted', false)
+            }
+            
+            const followers = await query
+
+            console.log(`📊 Campaign ${campaignId} stats:`)
+            
+            // Compter tous les followers pour debug
+            const totalFollowers = await FollowerCampaign.query()
+                .where('dm_campaign_id', campaignId)
+                .count('* as total')
+            
+            const alreadyContactedFollowers = await FollowerCampaign.query()
+                .where('dm_campaign_id', campaignId)
+                .where('already_contacted', true)
+                .count('* as total')
+            
+            console.log(`   Total followers: ${totalFollowers[0].$extras.total}`)
+            console.log(`   Already contacted: ${alreadyContactedFollowers[0].$extras.total}`)
+            console.log(`   ${forceRescan ? 'To rescan' : 'Not contacted yet'}: ${followers.length}`)
 
             let updatedCount = 0
 
-            // Traiter en parallèle avec contrôle de concurrence
-            const BATCH_SIZE = 50 // Traiter 50 followers en parallèle
+            const BATCH_SIZE = 30 // Traiter 30 followers en parallèle
             const batches = []
-            
+
             for (let i = 0; i < followers.length; i += BATCH_SIZE) {
                 batches.push(followers.slice(i, i + BATCH_SIZE))
             }
@@ -135,12 +155,13 @@ export default class CampaignConversationsController {
             for (const batch of batches) {
                 const promises = batch.map(async (followerCampaign) => {
                     try {
-                        // Vérifier s'il existe une conversation avec ce follower
                         if (!this.accountService || !this.currentAccount.at_session) {
                             throw new Error("Account service or session not available")
                         }
 
                         const did = this.currentAccount.at_session.did
+                        console.log(`🔍 Checking conversations for ${followerCampaign.followerHandle}...`)
+                        
                         const convo = await this.withRetry(
                             () => {
                                 if (!this.accountService) throw new Error("Account service not found")
@@ -153,6 +174,7 @@ export default class CampaignConversationsController {
                         )
 
                         if (convo) {
+                            console.log(`📧 Found conversation for ${followerCampaign.followerHandle}, checking messages...`)
                             // Récupérer les messages de la conversation
                             const messages = await this.withRetry(
                                 () => {
@@ -168,7 +190,11 @@ export default class CampaignConversationsController {
                                 await followerCampaign.save()
                                 console.log(`✓ Marked ${followerCampaign.followerHandle} as already contacted (${messages.length} messages)`)
                                 return 1
+                            } else {
+                                console.log(`❌ No messages found for ${followerCampaign.followerHandle}`)
                             }
+                        } else {
+                            console.log(`❌ No conversation found for ${followerCampaign.followerHandle}`)
                         }
                         return 0
                     } catch (error) {
@@ -198,11 +224,14 @@ export default class CampaignConversationsController {
 
                 console.log(`Batch ${batches.indexOf(batch) + 1}/${batches.length} completed. Updated so far: ${updatedCount}`)
             }
+            await campaign.updateAlreadyContactedCountFromFollowers()
+            console.log(`✅ Updated campaign alreadyContactedCount: ${campaign.alreadyContactedCount}`)
 
+            updatedCount = campaign.alreadyContactedCount
             return response.json({
                 success: true,
                 message: `${updatedCount} followers marked as already contacted`,
-                updatedCount
+                updatedCount,
             })
 
         } catch (error) {
@@ -221,7 +250,7 @@ export default class CampaignConversationsController {
         try {
             const user = auth.getUserOrFail()
             const campaignId = params.id
-            
+
             // Vérifier que l'utilisateur possède cette campagne
             await DmCampaign.query()
                 .where('id', campaignId)
@@ -240,7 +269,7 @@ export default class CampaignConversationsController {
 
             let responsesCount = 0
             let checkedCount = 0
-            
+
             for (const followerCampaign of followersWithMessages) {
                 const hasResponse = await this.checkFollowerResponse(followerCampaign)
                 if (hasResponse) {
@@ -250,7 +279,7 @@ export default class CampaignConversationsController {
                     await followerCampaign.save()
                 }
                 checkedCount++
-                
+
                 // Progress log every 10 followers
                 if (checkedCount % 10 === 0) {
                     console.log(`Progress: ${checkedCount}/${followersWithMessages.length} checked, ${responsesCount} responses found so far`)
@@ -363,7 +392,7 @@ export default class CampaignConversationsController {
 
             // Récupérer tous les messages de la conversation
             const allMessages = await this.getAllConversationMessages(convo.id)
-            
+
             if (!allMessages || allMessages.length === 0) {
                 console.log(`No messages found in conversation for ${followerCampaign.followerHandle}`)
                 return false

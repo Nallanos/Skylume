@@ -3,20 +3,45 @@ import { BaseSchema } from '@adonisjs/lucid/schema'
 export default class extends BaseSchema {
 
   async up() {
-    // Supprimer les colonnes Threads de la table accounts
-    this.schema.alterTable('accounts', (table) => {
-      table.dropColumn('threads_access_token')
-      table.dropColumn('threads_user_id')
-      table.dropColumn('threads_username')
-      table.dropColumn('threads_rate_limited')
-      table.dropColumn('threads_rate_limit_reset')
-    })
+    // Supprimer les colonnes Threads de la table accounts si elles existent
+    await this.schema.raw(`
+      DO $$ 
+      BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'accounts' AND column_name = 'threads_access_token') THEN
+          ALTER TABLE accounts DROP COLUMN threads_access_token;
+        END IF;
+        
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'accounts' AND column_name = 'threads_user_id') THEN
+          ALTER TABLE accounts DROP COLUMN threads_user_id;
+        END IF;
+        
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'accounts' AND column_name = 'threads_username') THEN
+          ALTER TABLE accounts DROP COLUMN threads_username;
+        END IF;
+        
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'accounts' AND column_name = 'threads_rate_limited') THEN
+          ALTER TABLE accounts DROP COLUMN threads_rate_limited;
+        END IF;
+        
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'accounts' AND column_name = 'threads_rate_limit_reset') THEN
+          ALTER TABLE accounts DROP COLUMN threads_rate_limit_reset;
+        END IF;
+      END $$;
+    `)
 
-    // Supprimer les colonnes Threads de la table schedulings
-    this.schema.alterTable('schedulings', (table) => {
-      table.dropColumn('threads_account_id')
-      table.dropColumn('threads_settings')
-    })
+    // Supprimer les colonnes Threads de la table schedulings si elles existent
+    await this.schema.raw(`
+      DO $$ 
+      BEGIN
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'schedulings' AND column_name = 'threads_account_id') THEN
+          ALTER TABLE schedulings DROP COLUMN threads_account_id;
+        END IF;
+        
+        IF EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name = 'schedulings' AND column_name = 'threads_settings') THEN
+          ALTER TABLE schedulings DROP COLUMN threads_settings;
+        END IF;
+      END $$;
+    `)
 
     // Supprimer la table threads_accounts si elle existe
     this.schema.dropTableIfExists('threads_accounts')

@@ -69,17 +69,14 @@ const feed_controller = () => import('#controllers/feeds_controller')
 const analytics_controller = () => import('#controllers/analytics_controller')
 const follower_analysis_controller = () => import('#controllers/follower_analysis_controller')
 const follower_tracker_controller = () => import('#controllers/follower_tracker_controller')
-const python_controller_methods = () => import('#controllers/python_controller_methods')
 const dm_campaigns_controller = () => import('#controllers/campaigns/dm_campaigns_basic_controller')
 const dm_campaign_analysis_controller = () => import('#controllers/campaigns/dm_campaign_analysis_controller')
 const dm_campaign_stats_controller = () => import('#controllers/campaigns/dm_campaign_stats_controller')
 const campaign_conversations_controller = () => import('#controllers/campaigns/campaign_conversations_controller')
 const campaign_messages_controller = () => import('#controllers/campaigns/campaign_messages_controller')
-const campaign_execution_controller = () => import('#controllers/campaigns/campaign_execution_controller')
 const hashtag_groups_controller = () => import('#controllers/hashtag_groups_controller')
 const campaign_variables_controller = () => import('#controllers/campaigns/campaign_variables_controller')
 const campaign_groups_controller = () => import('#controllers/campaigns/campaign_groups_controller')
-const campaign_previews_controller = () => import('#controllers/campaigns/campaign_previews_controller')
 
 /*
 |--------------------------------------------------------------------------
@@ -543,11 +540,6 @@ router
   .get('/campaign/:id', [dm_campaign_stats_controller, 'getCampaignDashboardPage'])
   .use(middleware.auth())
 
-// Campaign Execution - Direct execution page
-router
-  .get('/dashboard/campaigns/:id/execution', [dm_campaign_stats_controller, 'getCampaignDashboardPage'])
-  .use(middleware.auth())
-
 router
   .post('/campaign/create', [dm_campaigns_controller, 'createDmCampaign'])
   .use(middleware.auth())
@@ -561,9 +553,6 @@ router
   .use(middleware.auth())
 router
   .delete('/campaign/delete/:campaign_id', [dm_campaigns_controller, 'removeDmCampaign'])
-  .use(middleware.auth())
-router
-  .post('/campaign/start/:campaign_id', [dm_campaign_analysis_controller, 'executeCampaign'])
   .use(middleware.auth())
 
 // ===== DM CAMPAIGNS ANALYSIS & EXECUTION =====
@@ -586,13 +575,13 @@ router
   .get('/api/campaign/:id/stats', [dm_campaign_stats_controller, 'getCampaignStats'])
   .use(middleware.auth())
 router
-  .get('/api/campaign/:id/followers', [dm_campaign_stats_controller, 'getAnalyzedFollowers'])
+  .get('/campaign/:id/followers', [dm_campaign_stats_controller, 'getAnalyzedFollowers'])
   .use(middleware.auth())
 router
-  .get('/api/campaign/:id/followers-paginated', [dm_campaign_stats_controller, 'getAnalyzedFollowersPaginatedApi'])
+  .post('/campaign/:id/mark-all-existing-conversations', [campaign_conversations_controller, 'markAllExistingConversationsAsContacted'])
   .use(middleware.auth())
 
-// ===== NOUVELLES ROUTES - MESSAGES MULTIPLES =====
+// ===== CAMPAIGN MESSAGES =====
 router
   .get('/campaign/:id/messages', [campaign_messages_controller, 'getCampaignMessages'])
   .use(middleware.auth())
@@ -606,42 +595,18 @@ router
   .delete('/campaign/:id/messages/:messageId', [campaign_messages_controller, 'deleteCampaignMessage'])
   .use(middleware.auth())
 
-// ===== NOUVELLES ROUTES - TRACKING CONVERSATIONS =====
+// ===== CONVERSATION TRACKING =====
+router
+  .get('/campaign/:id/conversation-status', [campaign_conversations_controller, 'getConversationStatus'])
+  .use(middleware.auth())
 router
   .post('/campaign/:id/check-conversations', [campaign_conversations_controller, 'checkConversations'])
   .use(middleware.auth())
 router
   .post('/campaign/:id/mark-contacted/:followerId', [campaign_conversations_controller, 'markAsContacted'])
   .use(middleware.auth())
-router
-  .get('/campaign/:id/conversation-status', [campaign_conversations_controller, 'getConversationStatus'])
-  .use(middleware.auth())
-router
-  .post('/campaign/:id/mark-all-existing-conversations', [campaign_conversations_controller, 'markAllExistingConversationsAsContacted'])
-  .use(middleware.auth())
 
-// ===== NOUVELLES ROUTES - EXECUTION DES CAMPAGNES =====
-router
-  .get('/api/campaigns/:id/execution/config', [campaign_execution_controller, 'getExecutionConfig'])
-  .use(middleware.auth())
-router
-  .post('/api/campaigns/:id/execution/config', [campaign_execution_controller, 'saveExecutionConfig'])
-  .use(middleware.auth())
-router
-  .get('/api/campaigns/:id/execution/preview', [campaign_execution_controller, 'getExecutionPreview'])
-  .use(middleware.auth())
-router
-  .get('/api/campaigns/:id/execution/validate', [campaign_execution_controller, 'validateExecutionConfig'])
-  .use(middleware.auth())
-router
-  .post('/api/campaigns/:id/execution/reset-counts', [campaign_execution_controller, 'resetMessageCounts'])
-  .use(middleware.auth())
-router
-  .post('/api/campaigns/:id/execute', [dm_campaign_analysis_controller, 'executeCampaign'])
-  .use(middleware.auth())
-
-// ===== NOUVELLES ROUTES - VARIABLES ET GROUPES =====
-// Variables de campagne
+// ===== CAMPAIGN VARIABLES =====
 router
   .get('/campaign/:id/variables', [campaign_variables_controller, 'index'])
   .use(middleware.auth())
@@ -654,11 +619,8 @@ router
 router
   .delete('/campaign/:id/variables/:variableId', [campaign_variables_controller, 'destroy'])
   .use(middleware.auth())
-router
-  .post('/campaign/:id/variables/validate-message', [campaign_variables_controller, 'validateMessage'])
-  .use(middleware.auth())
 
-// Groupes de campagne
+// ===== CAMPAIGN GROUPS =====
 router
   .get('/campaign/:id/groups', [campaign_groups_controller, 'index'])
   .use(middleware.auth())
@@ -672,50 +634,10 @@ router
   .delete('/campaign/:id/groups/:groupId', [campaign_groups_controller, 'destroy'])
   .use(middleware.auth())
 router
-  .post('/campaign/:id/groups/reorder', [campaign_groups_controller, 'reorder'])
-  .use(middleware.auth())
-router
   .post('/campaign/:id/groups/estimate', [campaign_groups_controller, 'estimate'])
   .use(middleware.auth())
 router
-  .get('/campaign/:id/groups/estimations', [campaign_groups_controller, 'estimations'])
-  .use(middleware.auth())
-router
-  .post('/campaign/:id/groups/assign', [campaign_groups_controller, 'assignFollowers'])
-  .use(middleware.auth())
-router
   .get('/campaign/:id/groups/:groupId/followers', [campaign_groups_controller, 'getGroupFollowers'])
-  .use(middleware.auth())
-router
-  .get('/campaign/:id/groups/:groupId/preview', [campaign_previews_controller, 'previewMessage'])
-  .use(middleware.auth())
-router
-  .post('/campaign/:id/groups/reset', [campaign_groups_controller, 'resetAssignments'])
-  .use(middleware.auth())
-
-// Messages de groupes
-router
-  .post('/campaign/:id/groups/:groupId/messages', [campaign_messages_controller, 'createCampaignMessage'])
-  .use(middleware.auth())
-router
-  .put('/campaign/:id/groups/:groupId/messages/:messageId', [campaign_messages_controller, 'updateCampaignMessage'])
-  .use(middleware.auth())
-router
-  .delete('/campaign/:id/groups/:groupId/messages/:messageId', [campaign_messages_controller, 'deleteCampaignMessage'])
-  .use(middleware.auth())
-
-// Prévisualisation et validation
-router
-  .post('/campaign/:id/preview-message', [campaign_previews_controller, 'previewMessage'])
-  .use(middleware.auth())
-router
-  .get('/campaign/:id/validate-messages', [campaign_previews_controller, 'validateAllMessages'])
-  .use(middleware.auth())
-router
-  .get('/campaign/:id/personalization-stats', [campaign_previews_controller, 'getStats'])
-  .use(middleware.auth())
-router
-  .get('/campaign/:id/sample-followers', [campaign_previews_controller, 'getSampleFollowers'])
   .use(middleware.auth())
 
 /*
@@ -743,22 +665,6 @@ router
   .get('/api/analytics/:id/diagnostic', [analytics_controller, 'diagnosticHistoryData'])
   .use(middleware.auth())
 
-// ===== CLUSTER ANALYTICS =====
-router
-  .post('/api/accounts/:id/clusters/refresh-cache', [analytics_controller, 'refreshClusterCache'])
-  .use(middleware.auth())
-router
-  .get('/api/accounts/:id/clusters/data', [analytics_controller, 'getClusterData'])
-  .use(middleware.auth())
-router
-  .get('/accounts/:id/clusters/cluster/:clusterId', [analytics_controller, 'clusterDetail'])
-  .use(middleware.auth())
-router
-  .get('/accounts/:id/clusters/supercluster/:superClusterId', [
-    analytics_controller,
-    'superClusterDetail',
-  ])
-  .use(middleware.auth())
 
 // ===== FOLLOWER ANALYSIS =====
 router
@@ -871,35 +777,6 @@ router
   ])
   .use(middleware.auth())
 
-/*
-|--------------------------------------------------------------------------
-| PYTHON WORKER API
-|--------------------------------------------------------------------------
-| Routes internes pour le worker Python (protégées par clé API)
-|
-*/
-
-router
-  .get('/internal/python/next-bulk-job', [python_controller_methods, 'getNextBulkAnalysisJob'])
-  .use(middleware.api_auth())
-router
-  .get('/internal/python/next-recurring-job', [
-    python_controller_methods,
-    'getNextRecurringAnalysisJob',
-  ])
-  .use(middleware.api_auth())
-router
-  .post('/internal/python/complete-job', [python_controller_methods, 'processBatchProgress'])
-  .use([middleware.api_auth(), middleware.json_validation()])
-router
-  .post('/internal/python/update-progress', [python_controller_methods, 'updateAnalysisProgress'])
-  .use([middleware.api_auth(), middleware.json_validation()])
-router
-  .get('/internal/python/accounts/:handle', [python_controller_methods, 'getAccount'])
-  .use(middleware.api_auth())
-router
-  .get('/internal/python/health', [python_controller_methods, 'health'])
-  .use(middleware.api_auth())
 
 /*
 |--------------------------------------------------------------------------
@@ -1002,48 +879,3 @@ router
     }
   })
   .use(middleware.auth())
-
-// ===== QUEUE MANAGEMENT =====
-router
-  .get('/schedule/queue/stats', async ({ response, auth }) => {
-    try {
-      await auth.authenticate()
-      // TODO: Implémenter les stats via SchedulingQueueManager si nécessaire
-      return response.json({ waiting: 0, active: 0, completed: 0, failed: 0 })
-    } catch (error) {
-      console.error('Error getting queue stats:', error)
-      return response.status(500).json({ error: 'Internal server error' })
-    }
-  })
-  .use(middleware.auth())
-
-// ===== DEVELOPMENT / DEBUG =====
-router
-  .post('/schedule/test-publish/:id', async ({ params, response, auth }) => {
-    try {
-      await auth.authenticate()
-
-      const { default: Scheduling } = await import('#models/scheduling')
-
-      const scheduling = await Scheduling.query().where('id', params.id).preload('account').first()
-
-      if (!scheduling) {
-        return response.status(404).json({ error: 'Scheduling not found' })
-      }
-
-      // Tester manuellement la publication via le service privé
-      // Note: Cette route est pour le développement seulement
-      return response.json({
-        message: 'Test publish functionality is available but requires access to private methods',
-        scheduling_id: scheduling.id,
-        account: scheduling.account.handle,
-        status: scheduling.status,
-      })
-    } catch (error) {
-      console.error('Error in test publish:', error)
-      return response.status(500).json({ error: 'Internal server error' })
-    }
-  })
-  .use(middleware.auth())
-
-

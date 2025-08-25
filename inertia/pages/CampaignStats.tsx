@@ -6,9 +6,9 @@ import { Progress } from '../components/ui/progress'
 import { Badge } from '../components/ui/badge'
 import { Input } from '../components/ui/input'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select'
-import { ArrowLeft, Users, MessageSquare, Eye, CheckCircle, XCircle, AlertCircle, Clock, Search, ArrowUpDown, ChevronLeft, ChevronRight } from 'lucide-react'
+import { ArrowLeft, Users, MessageSquare, Eye, CheckCircle, XCircle, AlertCircle, Clock, Search, ArrowUpDown, ChevronLeft, ChevronRight, ChevronUp, ChevronDown } from 'lucide-react'
 import { format } from 'date-fns'
-import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 
 interface User {
   id: number
@@ -30,6 +30,20 @@ interface FollowerCampaign {
   responseReceivedAt?: string
   bioQuality?: string
   alreadyContacted?: boolean
+}
+
+interface CampaignGroup {
+  id: number
+  campaignId: number
+  name: string
+  conditions: Record<string, any>
+  order: number
+  targetCount: number
+  messagesSent: number
+  message?: string
+  explicitLinks?: Array<{text: string, url: string}>
+  created_at: string
+  updated_at: string
 }
 
 interface CampaignStats {
@@ -67,6 +81,7 @@ interface CampaignStats {
 interface CampaignStatsProps {
   user: User
   stats: CampaignStats | null
+  groups?: CampaignGroup[]
   followersData?: {
     followers: FollowerCampaign[]
     pagination: {
@@ -87,8 +102,8 @@ interface CampaignStatsProps {
   error?: string
 }
 
-export default function CampaignStats({ user, stats, followersData, error }: CampaignStatsProps) {
-  const [activeTab, setActiveTab] = useState<'overview' | 'interested' | 'moderately_interested' | 'not_interested' | 'excluded' | 'cannot_determine'>(
+export default function CampaignStats({ user, stats, groups = [], followersData, error }: CampaignStatsProps) {
+  const [activeTab, setActiveTab] = useState<'overview' | 'groups' | 'interested' | 'moderately_interested' | 'not_interested' | 'excluded' | 'cannot_determine'>(
     (followersData?.filters?.filter as any) || 'overview'
   )
   const [searchTerm, setSearchTerm] = useState(followersData?.filters?.search || '')
@@ -97,12 +112,67 @@ export default function CampaignStats({ user, stats, followersData, error }: Cam
   )
   const [isLoading, setIsLoading] = useState(false)
   const [countingResponses, setCountingResponses] = useState(false)
+  const [expandedGroups, setExpandedGroups] = useState<Set<number>>(new Set())
+  const [groupFollowers, setGroupFollowers] = useState<Record<number, FollowerCampaign[]>>({})
+  const [loadingGroupFollowers, setLoadingGroupFollowers] = useState<Set<number>>(new Set())
   const searchTimeoutRef = useRef<NodeJS.Timeout | null>(null)
 
   // Récupérer les followers depuis les données paginées
   const followers = followersData?.followers || []
   const pagination = followersData?.pagination
-  const serverFollowerCounts = followersData?.counts || {}
+
+  // Fonction pour charger les followers d'un groupe
+  const loadGroupFollowers = useCallback(async (groupId: number) => {
+    if (groupFollowers[groupId] || loadingGroupFollowers.has(groupId)) {
+      return // Déjà chargé ou en cours de chargement
+    }
+
+    setLoadingGroupFollowers(prev => new Set([...prev, groupId]))
+    
+    try {
+      const response = await fetch(`/campaign/${stats?.campaign.id}/groups/${groupId}/followers`, {
+        headers: {
+          'X-Requested-With': 'XMLHttpRequest',
+        }
+      })
+      
+      if (response.ok) {
+        const data = await response.json()
+        setGroupFollowers(prev => ({
+          ...prev,
+          [groupId]: data.data || []
+        }))
+      } else {
+        console.error('Failed to load group followers')
+      }
+    } catch (error) {
+      console.error('Error loading group followers:', error)
+    } finally {
+      setLoadingGroupFollowers(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(groupId)
+        return newSet
+      })
+    }
+  }, [groupFollowers, loadingGroupFollowers, stats?.campaign.id])
+
+  // Fonction pour basculer l'expansion d'un groupe
+  const toggleGroupExpansion = useCallback(async (groupId: number) => {
+    const isExpanded = expandedGroups.has(groupId)
+    
+    if (isExpanded) {
+      // Collaper le groupe
+      setExpandedGroups(prev => {
+        const newSet = new Set(prev)
+        newSet.delete(groupId)
+        return newSet
+      })
+    } else {
+      // Étendre le groupe et charger ses followers
+      setExpandedGroups(prev => new Set([...prev, groupId]))
+      await loadGroupFollowers(groupId)
+    }
+  }, [expandedGroups, loadGroupFollowers])
 
   // Fonction pour charger les données avec les nouveaux filtres
   const loadFollowersData = useCallback(async (
@@ -206,17 +276,6 @@ export default function CampaignStats({ user, stats, followersData, error }: Cam
   const filteredFollowers = followers
 
   console.log(filteredFollowers)
-
-  // Utiliser les compteurs du serveur au lieu de recalculer côté client
-  const followerCounts = useMemo(() => {
-    return {
-      interested: serverFollowerCounts.interested || 0,
-      moderately_interested: serverFollowerCounts.moderately_interested || 0,
-      not_interested: serverFollowerCounts.not_interested || 0,
-      excluded: serverFollowerCounts.excluded || 0,
-      cannot_determine: serverFollowerCounts.cannot_determine || 0
-    }
-  }, [serverFollowerCounts])
 
   // Get interest level configuration
   const getInterestConfig = (level: string) => {
@@ -340,7 +399,9 @@ export default function CampaignStats({ user, stats, followersData, error }: Cam
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">{breakdown.messagesSent}</div>
-              <p className="text-xs text-muted-foreground">target: {campaign.targetCount}</p>
+              <p className="text-xs text-muted-foreground">
+                target: {groups.reduce((sum, group) => sum + (group.targetCount || 0), 0)}
+              </p>
             </CardContent>
           </Card>
 
@@ -405,6 +466,14 @@ export default function CampaignStats({ user, stats, followersData, error }: Cam
                   Overview
                 </Button>
                 <Button
+                  variant={activeTab === 'groups' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => handleTabChange('groups')}
+                  className="flex items-center gap-1"
+                >
+                  Groups ({groups.length})
+                </Button>
+                <Button
                   variant={activeTab === 'interested' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => handleTabChange('interested')}
@@ -446,8 +515,8 @@ export default function CampaignStats({ user, stats, followersData, error }: Cam
                 </Button>
               </div>
 
-              {/* Search Bar and Sort Controls for non-overview tabs */}
-              {activeTab !== 'overview' && (
+              {/* Search Bar and Sort Controls for non-overview and non-groups tabs */}
+              {activeTab !== 'overview' && activeTab !== 'groups' && (
                 <div className="mb-6 flex gap-4">
                   <div className="relative flex-1">
                     <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
@@ -597,6 +666,243 @@ export default function CampaignStats({ user, stats, followersData, error }: Cam
                       )}
                     </CardContent>
                   </Card>
+                </div>
+              ) : activeTab === 'groups' ? (
+                /* Groups List */
+                <div className="space-y-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <p className="text-sm text-muted-foreground">
+                      {groups.length} group{groups.length !== 1 ? 's' : ''} configured
+                    </p>
+                  </div>
+                  
+                  {groups.length > 0 ? (
+                    <div className="space-y-4">
+                      {groups.map((group) => {
+                        const formatCondition = (conditions: any) => {
+                          if (!conditions || typeof conditions !== 'object') return 'No conditions'
+                          
+                          const { field, operator, value } = conditions
+                          const operatorLabels: Record<string, string> = {
+                            'gte': '≥',
+                            'lte': '≤',
+                            'gt': '>',
+                            'lt': '<',
+                            'eq': '='
+                          }
+                          
+                          const fieldLabels: Record<string, string> = {
+                            'followers_count': 'Followers'
+                          }
+                          
+                          const fieldLabel = fieldLabels[field] || field
+                          const operatorLabel = operatorLabels[operator] || operator
+                          
+                          return `${fieldLabel} ${operatorLabel} ${Number(value).toLocaleString()}`
+                        }
+
+                        const isExpanded = expandedGroups.has(group.id)
+                        const isLoadingFollowers = loadingGroupFollowers.has(group.id)
+                        const groupFollowersList = groupFollowers[group.id] || []
+
+                        return (
+                          <Card key={group.id} className="hover:shadow-md transition-shadow">
+                            <CardHeader className="pb-3">
+                              <div className="flex items-center justify-between">
+                                <CardTitle className="text-base">{group.name}</CardTitle>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className="text-xs">
+                                    #{group.order}
+                                  </Badge>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => toggleGroupExpansion(group.id)}
+                                    className="h-8 w-8 p-0"
+                                  >
+                                    {isExpanded ? (
+                                      <ChevronUp className="h-4 w-4" />
+                                    ) : (
+                                      <ChevronDown className="h-4 w-4" />
+                                    )}
+                                  </Button>
+                                </div>
+                              </div>
+                            </CardHeader>
+                            <CardContent className="space-y-3">
+                              <div>
+                                <p className="text-sm font-medium text-muted-foreground mb-1">Conditions</p>
+                                <Badge variant="secondary" className="text-xs">
+                                  {formatCondition(group.conditions)}
+                                </Badge>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                  <p className="font-medium text-muted-foreground">Target Count</p>
+                                  <p className="text-lg font-semibold text-blue-600">
+                                    {group.targetCount || 0}
+                                  </p>
+                                </div>
+                                <div>
+                                  <p className="font-medium text-muted-foreground">Messages Sent</p>
+                                  <p className="text-lg font-semibold text-green-600">
+                                    {group.messagesSent || 0}
+                                  </p>
+                                </div>
+                              </div>
+                              
+                              {group.message && (
+                                <div>
+                                  <p className="text-sm font-medium text-muted-foreground mb-1">Message</p>
+                                  <div className="text-xs text-muted-foreground bg-muted p-2 rounded max-h-20 overflow-y-auto">
+                                    {group.message.substring(0, 150)}
+                                    {group.message.length > 150 && '...'}
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {group.explicitLinks && group.explicitLinks.length > 0 && (
+                                <div>
+                                  <p className="text-sm font-medium text-muted-foreground mb-1">
+                                    Links ({group.explicitLinks.length})
+                                  </p>
+                                  <div className="space-y-1">
+                                    {group.explicitLinks.slice(0, 2).map((link, index) => (
+                                      <div key={index} className="text-xs p-1 bg-blue-50 dark:bg-blue-900/20 rounded">
+                                        "{link.text}" → {link.url}
+                                      </div>
+                                    ))}
+                                    {group.explicitLinks.length > 2 && (
+                                      <div className="text-xs text-muted-foreground">
+                                        +{group.explicitLinks.length - 2} more link{group.explicitLinks.length - 2 !== 1 ? 's' : ''}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Section des followers du groupe */}
+                              {isExpanded && (
+                                <div className="border-t pt-3 mt-3">
+                                  <div className="flex items-center justify-between mb-3">
+                                    <h4 className="text-sm font-medium">Group Followers</h4>
+                                    {isLoadingFollowers && (
+                                      <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-purple-600"></div>
+                                    )}
+                                  </div>
+                                  
+                                  {isLoadingFollowers ? (
+                                    <div className="text-center py-4">
+                                      <p className="text-sm text-muted-foreground">Loading followers...</p>
+                                    </div>
+                                  ) : groupFollowersList.length > 0 ? (
+                                    <div className="space-y-2 max-h-60 overflow-y-auto">
+                                      {groupFollowersList.map((follower) => {
+                                        const getInterestConfig = (level: string) => {
+                                          switch (level) {
+                                            case 'interested':
+                                              return { label: 'Interested', color: 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300' }
+                                            case 'moderately_interested':
+                                              return { label: 'Moderately Interested', color: 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300' }
+                                            case 'not_interested':
+                                              return { label: 'Not Interested', color: 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300' }
+                                            case 'excluded':
+                                              return { label: 'Excluded', color: 'bg-purple-100 dark:bg-purple-900/30 text-purple-800 dark:text-purple-300' }
+                                            case 'cannot_determine':
+                                              return { label: 'Cannot Determine', color: 'bg-gray-100 dark:bg-gray-800/50 text-gray-800 dark:text-gray-300' }
+                                            default:
+                                              return { label: level, color: 'bg-gray-100 dark:bg-gray-800/50 text-gray-800 dark:text-gray-300' }
+                                          }
+                                        }
+                                        
+                                        const config = getInterestConfig(follower.interestLevel)
+                                        const profileUrl = `https://bsky.app/profile/${follower.followerHandle}`
+                                        
+                                        return (
+                                          <div
+                                            key={follower.id}
+                                            className="flex items-center gap-3 p-2 border border-border rounded bg-card/50 hover:bg-card transition-colors"
+                                          >
+                                            {/* Avatar placeholder */}
+                                            <div className="w-8 h-8 bg-muted rounded-full flex items-center justify-center flex-shrink-0">
+                                              <span className="text-xs font-medium text-muted-foreground">
+                                                {follower.followerHandle?.charAt(0).toUpperCase()}
+                                              </span>
+                                            </div>
+
+                                            {/* User Info */}
+                                            <div className="flex-1 min-w-0">
+                                              <div className="flex items-center gap-2">
+                                                <h5 className="text-sm font-medium truncate">
+                                                  {follower.followerDisplayName || follower.followerHandle}
+                                                </h5>
+                                                <Badge variant="secondary" className={`text-xs ${config.color}`}>
+                                                  {config.label}
+                                                </Badge>
+                                                {follower.messageSent && (
+                                                  <Badge variant="outline" className="text-xs">
+                                                    ✉️
+                                                  </Badge>
+                                                )}
+                                                {follower.responseReceived && (
+                                                  <Badge variant="outline" className="text-xs">
+                                                    💬
+                                                  </Badge>
+                                                )}
+                                                <a
+                                                  href={profileUrl}
+                                                  target="_blank"
+                                                  rel="noopener noreferrer"
+                                                  title="Voir le profil Bluesky"
+                                                  className="text-blue-500 hover:text-blue-700 transition-colors"
+                                                >
+                                                  <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" d="M18 13v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6m5-3h3m0 0v3m0-3-9 9" />
+                                                  </svg>
+                                                </a>
+                                              </div>
+                                              <p className="text-xs text-muted-foreground">@{follower.followerHandle}</p>
+                                            </div>
+
+                                            {/* Similarity Score */}
+                                            {follower.similarityScore !== undefined && (
+                                              <div className="text-right flex-shrink-0">
+                                                <p className="text-xs font-medium">
+                                                  {(follower.similarityScore * 100).toFixed(1)}%
+                                                </p>
+                                              </div>
+                                            )}
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
+                                  ) : (
+                                    <div className="text-center py-4">
+                                      <p className="text-sm text-muted-foreground">No followers assigned to this group yet.</p>
+                                    </div>
+                                  )}
+                                </div>
+                              )}
+                            </CardContent>
+                          </Card>
+                        )
+                      })}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Users className="h-12 w-12 mx-auto mb-4 text-muted-foreground" />
+                      <h3 className="text-lg font-semibold mb-2">No Groups Configured</h3>
+                      <p className="text-muted-foreground mb-4">
+                        This campaign doesn't have any targeting groups set up yet.
+                      </p>
+                      <Link href={`/campaign/${campaign.id}`}>
+                        <Button>
+                          Go to Campaign Dashboard
+                        </Button>
+                      </Link>
+                    </div>
+                  )}
                 </div>
               ) : (
                 /* Followers List */

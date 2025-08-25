@@ -90,6 +90,10 @@ export default class DmCampaign extends BaseModel {
   @column()
   declare messageFacets: string | null
 
+  // ✅ NOUVEAU: Nombre de followers déjà contactés
+  @column()
+  declare alreadyContactedCount: number
+
   // Seuils personnalisables pour la classification
   @column()
   declare interestedThreshold: number
@@ -138,4 +142,27 @@ export default class DmCampaign extends BaseModel {
 
   @hasMany(() => CampaignGroupMessage, { foreignKey: 'campaignId' })
   declare groupMessages: HasMany<typeof CampaignGroupMessage>
+
+  /**
+   * Incrémenter le compteur de followers déjà contactés
+   */
+  async incrementAlreadyContactedCount(increment: number = 1): Promise<void> {
+    this.alreadyContactedCount = (this.alreadyContactedCount || 0) + increment
+    await this.save()
+  }
+
+  /**
+   * Mettre à jour le compteur en recalculant depuis FollowerCampaign
+   */
+  async updateAlreadyContactedCountFromFollowers(): Promise<void> {
+    const FollowerCampaign = (await import('./follower_campaign.js')).default
+    
+    const alreadyContactedQuery = await FollowerCampaign.query()
+      .where('dm_campaign_id', this.id)
+      .where('already_contacted', true)
+      .count('* as total')
+    
+    this.alreadyContactedCount = Number(alreadyContactedQuery[0].$extras.total)
+    await this.save()
+  }
 }

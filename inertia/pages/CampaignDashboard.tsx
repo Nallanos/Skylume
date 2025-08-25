@@ -9,6 +9,7 @@ import { Label } from '../components/ui/label'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../components/ui/tabs'
 import VariableManager from '../components/VariableManager'
 import GroupManager from '../components/GroupManager'
+import GroupStats from '../components/GroupStats'
 import {
   Dialog,
   DialogContent,
@@ -40,122 +41,15 @@ import {
   X,
   Variable,
   Group,
-  Play,
+  AlertTriangle,
+  UserCheck,
 } from 'lucide-react'
 
-interface User {
-  id: number
-  email: string
-  plan?: string
-}
-
-interface Campaign {
-  id: number
-  name: string
-  // message field removed - now handled by campaign messages
-  accountHandle: string
-  strategy: string
-  keywords: string // Backend sends JSON string
-  excludeKeywords?: string // New field for exclude keywords
-  targetCount: number
-  analysisStatus: string
-  executionStatus?: string
-  interestedThreshold?: number
-  moderatelyInterestedThreshold?: number
-  createdAt: string
-  updatedAt: string
-  variables?: CampaignVariable[]
-  groups?: CampaignGroup[]
-}
-
-interface CampaignVariable {
-  id: number
-  campaign_id: number
-  name: string
-  type: string
-  configuration: Record<string, any>
-  created_at: string
-  updated_at: string
-}
-
-interface CampaignGroup {
-  id: number
-  campaign_id: number
-  name: string
-  conditions: Record<string, any>
-  priority: number
-  target_count: number
-  estimated_targets: number
-  explicitLinks?: Array<{text: string, url: string}>
-  message?: string
-  created_at: string
-  updated_at: string
-  messages: CampaignGroupMessage[]
-}
-
-interface CampaignGroupMessage {
-  id: number
-  campaign_group_id: number
-  content: string
-  weight: number
-  created_at: string
-  updated_at: string
-}
-
-interface FollowerCampaign {
-  id: number
-  followerHandle: string
-  followerDisplayName?: string
-  followerBio?: string
-  similarityScore?: number
-  messageSent: boolean
-  responseReceived?: boolean
-  messageSentAt?: string
-  responseReceivedAt?: string
-}
-
-interface CampaignBreakdown {
-  total: number
-  interested: number
-  moderatelyInterested: number
-  notInterested: number
-  excluded: number
-  cannotDetermine: number
-  messagesSent: number
-  responsesReceived: number
-}
-
-interface CampaignStatsData {
-  id: number
-  name: string
-  analysisStatus: string
-  totalFollowersAnalyzed: number
-  interestedFollowers: number
-  moderatelyInterestedFollowers: number
-  notInterestedFollowers: number
-  excludedFollowers: number
-  cannotDetermineFollowers: number
-  targetCount: number
-  messagesSent: number
-  interestedThreshold: number
-  moderatelyInterestedThreshold: number
-  analysisStartedAt?: string
-  analysisCompletedAt?: string
-  executionStartedAt?: string
-  executionCompletedAt?: string
-}
-
-interface CampaignStats {
-  campaign: CampaignStatsData
-  breakdown: CampaignBreakdown
-}
-
-interface CampaignDashboardProps {
-  user: User
-  campaign: Campaign
-  stats?: CampaignStats
-  followers?: FollowerCampaign[]
-}
+import type {
+  CampaignVariable,
+  CampaignGroup,
+  CampaignDashboardProps
+} from '../types/campaign'
 
 function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
   const [localCampaign, setLocalCampaign] = useState(campaign)
@@ -176,6 +70,9 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
     moderatelyInterestedThreshold: campaign.moderatelyInterestedThreshold || 0.5
   })
   const [saving, setSaving] = useState(false)
+  const [executionConfig, setExecutionConfig] = useState<Record<number, { enabled: boolean, targetCount: number }>>({})
+  const [isExecutionModalOpen, setIsExecutionModalOpen] = useState(false)
+  const [isExecuting, setIsExecuting] = useState(false)
 
   // Helper function to parse keywords from JSON string
   const parseKeywords = (keywords: string): string[] => {
@@ -255,10 +152,13 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
   // Refresh campaign groups
   const refreshGroups = async () => {
     try {
-      const response = await fetch(`/campaign/${campaign.id}/groups`)
+      // Demander les estimations pour avoir toutes les données
+      const response = await fetch(`/campaign/${campaign.id}/groups?estimations=true`)
       if (response.ok) {
         const data = await response.json()
         setGroups(data.groups || [])
+      } else {
+        console.error('Failed to fetch groups:', response.status, response.statusText)
       }
     } catch (error) {
       console.error('Failed to refresh groups:', error)
@@ -296,6 +196,7 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
             notInterestedFollowers: data.campaign.notInterestedFollowers,
             excludedFollowers: data.campaign.excludedFollowers,
             cannotDetermineFollowers: data.campaign.cannotDetermineFollowers,
+            alreadyContactedFollowers: data.campaign.alreadyContactedFollowers,
             messagesSent: data.campaign.messagesSent
           }))
           setLocalStats(data)
@@ -332,7 +233,6 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
 
       if (response.ok) {
         const data = await response.json()
-        // Optionally update local state with new followers data
         console.log('Followers updated:', data.followers)
       }
     } catch (error) {
@@ -388,6 +288,18 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
     loadInitialStats()
   }, [campaign.id, localStats])
 
+  // Initialize execution config when groups change
+  useEffect(() => {
+    const newConfig: Record<number, { enabled: boolean, targetCount: number }> = {}
+    groups.forEach(group => {
+      newConfig[group.id] = {
+        enabled: false,
+        targetCount: group.targetCount || 0
+      }
+    })
+    setExecutionConfig(newConfig)
+  }, [groups])
+
   const handleStartAnalysis = async () => {
     setLoading(true)
     try {
@@ -418,29 +330,19 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
   }
 
   const handleExecuteCampaign = async () => {
-    // Enhanced confirmation with disclaimer
-    const confirmMessage = `⚠️ IMPORTANT DISCLAIMER ⚠️
+    const selectedGroups = Object.entries(executionConfig)
+      .filter(([_, config]) => config.enabled)
+      .map(([groupId, config]) => ({
+        groupId: parseInt(groupId),
+        targetCount: config.targetCount
+      }))
 
-Sending mass DMs can lead to account suspension or restrictions on Bluesky. 
-
-This tool will automatically send messages to followers classified as "Interested" and "Moderately Interested" based on your keywords and AI analysis.
-
-Use this feature responsibly and at your own risk. We recommend:
-- Starting with a small target count
-- Testing with a few messages first
-- Respecting Bluesky's terms of service
-
-Are you sure you want to proceed with executing this campaign?`
-
-    if (!confirm(confirmMessage)) {
+    if (selectedGroups.length === 0) {
+      alert('Please select at least one group to execute.')
       return
     }
 
-    // Second confirmation
-    if (!confirm('Final confirmation: Execute the campaign and start sending DMs now?')) {
-      return
-    }
-
+    setIsExecuting(true)
     try {
       const response = await fetch(`/campaign/${campaign.id}/execute`, {
         method: 'POST',
@@ -448,12 +350,16 @@ Are you sure you want to proceed with executing this campaign?`
           'Content-Type': 'application/json',
           'X-Requested-With': 'XMLHttpRequest',
         },
+        body: JSON.stringify({
+          selectedGroups
+        })
       })
 
       if (response.ok) {
         const data = await response.json()
         if (data.success) {
           setLocalCampaign((prev) => ({ ...prev, executionStatus: 'in_progress' }))
+          setIsExecutionModalOpen(false)
           alert('Campaign execution started!')
         }
       } else {
@@ -463,7 +369,30 @@ Are you sure you want to proceed with executing this campaign?`
     } catch (error) {
       console.error('Error executing campaign:', error)
       alert('Error executing campaign. Please try again.')
+    } finally {
+      setIsExecuting(false)
     }
+  }
+
+  const handleGroupExecutionToggle = (groupId: number, enabled: boolean) => {
+    setExecutionConfig(prev => ({
+      ...prev,
+      [groupId]: {
+        ...prev[groupId],
+        enabled,
+        targetCount: prev[groupId]?.targetCount || groups.find(g => g.id === groupId)?.targetCount || 0
+      }
+    }))
+  }
+
+  const handleGroupTargetCountChange = (groupId: number, targetCount: number) => {
+    setExecutionConfig(prev => ({
+      ...prev,
+      [groupId]: {
+        ...prev[groupId],
+        targetCount
+      }
+    }))
   }
 
   const handleCountResponses = async () => {
@@ -806,19 +735,6 @@ Are you sure you want to proceed with executing this campaign?`
                 </Button>
               )}
 
-              {localCampaign.analysisStatus === 'completed' &&
-                localCampaign.executionStatus !== 'completed' && (
-                  <Button
-                    onClick={handleExecuteCampaign}
-                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
-                    size="sm"
-                  >
-                    <Send className="h-4 w-4" />
-                    <span className="hidden sm:inline">Execute Campaign</span>
-                    <span className="sm:hidden">Execute</span>
-                  </Button>
-                )}
-
               {/* Actions Dropdown Menu */}
               {localCampaign.analysisStatus === 'completed' && (
                 <DropdownMenu>
@@ -837,7 +753,7 @@ Are you sure you want to proceed with executing this campaign?`
                       Count Responses
                     </DropdownMenuItem>
                     <DropdownMenuItem onClick={handleMarkExistingConversations} disabled={loading}>
-                      <MessageSquare className="h-4 w-4 mr-2" />
+                      <UserCheck className="h-4 w-4 mr-2" />
                       Mark Existing Convos
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -848,7 +764,7 @@ Are you sure you want to proceed with executing this campaign?`
 
           {/* Stats */}
           {localStats && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
               <Card className="bg-background border">
                 <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                   <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -874,6 +790,23 @@ Are you sure you want to proceed with executing this campaign?`
                   <p className="text-xs text-muted-foreground">
                     {(localStats?.campaign?.totalFollowersAnalyzed || 0) > 0 
                       ? (((localStats?.campaign?.interestedFollowers || 0) / (localStats?.campaign?.totalFollowersAnalyzed || 1)) * 100).toFixed(1)
+                      : 0}% of total
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-background border">
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium text-muted-foreground">
+                    Already Contacted
+                  </CardTitle>
+                  <UserCheck className="h-4 w-4 text-orange-600" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold text-orange-600">{localStats?.campaign?.alreadyContactedFollowers || 0}</div>
+                  <p className="text-xs text-muted-foreground">
+                    {(localStats?.campaign?.totalFollowersAnalyzed || 0) > 0 
+                      ? (((localStats?.campaign?.alreadyContactedFollowers || 0) / (localStats?.campaign?.totalFollowersAnalyzed || 1)) * 100).toFixed(1)
                       : 0}% of total
                   </p>
                 </CardContent>
@@ -960,9 +893,12 @@ Are you sure you want to proceed with executing this campaign?`
                     <span className="font-semibold"> "Moderately Interested" </span> 
                     based on your keywords and AI similarity analysis.
                   </p>
+                  <p className="text-sm text-blue-700 dark:text-blue-300 mt-2">
+                    <span className="font-semibold">Note:</span> Followers marked as "Already Contacted" will be automatically excluded from new campaigns to avoid duplicate messages.
+                  </p>
                 </div>
 
-                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                <div className="grid grid-cols-2 md:grid-cols-6 gap-4">
                   <div className="text-center">
                     <div className="text-2xl font-bold text-green-600">{localStats?.campaign?.interestedFollowers || 0}</div>
                     <p className="text-xs text-muted-foreground">Interested</p>
@@ -978,6 +914,15 @@ Are you sure you want to proceed with executing this campaign?`
                     <p className="text-xs text-yellow-600">
                       {(localStats?.campaign?.totalFollowersAnalyzed || 0) > 0 
                         ? (((localStats?.campaign?.moderatelyInterestedFollowers || 0) / (localStats?.campaign?.totalFollowersAnalyzed || 1)) * 100).toFixed(1)
+                        : 0}%
+                    </p>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-orange-600">{localStats?.campaign?.alreadyContactedFollowers || 0}</div>
+                    <p className="text-xs text-muted-foreground">Already Contacted</p>
+                    <p className="text-xs text-orange-600">
+                      {(localStats?.campaign?.totalFollowersAnalyzed || 0) > 0 
+                        ? (((localStats?.campaign?.alreadyContactedFollowers || 0) / (localStats?.campaign?.totalFollowersAnalyzed || 1)) * 100).toFixed(1)
                         : 0}%
                     </p>
                   </div>
@@ -1023,7 +968,7 @@ Are you sure you want to proceed with executing this campaign?`
             </CardHeader>
             <CardContent>
               <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
+                <TabsList className="grid w-full grid-cols-4">
                   <TabsTrigger value="overview" className="flex items-center gap-2">
                     <BarChart3 className="h-4 w-4" />
                     Overview
@@ -1036,6 +981,10 @@ Are you sure you want to proceed with executing this campaign?`
                     <Group className="h-4 w-4" />
                     Groups
                   </TabsTrigger>
+                  <TabsTrigger value="execution" className="flex items-center gap-2" disabled={localCampaign.analysisStatus !== 'completed'}>
+                    <Send className="h-4 w-4" />
+                    Execution
+                  </TabsTrigger>
                 </TabsList>
 
                 <TabsContent value="overview" className="space-y-4">
@@ -1044,7 +993,7 @@ Are you sure you want to proceed with executing this campaign?`
                       <div>
                         <p className="text-sm font-medium text-muted-foreground">Total Target Count</p>
                         <p className="text-sm">
-                          {groups.reduce((sum, group) => sum + (group.target_count || 0), 0)}
+                          {groups.reduce((sum, group) => sum + (group.targetCount || 0), 0)}
                           {groups.length > 0 && (
                             <span className="text-muted-foreground ml-1">
                               ({groups.length} group{groups.length !== 1 ? 's' : ''})
@@ -1090,6 +1039,18 @@ Are you sure you want to proceed with executing this campaign?`
                           {groups.reduce((acc, group) => acc + (group.messages?.length || 0), 0)} messages
                         </p>
                       </div>
+                      {localStats?.campaign && (
+                        <div>
+                          <p className="text-sm font-medium text-muted-foreground">Already Contacted</p>
+                          <p className="text-sm flex items-center gap-1">
+                            <UserCheck className="h-3 w-3 text-orange-600" />
+                            {localStats.campaign.alreadyContactedFollowers || 0} followers
+                            <span className="text-muted-foreground">
+                              (excluded from targeting)
+                            </span>
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </TabsContent>
@@ -1103,12 +1064,211 @@ Are you sure you want to proceed with executing this campaign?`
                 </TabsContent>
 
                 <TabsContent value="groups" className="space-y-4">
+                  {/* Statistiques des groupes */}
+                  <GroupStats groups={groups} className="mb-6" />
+                  
+                  {/* Gestionnaire des groupes */}
                   <GroupManager
                     campaignId={campaign.id}
-                    groups={groups}
+                    groups={groups.map(g => ({
+                      ...g,
+                      campaignId: g.campaign_id,
+                      targetCount: g.targetCount,
+                      messagesSent: g.messagesSent || 0,
+                      order: g.priority,
+                      createdAt: g.createdAt,
+                      updatedAt: g.updatedAt
+                    }))}
                     variables={variables.map(v => ({ name: v.name, type: v.type }))}
                     onGroupUpdate={refreshGroups}
                   />
+                </TabsContent>
+
+                <TabsContent value="execution" className="space-y-4">
+                  <div className="space-y-6">
+                    {/* Header avec disclaimer */}
+                    <div className="p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertTriangle className="h-5 w-5 text-yellow-600" />
+                        <h4 className="font-medium text-yellow-900 dark:text-yellow-100">Campaign Execution</h4>
+                      </div>
+                      <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                        Select the groups you want to contact and specify the number of followers to message. 
+                        Only analyzed followers will be contacted.
+                      </p>
+                    </div>
+
+                    {/* Liste des groupes pour exécution */}
+                    <div className="space-y-4">
+                      <h4 className="text-lg font-medium">Select Groups to Execute</h4>
+                      
+                      {groups.length === 0 ? (
+                        <div className="text-center py-8 text-muted-foreground">
+                          <Group className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                          <p>No groups configured yet. Create groups first to execute campaigns.</p>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {groups.map((group) => {
+                            const config = executionConfig[group.id] || { enabled: false, targetCount: group.targetCount || 0 }
+
+                            return (
+                              <Card key={group.id} className="p-4">
+                                <div className="flex items-center justify-between">
+                                  <div className="flex items-center gap-3">
+                                    <input
+                                      type="checkbox"
+                                      checked={config.enabled}
+                                      onChange={(e) => handleGroupExecutionToggle(group.id, e.target.checked)}
+                                      className="h-4 w-4 text-blue-600 rounded border-gray-300 focus:ring-blue-500"
+                                    />
+                                    <div>
+                                      <p className="font-medium">{group.name}</p>
+                                      <p className="text-sm text-muted-foreground">
+                                        Available: {group.targetCount || 0} followers
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <Label htmlFor={`target-${group.id}`} className="text-sm font-medium">
+                                      Contact:
+                                    </Label>
+                                    <Input
+                                      id={`target-${group.id}`}
+                                      type="number"
+                                      min="0"
+                                      max={group.targetCount || 0}
+                                      value={config.targetCount}
+                                      onChange={(e) => handleGroupTargetCountChange(group.id, parseInt(e.target.value) || 0)}
+                                      disabled={!config.enabled}
+                                      className="w-20"
+                                    />
+                                    <span className="text-sm text-muted-foreground">
+                                      followers
+                                    </span>
+                                  </div>
+                                </div>
+                              </Card>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Bouton d'exécution */}
+                    {groups.length > 0 && (
+                      <div className="flex justify-center pt-4">
+                        <Button
+                          onClick={() => setIsExecutionModalOpen(true)}
+                          disabled={Object.values(executionConfig).every(config => !config.enabled)}
+                          className="bg-green-600 hover:bg-green-700 text-white px-8 py-2"
+                        >
+                          <Send className="h-4 w-4 mr-2" />
+                          Execute Selected Groups
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Modal de confirmation d'exécution */}
+                  <Dialog open={isExecutionModalOpen} onOpenChange={setIsExecutionModalOpen}>
+                    <DialogContent className="max-w-2xl">
+                      <DialogHeader>
+                        <DialogTitle className="flex items-center gap-2">
+                          <AlertTriangle className="h-5 w-5 text-red-500" />
+                          Campaign Execution Confirmation
+                        </DialogTitle>
+                        <DialogDescription>
+                          Please review the execution details before proceeding.
+                        </DialogDescription>
+                      </DialogHeader>
+
+                      <div className="space-y-6 py-4">
+                        {/* Disclaimer */}
+                        <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                          <h4 className="font-medium text-red-900 dark:text-red-100 mb-2">
+                            ⚠️ IMPORTANT DISCLAIMER
+                          </h4>
+                          <div className="text-sm text-red-700 dark:text-red-300 space-y-2">
+                            <p>Sending mass DMs can lead to:</p>
+                            <ul className="list-disc list-inside space-y-1 ml-4">
+                              <li>Account suspension or restrictions on Bluesky</li>
+                              <li>User reports and complaints</li>
+                              <li>Potential violations of Bluesky's terms of service</li>
+                            </ul>
+                            <p className="font-medium">Use this feature responsibly and at your own risk.</p>
+                          </div>
+                        </div>
+
+                        {/* Récapitulatif des groupes */}
+                        <div className="space-y-3">
+                          <h4 className="font-medium">Execution Summary</h4>
+                          <div className="space-y-2">
+                            {Object.entries(executionConfig)
+                              .filter(([_, config]) => config.enabled)
+                              .map(([groupId, config]) => {
+                                const group = groups.find(g => g.id === parseInt(groupId))
+                                if (!group) return null
+                                
+                                return (
+                                  <div key={groupId} className="flex justify-between items-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+                                    <div>
+                                      <p className="font-medium">{group.name}</p>
+                                      <p className="text-sm text-muted-foreground">
+                                        Available: {group.targetCount || 0} followers
+                                      </p>
+                                    </div>
+                                    <div className="text-right">
+                                      <p className="font-medium text-blue-600">
+                                        {config.targetCount} contacts
+                                      </p>
+                                    </div>
+                                  </div>
+                                )
+                              })}
+                          </div>
+                          
+                          <div className="pt-2 border-t">
+                            <div className="flex justify-between items-center">
+                              <p className="font-medium">Total Messages to Send:</p>
+                              <p className="font-bold text-lg text-blue-600">
+                                {Object.entries(executionConfig)
+                                  .filter(([_, config]) => config.enabled)
+                                  .reduce((total, [_, config]) => total + config.targetCount, 0)}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <DialogFooter>
+                        <Button
+                          variant="outline"
+                          onClick={() => setIsExecutionModalOpen(false)}
+                          disabled={isExecuting}
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          onClick={handleExecuteCampaign}
+                          disabled={isExecuting}
+                          className="bg-red-600 hover:bg-red-700"
+                        >
+                          {isExecuting ? (
+                            <>
+                              <Loader className="h-4 w-4 mr-2 animate-spin" />
+                              Executing...
+                            </>
+                          ) : (
+                            <>
+                              <Send className="h-4 w-4 mr-2" />
+                              Confirm Execution
+                            </>
+                          )}
+                        </Button>
+                      </DialogFooter>
+                    </DialogContent>
+                  </Dialog>
                 </TabsContent>
               </Tabs>
             </CardContent>

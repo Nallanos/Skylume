@@ -48,6 +48,8 @@ function AddAICampaign() {
     excludeKeywords: [] as string[],
     interestedThreshold: 0.49,
     moderatelyInterestedThreshold: 0.35,
+    message: '', // Message par défaut vide - sera configuré dans le dashboard
+    explicitLinks: [] as string[], // Liens explicites vides par défaut
   })
 
   const handleAddKeyword = () => {

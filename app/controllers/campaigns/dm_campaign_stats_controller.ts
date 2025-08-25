@@ -43,6 +43,7 @@ export default class DmCampaignStatsController {
                 .where('id', campaignId)
                 .where('user_id', user.id)
                 .firstOrFail()
+            
 
             // Récupérer les variables de la campagne
             const variables = await CampaignVariable.query()
@@ -77,7 +78,7 @@ export default class DmCampaignStatsController {
                     }
                 })
             }
-
+            
             return inertia.render('CampaignDashboard', {
                 user: user.toJSON(),
                 campaign: enrichedCampaign,
@@ -114,9 +115,13 @@ export default class DmCampaignStatsController {
                 .firstOrFail()
 
             // Calculer les statistiques
-            console.log('Calculating campaign stats for:', campaign)
             const stats = await this.calculateCampaignStats(campaign)
-            console.log('Campaign Stats:', stats)
+            
+            // Récupérer les groupes de la campagne
+            const groups = await CampaignGroup.query()
+                .where('campaign_id', campaignId)
+                .orderBy('order', 'asc')
+            
             // Paramètres de pagination et filtres depuis l'URL
             const page = Number(request.input('page', 1))
             const limit = Number(request.input('limit', 50))
@@ -136,6 +141,7 @@ export default class DmCampaignStatsController {
 
             return inertia.render('CampaignStats', {
                 stats,
+                groups,
                 followersData,
                 error: null
             })
@@ -143,6 +149,7 @@ export default class DmCampaignStatsController {
             console.error('Error loading campaign stats page:', error)
             return inertia.render('CampaignStats', {
                 stats: null,
+                groups: [],
                 followersData: { followers: [], pagination: null, counts: {}, filters: { filter: 'all', search: '', sortBy: 'similarity_desc' } },
                 error: 'Failed to load campaign statistics'
             })
@@ -162,9 +169,6 @@ export default class DmCampaignStatsController {
                 interestLevel, 
                 search 
             } = request.only(['page', 'limit', 'interestLevel', 'search'])
-            
-            console.log('getAnalyzedFollowers called with:', { campaignId, page, limit, interestLevel, search })
-            
             // Vérifier que l'utilisateur possède cette campagne
             await DmCampaign.query()
                 .where('id', campaignId)
@@ -191,8 +195,6 @@ export default class DmCampaignStatsController {
             const followers = await query
                 .orderBy('similarity_score', 'desc')
                 .paginate(page, limit)
-
-            console.log('Found followers:', followers.all().length)
 
             // Safe serialization of followers
             const safeFollowers = {
@@ -367,19 +369,25 @@ export default class DmCampaignStatsController {
      * Calculer les statistiques d'une campagne
      */
     private async calculateCampaignStats(campaign: DmCampaign) {
-        console.log('=== DEBUG calculateCampaignStats ===')
-        console.log('Campaign ID:', campaign.id)
-        
         // Vérifier d'abord s'il y a des FollowerCampaign pour cette campagne
         const totalFollowers = await FollowerCampaign.query()
             .where('dm_campaign_id', campaign.id)
             .count('* as total')
         
-        console.log('Total FollowerCampaign records:', totalFollowers[0].$extras.total)
+        // ✅ NOUVEAU: Calculer le nombre de followers déjà contactés
+        const alreadyContactedQuery = await FollowerCampaign.query()
+            .where('dm_campaign_id', campaign.id)
+            .where('message_sent', true)
+            .count('* as total')
+        
+        const alreadyContactedFromFollowers = Number(alreadyContactedQuery[0].$extras.total)
+        const alreadyContactedCount = Math.max(
+            campaign.alreadyContactedCount || 0, 
+            alreadyContactedFromFollowers
+        )
         
         // Si pas de données FollowerCampaign, utiliser les données de la campagne directement
         if (Number(totalFollowers[0].$extras.total) === 0) {
-            console.log('No FollowerCampaign data found, using campaign data directly')
             const breakdown = {
                 total: campaign.totalFollowersAnalyzed || 0,
                 interested: campaign.interestedFollowers || 0,
@@ -388,7 +396,8 @@ export default class DmCampaignStatsController {
                 excluded: campaign.excludedFollowers || 0,
                 cannotDetermine: campaign.cannotDetermineFollowers || 0,
                 messagesSent: campaign.number_of_message_sent || 0,
-                responsesReceived: 0
+                responsesReceived: 0,
+                alreadyContacted: alreadyContactedCount  
             }
 
             return {
@@ -409,7 +418,9 @@ export default class DmCampaignStatsController {
                     analysisStartedAt: campaign.analysisStartedAt?.toISO(),
                     analysisCompletedAt: campaign.analysisCompletedAt?.toISO(),
                     executionStartedAt: campaign.executionStartedAt?.toISO(),
-                    executionCompletedAt: campaign.executionCompletedAt?.toISO()
+                    executionCompletedAt: campaign.executionCompletedAt?.toISO(),
+                    alreadyContactedCount: alreadyContactedCount,  // ✅ NOUVEAU
+                    alreadyContactedFollowers: alreadyContactedCount  // ✅ COMPAT frontend
                 },
                 breakdown
             }
@@ -422,8 +433,6 @@ export default class DmCampaignStatsController {
             .select('interest_level')
             .count('* as count')
 
-        console.log('FollowerCounts query result:', followerCounts)
-
         let interestedCount = 0
         let moderatelyInterestedCount = 0
         let notInterestedCount = 0
@@ -433,7 +442,6 @@ export default class DmCampaignStatsController {
         followerCounts.forEach((item: any) => {
             const count = Number(item.$extras.count)
             const interestLevel = item.interestLevel || item.$extras.interest_level
-            console.log(`Processing: ${interestLevel} = ${count}`)
             
             switch (interestLevel) {
                 case 'interested':
@@ -478,10 +486,9 @@ export default class DmCampaignStatsController {
             excluded: excludedCount,
             cannotDetermine: cannotDetermineCount,
             messagesSent: Math.max(campaign.number_of_message_sent || 0, messagesSentFromFollowers),
-            responsesReceived: Number(responsesReceived[0].$extras.total)
+            responsesReceived: Number(responsesReceived[0].$extras.total),
+            alreadyContacted: alreadyContactedCount  // ✅ NOUVEAU
         }
-
-        console.log('Final breakdown:', breakdown)
 
         return {
             campaign: {
@@ -501,9 +508,10 @@ export default class DmCampaignStatsController {
                 analysisStartedAt: campaign.analysisStartedAt?.toISO(),
                 analysisCompletedAt: campaign.analysisCompletedAt?.toISO(),
                 executionStartedAt: campaign.executionStartedAt?.toISO(),
-                executionCompletedAt: campaign.executionCompletedAt?.toISO()
+                executionCompletedAt: campaign.executionCompletedAt?.toISO(),
+                alreadyContactedFollowers: alreadyContactedCount  // ✅ COMPAT frontend
             },
-            breakdown
+            breakdown   
         }
     }
 }

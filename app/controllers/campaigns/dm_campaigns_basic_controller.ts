@@ -1,6 +1,6 @@
 import DmCampaign from '#models/dm_campaign'
 import { HttpContext } from '@adonisjs/core/http'
-import { formatKeywordsForStorage } from '../utils/keywords.js'
+import { formatKeywordsForStorage } from '../../utils/keywords.js'
 import { inject } from '@adonisjs/core'
 import CampaignMessageService from '#services/campaign_message_service'
 
@@ -15,8 +15,8 @@ export default class DmCampaignsBasicController {
      */
     public async createDmCampaign({ request, response, auth, session }: HttpContext) {
         try {
-            const { name, accountHandle, strategy, keywords, excludeKeywords, targetCount, interestedThreshold, moderatelyInterestedThreshold, message, explicitLinks } = request.only([
-                "name", "accountHandle", "strategy", "keywords", "excludeKeywords", "targetCount", "interestedThreshold", "moderatelyInterestedThreshold", "message", "explicitLinks"
+            const { name, accountHandle, strategy, keywords, excludeKeywords, interestedThreshold, moderatelyInterestedThreshold, message, explicitLinks } = request.only([
+                "name", "accountHandle", "strategy", "keywords", "excludeKeywords", "interestedThreshold", "moderatelyInterestedThreshold", "message", "explicitLinks"
             ])
             const user = auth.getUserOrFail()
 
@@ -43,9 +43,9 @@ export default class DmCampaignsBasicController {
                 user_id: user.id,
                 keywords: processedKeywords,
                 excludeKeywords: processedExcludeKeywords,
-                targetCount: targetCount || 50,
-                interestedThreshold: interestedThreshold || 0.7,
-                moderatelyInterestedThreshold: moderatelyInterestedThreshold || 0.5,
+                targetCount: 0, // Désormais géré par les groupes individuels
+                interestedThreshold: interestedThreshold || 0.49,
+                moderatelyInterestedThreshold: moderatelyInterestedThreshold || 0.35,
                 analysisStatus: 'pending',
                 checkConversationsStatus: 'pending',
                 messageFacets: processedExplicitLinks
@@ -119,8 +119,8 @@ export default class DmCampaignsBasicController {
             const user = auth.getUserOrFail()
             const campaignId = params.id
             
-            const { name, targetCount, keywords, excludeKeywords, interestedThreshold, moderatelyInterestedThreshold } = request.only([
-                'name', 'targetCount', 'keywords', 'excludeKeywords', 'interestedThreshold', 'moderatelyInterestedThreshold'
+            const { name, keywords, excludeKeywords, interestedThreshold, moderatelyInterestedThreshold } = request.only([
+                'name', 'keywords', 'excludeKeywords', 'interestedThreshold', 'moderatelyInterestedThreshold'
             ])
 
             const campaign = await DmCampaign.query()
@@ -144,7 +144,6 @@ export default class DmCampaignsBasicController {
 
             // Mettre à jour la campagne
             campaign.name = name
-            campaign.targetCount = targetCount || campaign.targetCount
             campaign.keywords = keywords || '[]'
             campaign.excludeKeywords = excludeKeywords || null
             

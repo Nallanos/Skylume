@@ -7,23 +7,24 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
 import { Badge } from './ui/badge'
 import { Textarea } from './ui/textarea'
-import { Plus, Edit2, Trash2, Users, ArrowUp, ArrowDown, MessageSquare } from 'lucide-react'
+import { Plus, Edit2, Trash2, Users, ArrowUp, ArrowDown, MessageSquare, RefreshCw, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import GmailStyleLinkManager from './GmailStyleLinkManager'
-import RichTextRenderer from './RichTextRenderer'
+import useAsyncGroups from '../hooks/useAsyncGroups'
 
 export interface CampaignGroup {
   id: number
-  campaign_id: number
+  campaignId: number
   name: string
   conditions: Record<string, any>
-  priority: number
-  estimated_targets: number
-  target_count: number
   message?: string
-  explicitLinks?: Array<{text: string, url: string}>
-  created_at: string
-  updated_at: string
+  order: number
+  targetCount: number // Nombre réel de followers assignés
+  messagesSent: number // Nombre de messages envoyés
+  createdAt: string
+  updatedAt: string
+  explicitLinks?: Array<{ text: string, url: string }> | null
+  loading_estimation?: boolean // Pour le mode async (frontend uniquement)
 }
 
 interface GroupManagerProps {
@@ -31,6 +32,7 @@ interface GroupManagerProps {
   groups: CampaignGroup[]
   variables: Array<{ name: string, type: string }>
   onGroupUpdate?: () => void
+  useAsyncLoading?: boolean
 }
 
 const CONDITION_OPERATORS = [
@@ -45,26 +47,27 @@ const VARIABLE_FIELDS = [
   { value: 'followers_count', label: 'Follower Count', type: 'number' }
 ]
 
-export default function GroupManager({ campaignId, groups: initialGroups, variables, onGroupUpdate }: GroupManagerProps) {
+export default function GroupManager({ campaignId, groups, variables, onGroupUpdate, useAsyncLoading = false }: GroupManagerProps) {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const [editingGroup, setEditingGroup] = useState<CampaignGroup | null>(null)
   const [estimatedTargets, setEstimatedTargets] = useState<number | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [errors, setErrors] = useState<Record<string, string>>({})
 
-  // ✅ NOUVEAU: État local pour gérer les groupes de façon réactive
-  const [localGroups, setLocalGroups] = useState<CampaignGroup[]>(initialGroups)
-
-  // ✅ NOUVEAU: État pour les liens explicites
   const [explicitLinks, setExplicitLinks] = useState<{text: string, url: string}[]>([])
   
-  // ✅ NOUVEAU: Référence au textarea pour l'insertion de liens
+  const [localGroups, setLocalGroups] = useState<CampaignGroup[]>(groups)
+  const [pendingGroups, setPendingGroups] = useState<Set<number>>(new Set())
+  
+  // Hook async optionnel
+  const asyncGroups = useAsyncLoading ? useAsyncGroups(campaignId) : null
+  
+  // Choisir les données selon le mode
+  const effectiveGroups = useAsyncLoading && asyncGroups ? asyncGroups.groups : localGroups
+  const isLoadingData = useAsyncLoading && asyncGroups ? asyncGroups.loading : false
+  const isLoadingEstimations = useAsyncLoading && asyncGroups ? asyncGroups.estimationsLoading : false
+  
   const messageTextareaRef = useRef<HTMLTextAreaElement>(null)
-
-  // ✅ NOUVEAU: Synchroniser avec les props quand elles changent
-  useEffect(() => {
-    setLocalGroups(initialGroups)
-  }, [initialGroups])
 
   const [data, setData] = useState({
     name: '',
@@ -74,8 +77,7 @@ export default function GroupManager({ campaignId, groups: initialGroups, variab
       value: ''
     },
     priority: 0,
-    message: '',
-    target_count: 0
+    message: ''
   })
 
   const reset = () => {
@@ -87,14 +89,12 @@ export default function GroupManager({ campaignId, groups: initialGroups, variab
         value: ''
       },
       priority: 0,
-      message: '',
-      target_count: 0
+      message: ''
     })
     setErrors({})
     setExplicitLinks([]) // ✅ NOUVEAU: Reset des liens
   }
 
-  // Get CSRF token
   const getCsrfToken = () => {
     const token = document.querySelector('meta[name="csrf-token"]')?.getAttribute('content')
     return token || ''
@@ -107,6 +107,11 @@ export default function GroupManager({ campaignId, groups: initialGroups, variab
       setEstimatedTargets(null)
     }
   }, [isCreateModalOpen, editingGroup])
+
+  // ✅ NOUVEAU: Synchroniser les groupes locaux avec les props
+  useEffect(() => {
+    setLocalGroups(groups)
+  }, [groups])
 
   // Estimate targets when conditions change
   useEffect(() => {
@@ -160,6 +165,7 @@ export default function GroupManager({ campaignId, groups: initialGroups, variab
       
       if (response.ok) {
         const result = await response.json()
+        console.log("here's the result of the request", result)
         setEstimatedTargets(result.estimated_targets)
       }
     } catch (error) {
@@ -172,6 +178,9 @@ export default function GroupManager({ campaignId, groups: initialGroups, variab
     setIsLoading(true)
     setErrors({})
     
+    // ✅ NOUVEAU: Générer l'ID temporaire une seule fois au début
+    const tempId = Date.now() * -1
+    
     try {
       const method = editingGroup ? 'PUT' : 'POST'
       const url = editingGroup 
@@ -182,6 +191,33 @@ export default function GroupManager({ campaignId, groups: initialGroups, variab
       const payload = {
         ...data,
         explicit_links: explicitLinks.length > 0 ? explicitLinks : undefined
+      }
+
+      // ✅ NOUVEAU: Si c'est une création, fermer immédiatement la modal et ajouter un groupe temporaire
+      if (!editingGroup) {
+        // Créer un groupe temporaire
+        const tempGroup: CampaignGroup = {
+          id: tempId,
+          campaignId: campaignId,
+          name: data.name,
+          conditions: data.conditions,
+          order: data.priority,
+          targetCount: estimatedTargets || 0,
+          messagesSent: 0,
+          message: data.message,
+          explicitLinks: explicitLinks.length > 0 ? explicitLinks : null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }
+
+        // Ajouter le groupe temporaire à la liste locale
+        setLocalGroups(prev => [...prev, tempGroup])
+        setPendingGroups(prev => new Set([...prev, tempId]))
+        
+        // Fermer la modal et reset le form immédiatement
+        setIsCreateModalOpen(false)
+        reset()
+        setIsLoading(false)
       }
       
       const response = await fetch(url, {
@@ -198,50 +234,53 @@ export default function GroupManager({ campaignId, groups: initialGroups, variab
       if (result.success) {
         toast.success(editingGroup ? 'Group updated successfully' : 'Group created successfully')
         
-        // ✅ NOUVEAU: Mettre à jour l'état local immédiatement pour une interface réactive
         if (editingGroup) {
-          // Mettre à jour le groupe existant
-          const updatedGroup: CampaignGroup = {
-            ...editingGroup,
-            ...data,
-            explicitLinks: explicitLinks.length > 0 ? explicitLinks : undefined,
-            estimated_targets: estimatedTargets || editingGroup.estimated_targets,
-            updated_at: new Date().toISOString()
-          }
-          setLocalGroups(prev => prev.map(group => 
-            group.id === editingGroup.id ? updatedGroup : group
-          ))
           setEditingGroup(null)
+          reset()
+          setIsLoading(false)
         } else {
-          // Ajouter le nouveau groupe (le serveur retourne normalement l'ID du nouveau groupe)
-          const newGroup: CampaignGroup = {
-            id: result.group?.id || Date.now(), // Utiliser l'ID du serveur si disponible, sinon temporaire
-            campaign_id: campaignId,
-            ...data,
-            explicitLinks: explicitLinks.length > 0 ? explicitLinks : undefined,
-            estimated_targets: estimatedTargets || 0,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString()
-          }
-          setLocalGroups(prev => [...prev, newGroup])
-          setIsCreateModalOpen(false)
+          // Pour les nouvelles créations, supprimer le groupe temporaire et déclencher le refresh
+          setPendingGroups(prev => {
+            const newSet = new Set(prev)
+            newSet.delete(tempId)
+            return newSet
+          })
         }
         
-        reset()
-        // ✅ Appeler onGroupUpdate pour notifier le parent (optionnel)
+        // ✅ CORRECTION: Assurer que la liste se met à jour
         if (onGroupUpdate) {
           onGroupUpdate()
         }
       } else {
+        // En cas d'erreur, supprimer le groupe temporaire si c'était une création
+        if (!editingGroup) {
+          setLocalGroups(prev => prev.filter(g => g.id !== tempId))
+          setPendingGroups(prev => {
+            const newSet = new Set(prev)
+            newSet.delete(tempId)
+            return newSet
+          })
+        }
+        
         if (result.errors) {
           setErrors(result.errors)
         }
         toast.error(result.message || 'Failed to save group')
+        setIsLoading(false)
       }
     } catch (error) {
+      // En cas d'erreur, supprimer le groupe temporaire si c'était une création
+      if (!editingGroup) {
+        setLocalGroups(prev => prev.filter(g => g.id !== tempId))
+        setPendingGroups(prev => {
+          const newSet = new Set(prev)
+          newSet.delete(tempId)
+          return newSet
+        })
+      }
+      
       toast.error(editingGroup ? 'Failed to update group' : 'Failed to create group')
       console.error('Error saving group:', error)
-    } finally {
       setIsLoading(false)
     }
   }
@@ -260,8 +299,6 @@ export default function GroupManager({ campaignId, groups: initialGroups, variab
 
         if (result.success) {
           toast.success('Group deleted successfully')
-          // ✅ NOUVEAU: Mettre à jour l'état local immédiatement
-          setLocalGroups(prev => prev.filter(g => g.id !== group.id))
           if (onGroupUpdate) {
             onGroupUpdate()
           }
@@ -276,7 +313,7 @@ export default function GroupManager({ campaignId, groups: initialGroups, variab
   }
 
   const handlePriorityChange = async (group: CampaignGroup, direction: 'up' | 'down') => {
-    const newPriority = direction === 'up' ? group.priority - 1 : group.priority + 1
+    const newPriority = direction === 'up' ? group.order - 1 : group.order + 1
     
     try {
       const response = await fetch(`/campaign/${campaignId}/groups/${group.id}`, {
@@ -295,12 +332,6 @@ export default function GroupManager({ campaignId, groups: initialGroups, variab
 
       if (response.ok) {
         toast.success('Priority updated')
-        // ✅ NOUVEAU: Mettre à jour l'état local immédiatement
-        setLocalGroups(prev => prev.map(g => 
-          g.id === group.id 
-            ? { ...g, priority: newPriority, updated_at: new Date().toISOString() }
-            : g
-        ))
         if (onGroupUpdate) {
           onGroupUpdate()
         }
@@ -320,9 +351,8 @@ export default function GroupManager({ campaignId, groups: initialGroups, variab
         operator: group.conditions?.operator || '',
         value: group.conditions?.value || ''
       },
-      priority: group.priority,
-      message: group.message || '',
-      target_count: group.target_count || 0
+      priority: group.order,
+      message: group.message || ''
     })
     // ✅ NOUVEAU: Charger les liens existants
     setExplicitLinks(group.explicitLinks || [])
@@ -344,30 +374,109 @@ export default function GroupManager({ campaignId, groups: initialGroups, variab
 
   const renderGroupMessagePreview = (group: CampaignGroup) => {
     if (!group.message) return null
-    console.log(group)
-    return (
-      <RichTextRenderer
-        text={group.message}
-        explicitLinks={group.explicitLinks || []}
-        variables={variables}
-        maxLength={100}
-      />
-    )
+    
+    let preview = group.message
+    
+    // Remplacer les variables par des exemples
+    variables.forEach(variable => {
+      const regex = new RegExp(`\\{\\{${variable.name}\\}\\}`, 'g')
+      let replacement = `{{${variable.name}}}`
+      
+      if (variable.type === 'follower_count' || variable.name === 'followers_count') {
+        replacement = '5.8k'
+      } else if (variable.name === 'display_name') {
+        replacement = 'John Smith'
+      } else if (variable.name === 'handle') {
+        replacement = '@johnsmith'
+      } else {
+        replacement = 'example'
+      }
+      
+      preview = preview.replace(regex, replacement)
+    })
+    
+    // Transformer les liens explicites en liens bleus
+    if (group.explicitLinks) {
+      group.explicitLinks.forEach((link) => {
+        const linkRegex = new RegExp(link.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')
+        const blueLink = `<span style="color: #3b82f6; text-decoration: underline;">${link.text}</span>`
+        preview = preview.replace(linkRegex, blueLink)
+      })
+    }
+    
+    // Tronquer si trop long
+    if (preview.length > 100) {
+      preview = preview.substring(0, 100) + '...'
+    }
+    
+    return preview
   }
 
   const renderVariablePreview = (content: string) => {
-    return (
-      <RichTextRenderer
-        text={content}
-        explicitLinks={explicitLinks}
-        variables={variables}
-      />
-    )
+    let preview = content
+    
+    // Remplacer les variables par des exemples
+    variables.forEach(variable => {
+      const regex = new RegExp(`\\{\\{${variable.name}\\}\\}`, 'g')
+      let replacement = `{{${variable.name}}}`
+      
+      // ✅ CORRECTION: Utiliser des exemples réalistes basés sur le type
+      if (variable.type === 'follower_count' || variable.name === 'followers_count') {
+        replacement = '5.8k' // Example value
+      } else if (variable.name === 'display_name') {
+        replacement = 'John Smith'
+      } else if (variable.name === 'handle') {
+        replacement = '@johnsmith'
+      } else {
+        // Valeur générique pour les autres variables
+        replacement = 'example'
+      }
+      
+      preview = preview.replace(regex, replacement)
+    })
+    
+    // ✅ NOUVEAU: Transformer les liens explicites en liens bleus
+    explicitLinks.forEach(link => {
+      const linkRegex = new RegExp(link.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')
+      const blueLink = `<span style="color: #3b82f6; text-decoration: underline;">${link.text}</span>`
+      preview = preview.replace(linkRegex, blueLink)
+    })
+    
+    return preview
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
+    <div className="space-y-6">
+      {/* ✅ NOUVEAU: Indicateurs de mode async */}
+      {useAsyncLoading && (
+        <div className="flex items-center gap-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+          <div className="flex items-center gap-2">
+            {isLoadingData && <Loader2 className="h-4 w-4 animate-spin text-blue-600" />}
+            <span className="text-sm font-medium text-blue-800">
+              Mode async activé {isLoadingData && '- Chargement...'}
+            </span>
+          </div>
+          {isLoadingEstimations && (
+            <div className="flex items-center gap-2">
+              <Loader2 className="h-4 w-4 animate-spin text-orange-600" />
+              <span className="text-sm text-orange-800">Calcul des estimations...</span>
+            </div>
+          )}
+          {asyncGroups && (
+            <Button 
+              size="sm" 
+              variant="outline"
+              onClick={() => asyncGroups.refreshEstimations()}
+              disabled={isLoadingEstimations}
+            >
+              <RefreshCw className="h-4 w-4 mr-1" />
+              Recharger estimations
+            </Button>
+          )}
+        </div>
+      )}
+
+      <div className="flex justify-between items-center">
         <div>
           <h3 className="text-lg font-medium">Target Groups</h3>
           <p className="text-sm text-muted-foreground">
@@ -383,12 +492,12 @@ export default function GroupManager({ campaignId, groups: initialGroups, variab
             </Button>
           </DialogTrigger>
           
-          <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogContent className="sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>Create New Group</DialogTitle>
             </DialogHeader>
             
-            <form onSubmit={handleSubmit} className="space-y-4 pb-6">{/* ✅ Ajout de padding bottom */}
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <Label htmlFor="name">Group Name</Label>
                 <Input
@@ -474,25 +583,6 @@ export default function GroupManager({ campaignId, groups: initialGroups, variab
               </div>
 
               <div>
-                <Label htmlFor="target_count">Target Count</Label>
-                <Input
-                  id="target_count"
-                  type="number"
-                  value={data.target_count}
-                  onChange={(e) => setData({ ...data, target_count: parseInt(e.target.value) || 0 })}
-                  placeholder="Number of targets for this group"
-                  min="0"
-                  className={errors.target_count ? 'border-red-500' : ''}
-                />
-                {errors.target_count && (
-                  <p className="text-sm text-red-500 mt-1">{errors.target_count}</p>
-                )}
-                <p className="text-sm text-muted-foreground mt-1">
-                  Number of users to target specifically for this group
-                </p>
-              </div>
-
-              <div>
                 <Label htmlFor="message">Message Template</Label>
                 <Textarea
                   ref={messageTextareaRef}
@@ -543,7 +633,7 @@ export default function GroupManager({ campaignId, groups: initialGroups, variab
                 
                 {data.message && (
                   <div className="mt-2 p-2 bg-muted rounded text-sm">
-                    <strong>Preview:</strong> {renderVariablePreview(data.message)}
+                    <strong>Preview:</strong> <span dangerouslySetInnerHTML={{ __html: renderVariablePreview(data.message) }} />
                   </div>
                 )}
               </div>
@@ -567,7 +657,7 @@ export default function GroupManager({ campaignId, groups: initialGroups, variab
       </div>
 
       {/* Groups List */}
-      {localGroups.length === 0 ? (
+      {effectiveGroups.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-8">
             <Users className="h-12 w-12 text-muted-foreground mb-4" />
@@ -585,95 +675,120 @@ export default function GroupManager({ campaignId, groups: initialGroups, variab
         </Card>
       ) : (
         <div className="space-y-3">
-          {localGroups
-            .sort((a, b) => a.priority - b.priority)
-            .map((group, index) => (
-              <Card key={group.id}>
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="flex flex-col items-center">
-                        <Badge variant="outline" className="text-xs px-2 py-1 mb-1">
-                          #{group.priority}
-                        </Badge>
-                        <div className="flex flex-col gap-1">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-6 w-6 p-0"
-                            onClick={() => handlePriorityChange(group, 'up')}
-                            disabled={index === 0}
-                          >
-                            <ArrowUp className="h-3 w-3" />
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            className="h-6 w-6 p-0"
-                            onClick={() => handlePriorityChange(group, 'down')}
-                            disabled={index === localGroups.length - 1}
-                          >
-                            <ArrowDown className="h-3 w-3" />
-                          </Button>
+          {effectiveGroups
+            .sort((a, b) => a.order - b.order)
+            .map((group, index) => {
+              const isPending = pendingGroups.has(group.id)
+              return (
+                <Card key={group.id} className={isPending ? 'opacity-70' : ''}>
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="flex flex-col items-center">
+                          <Badge variant="outline" className="text-xs px-2 py-1 mb-1">
+                            #{group.order}
+                          </Badge>
+                          <div className="flex flex-col gap-1">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 w-6 p-0"
+                              onClick={() => handlePriorityChange(group, 'up')}
+                              disabled={index === 0 || isPending}
+                            >
+                              <ArrowUp className="h-3 w-3" />
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-6 w-6 p-0"
+                              onClick={() => handlePriorityChange(group, 'down')}
+                              disabled={index === effectiveGroups.length - 1 || isPending}
+                            >
+                              <ArrowDown className="h-3 w-3" />
+                            </Button>
+                          </div>
                         </div>
-                      </div>
-                      <div>
-                        <CardTitle className="text-base">{group.name}</CardTitle>
-                        <div className="flex items-center gap-2 mt-1">
-                          <Badge variant="secondary" className="text-xs">
-                            {formatCondition(group.conditions)}
-                          </Badge>
-                          <Badge variant="outline" className="text-xs">
-                            <Users className="h-3 w-3 mr-1" />
-                            {group.estimated_targets} estimated
-                          </Badge>
-                          {group.target_count > 0 && (
-                            <Badge variant="default" className="text-xs bg-blue-500">
-                              Target: {group.target_count}
+                        <div>
+                          <CardTitle className="text-base flex items-center gap-2">
+                            {group.name}
+                            {isPending && (
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-blue-600"></div>
+                                Creating...
+                              </div>
+                            )}
+                          </CardTitle>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="secondary" className="text-xs">
+                              {formatCondition(group.conditions)}
                             </Badge>
+                            
+                            {/* Affichage du nombre total de followers dans le groupe */}
+                            <Badge variant="outline" className="text-xs">
+                              <Users className="h-3 w-3 mr-1" />
+                              {(group as any).loading_estimation ? (
+                                <div className="flex items-center gap-1">
+                                  <Loader2 className="h-3 w-3 animate-spin" />
+                                  <span>Loading...</span>
+                                </div>
+                              ) : (
+                                `${group.targetCount || 0} followers`
+                              )}
+                            </Badge>
+                              
+                            {/* Nombre de messages envoyés */}
+                            {group.messagesSent > 0 && (
+                              <Badge variant="default" className="text-xs bg-blue-600">
+                                <MessageSquare className="h-3 w-3 mr-1" />
+                                {group.messagesSent} sent
+                              </Badge>
+                            )}
+                          </div>
+                          {group.message && (
+                            <div className="mt-2 p-2 bg-muted rounded text-sm">
+                              <MessageSquare className="h-3 w-3 inline mr-1" />
+                              <span dangerouslySetInnerHTML={{ __html: renderGroupMessagePreview(group) || '' }} />
+                            </div>
                           )}
                         </div>
-                        {group.message && (
-                          <div className="mt-2 p-2 bg-muted rounded text-sm">
-                            <MessageSquare className="h-3 w-3 inline mr-1" />
-                            {renderGroupMessagePreview(group)}
-                          </div>
-                        )}
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => openEditModal(group)}
+                          disabled={isPending}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => handleDelete(group)}
+                          className="text-red-600 hover:text-red-700"
+                          disabled={isPending}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => openEditModal(group)}
-                      >
-                        <Edit2 className="h-4 w-4" />
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => handleDelete(group)}
-                        className="text-red-600 hover:text-red-700"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </div>
-                </CardHeader>
-              </Card>
-            ))}
+                  </CardHeader>
+                </Card>
+              )
+            })}
         </div>
       )}
 
       {/* Edit Modal */}
       {editingGroup && (
         <Dialog open={true} onOpenChange={closeModals}>
-          <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogContent className="sm:max-w-lg">
             <DialogHeader>
               <DialogTitle>Edit Group</DialogTitle>
             </DialogHeader>
             
-            <form onSubmit={handleSubmit} className="space-y-4 pb-6">{/* ✅ Ajout de padding bottom */}
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div>
                 <Label htmlFor="edit-name">Group Name</Label>
                 <Input
@@ -747,25 +862,6 @@ export default function GroupManager({ campaignId, groups: initialGroups, variab
               </div>
 
               <div>
-                <Label htmlFor="edit-target_count">Target Count</Label>
-                <Input
-                  id="edit-target_count"
-                  type="number"
-                  value={data.target_count}
-                  onChange={(e) => setData({ ...data, target_count: parseInt(e.target.value) || 0 })}
-                  placeholder="Number of targets for this group"
-                  min="0"
-                  className={errors.target_count ? 'border-red-500' : ''}
-                />
-                {errors.target_count && (
-                  <p className="text-sm text-red-500 mt-1">{errors.target_count}</p>
-                )}
-                <p className="text-sm text-muted-foreground mt-1">
-                  Number of users to target specifically for this group
-                </p>
-              </div>
-
-              <div>
                 <Label htmlFor="edit-message">Message Template</Label>
                 <Textarea
                   ref={messageTextareaRef}
@@ -816,7 +912,7 @@ export default function GroupManager({ campaignId, groups: initialGroups, variab
                 
                 {data.message && (
                   <div className="mt-2 p-2 bg-muted rounded text-sm">
-                    <strong>Preview:</strong> {renderVariablePreview(data.message)}
+                    <strong>Preview:</strong> <span dangerouslySetInnerHTML={{ __html: renderVariablePreview(data.message) }} />
                   </div>
                 )}
               </div>
