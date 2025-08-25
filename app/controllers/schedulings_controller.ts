@@ -146,7 +146,16 @@ export default class SchedulingsController {
             return response.redirect("/schedule")
         } catch (error) {
             console.error('[ERROR] Failed to process crosspost scheduling:', error)
-            session.flash('error', 'An error occurred while scheduling posts. Please try again.')
+            
+            // ✅ NOUVEAU: Gestion spécifique des erreurs de taille d'image
+            if (error.message && error.message.includes('too large')) {
+                session.flash('error', error.message)
+            } else if (error.message && error.message.includes('Maximum size allowed')) {
+                session.flash('error', error.message)
+            } else {
+                session.flash('error', 'An error occurred while scheduling posts. Please try again.')
+            }
+            
             return response.redirect('/schedule')
         }
     }
@@ -313,6 +322,9 @@ export default class SchedulingsController {
             // Gérer les fichiers uploadés directement
             const uploadedImages = request.files('images')
             if (uploadedImages && uploadedImages.length > 0) {
+                // ✅ NOUVEAU: Valider et comprimer les images uploadées si nécessaire
+                const maxImageSize = 976 * 1024 // 976KB = limite Bluesky
+                
                 // ✅ Créer le dossier uploads s'il n'existe pas
                 const fs = await import('fs')
                 const path = await import('path')
@@ -323,9 +335,53 @@ export default class SchedulingsController {
 
                 for (let i = 0; i < uploadedImages.length; i++) {
                     const image = uploadedImages[i]
-                    const imageName = `${Date.now()}_${i}_${image.clientName}`
-                    await image.move('public/uploads', { name: imageName })
-                    imageUrls.push(`/uploads/${imageName}`)
+                    
+                    // Si l'image est trop lourde, essayer de la comprimer
+                    if (image.size > maxImageSize) {
+                        try {
+                            console.log(`[DEBUG] Image ${image.clientName} is oversized (${(image.size / 1024).toFixed(0)}KB), compressing...`)
+                            
+                            // Lire le fichier
+                            const imageBuffer = fs.readFileSync(image.tmpPath)
+                            
+                            // Comprimer avec Sharp
+                            const sharp = await import('sharp').catch(() => null)
+                            if (sharp) {
+                                let quality = 90
+                                let compressedBuffer: Buffer
+                                
+                                do {
+                                    compressedBuffer = await sharp.default(imageBuffer)
+                                        .jpeg({ quality })
+                                        .resize(1920, 1920, { fit: 'inside', withoutEnlargement: true })
+                                        .toBuffer()
+                                    
+                                    quality -= 10
+                                } while (compressedBuffer.length > maxImageSize && quality > 10)
+                                
+                                // Sauvegarder l'image compressée
+                                const imageName = `${Date.now()}_${i}_compressed_${image.clientName}`
+                                const imagePath = path.join(uploadsDir, imageName)
+                                fs.writeFileSync(imagePath, compressedBuffer)
+                                imageUrls.push(`/uploads/${imageName}`)
+                                
+                                console.log(`[DEBUG] Image compressed from ${(image.size / 1024).toFixed(0)}KB to ${(compressedBuffer.length / 1024).toFixed(0)}KB`)
+                            } else {
+                                // Sharp pas disponible, rejeter l'image
+                                const sizeMB = (image.size / (1024 * 1024)).toFixed(2)
+                                const maxSizeMB = (maxImageSize / (1024 * 1024)).toFixed(2)
+                                throw new Error(`Image "${image.clientName}" is too large (${sizeMB}MB). Maximum size allowed is ${maxSizeMB}MB.`)
+                            }
+                        } catch (compressionError) {
+                            console.error('[ERROR] Failed to compress image:', compressionError)
+                            throw compressionError
+                        }
+                    } else {
+                        // Image de taille correcte, traitement normal
+                        const imageName = `${Date.now()}_${i}_${image.clientName}`
+                        await image.move('public/uploads', { name: imageName })
+                        imageUrls.push(`/uploads/${imageName}`)
+                    }
                 }
             }
 

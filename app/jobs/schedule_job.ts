@@ -48,6 +48,39 @@ const handle = async (data: ScheduleJobPayload): Promise<void> => {
         const images = schedule.images ? (Array.isArray(schedule.images) ? schedule.images : JSON.parse(schedule.images || '[]')) : []
         const altTexts = schedule.altTexts ? (Array.isArray(schedule.altTexts) ? schedule.altTexts : JSON.parse(schedule.altTexts || '[]')) : []
         const contentWarnings = schedule.contentWarnings ? (Array.isArray(schedule.contentWarnings) ? schedule.contentWarnings : JSON.parse(schedule.contentWarnings || '[]')) : []
+
+        // ✅ NOUVEAU: Valider la taille des images avant traitement (double sécurité)
+        if (platform === 'bluesky' && images.length > 0) {
+            const fs = await import('fs')
+            const path = await import('path')
+            const maxImageSize = 976 * 1024 // 976KB = limite Bluesky
+
+            for (const imagePath of images) {
+                try {
+                    const fullPath = path.join(process.cwd(), 'public', imagePath)
+                    if (fs.existsSync(fullPath)) {
+                        const stats = fs.statSync(fullPath)
+                        if (stats.size > maxImageSize) {
+                            const sizeMB = (stats.size / (1024 * 1024)).toFixed(2)
+                            const maxSizeMB = (maxImageSize / (1024 * 1024)).toFixed(2)
+                            console.error(`[ERROR] Image ${imagePath} is too large (${sizeMB}MB), marking schedule as failed...`)
+                            
+                            // Marquer le schedule comme échoué
+                            schedule.status = 'failed'
+                            await schedule.save()
+                            
+                            throw new Error(`Image too large (${sizeMB}MB). Maximum size allowed: ${maxSizeMB}MB`)
+                        }
+                    }
+                } catch (err) {
+                    console.error(`[ERROR] Failed to check image size for ${imagePath}:`, err)
+                    // Si c'est notre erreur de taille, la relancer
+                    if (err.message && err.message.includes('too large')) {
+                        throw err
+                    }
+                }
+            }
+        }
         const videos = schedule.videos ? (Array.isArray(schedule.videos) ? schedule.videos : JSON.parse(schedule.videos || '[]')) : []
         const videoAltTexts = schedule.videoAltTexts ? (Array.isArray(schedule.videoAltTexts) ? schedule.videoAltTexts : JSON.parse(schedule.videoAltTexts || '[]')) : []
         
