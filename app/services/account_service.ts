@@ -688,19 +688,70 @@ export default class AccountService {
     }
 
     /**
+     * ✅ NOUVEAU: Compression d'image côté serveur si nécessaire
+     */
+    private async compressImageIfNeeded(imageBuffer: Buffer): Promise<Buffer> {
+        const maxSize = 976 * 1024 // 976KB
+        
+        if (imageBuffer.length <= maxSize) {
+            return imageBuffer // Pas besoin de compression
+        }
+        
+        try {
+            // Utiliser sharp pour la compression
+            const sharp = await import('sharp')
+            
+            console.log(`[DEBUG] Compressing image from ${(imageBuffer.length / 1024).toFixed(0)}KB`)
+            
+            let quality = 90
+            let compressedBuffer: Buffer
+            
+            do {
+                compressedBuffer = await sharp.default(imageBuffer)
+                    .jpeg({ quality })
+                    .resize(1920, 1920, { fit: 'inside', withoutEnlargement: true })
+                    .toBuffer()
+                
+                quality -= 10
+            } while (compressedBuffer.length > maxSize && quality > 10)
+            
+            console.log(`[DEBUG] Image compressed to ${(compressedBuffer.length / 1024).toFixed(0)}KB with quality ${quality + 10}`)
+            return compressedBuffer
+            
+        } catch (error) {
+            console.error('[DEBUG] Sharp compression failed:', error)
+            
+            // Si sharp n'est pas disponible ou échoue, lancer une erreur claire
+            const sizeMB = (imageBuffer.length / (1024 * 1024)).toFixed(2)
+            const maxSizeMB = (maxSize / (1024 * 1024)).toFixed(2)
+            throw new Error(`Image is too large (${sizeMB}MB). Maximum size allowed is ${maxSizeMB}MB. Please compress the image before uploading.`)
+        }
+    }
+
+    /**
      * Upload d'une image vers Bluesky (blob)
+     * ✅ MODIFIÉ: Compression automatique si nécessaire
      */
     private async uploadImage(image: PostImage): Promise<ImageBlob> {
-        const mimeType = image.mimeType || this.detectMimeType(image.file);
+        const mimeType = image.mimeType || this.detectMimeType(image.file)
         
-        console.log(`[DEBUG] Uploading image with mimeType: ${mimeType}`);
+        // ✅ Essayer de comprimer l'image si elle est trop lourde
+        let imageBuffer = image.file
+        try {
+            imageBuffer = await this.compressImageIfNeeded(image.file)
+        } catch (compressionError) {
+            console.error('[DEBUG] Image compression failed:', compressionError)
+            throw compressionError
+        }
         
-        const uploadResponse = await this.agent.uploadBlob(image.file, {
+        console.log(`[DEBUG] Uploading image with mimeType: ${mimeType}, size: ${(imageBuffer.length / 1024).toFixed(0)}KB`)
+        
+        const uploadResponse = await this.agent.uploadBlob(imageBuffer, {
             encoding: mimeType
-        });
+        })
         
-        console.log(`[DEBUG] Image uploaded successfully:`, uploadResponse.data.blob);
-        return uploadResponse.data.blob;
+        console.log(`[DEBUG] Image uploaded successfully:`, uploadResponse.data.blob)
+        return uploadResponse.data.blob
     }
 
     /**

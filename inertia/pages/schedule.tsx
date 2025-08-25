@@ -209,6 +209,11 @@ function Schedule({ schedulings }: ScheduleProps) {
   // ✅ NOUVEAU: État pour les liens explicites rich text
   const [explicitLinks, setExplicitLinks] = useState<{text: string, url: string}[]>([])
   
+  // ✅ NOUVEAU: État pour la compression d'images
+  const [oversizedImages, setOversizedImages] = useState<{file: File, index: number}[]>([])
+  const [showCompressionModal, setShowCompressionModal] = useState(false)
+  const [isCompressing, setIsCompressing] = useState(false)
+  
   const fileInputRef = useRef<HTMLInputElement>(null)
   // ✅ NOUVEAU: Référence au textarea pour l'insertion de liens
   const messageTextareaRef = useRef<HTMLTextAreaElement>(null)
@@ -396,6 +401,99 @@ function Schedule({ schedulings }: ScheduleProps) {
     })
   }, [])
 
+  // ✅ NOUVEAU: Fonction de compression d'image
+  const compressImage = useCallback(async (file: File, maxSizeKB: number = 976): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const canvas = document.createElement('canvas')
+      const ctx = canvas.getContext('2d')
+      const img = new Image()
+      
+      img.onload = () => {
+        // Calculer les nouvelles dimensions pour rester sous la limite
+        let { width, height } = img
+        const maxDimension = 1920 // Limite raisonnable
+        
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = (height * maxDimension) / width
+            width = maxDimension
+          } else {
+            width = (width * maxDimension) / height
+            height = maxDimension
+          }
+        }
+        
+        canvas.width = width
+        canvas.height = height
+        
+        // Dessiner l'image redimensionnée
+        ctx?.drawImage(img, 0, 0, width, height)
+        
+        // Convertir en blob avec compression progressive
+        let quality = 0.9
+        const tryCompress = () => {
+          canvas.toBlob((blob) => {
+            if (!blob) {
+              reject(new Error('Failed to compress image'))
+              return
+            }
+            
+            if (blob.size <= maxSizeKB * 1024 || quality <= 0.1) {
+              // Créer un nouveau File object
+              const compressedFile = new File([blob], file.name, {
+                type: 'image/jpeg',
+                lastModified: Date.now()
+              })
+              resolve(compressedFile)
+            } else {
+              quality -= 0.1
+              tryCompress()
+            }
+          }, 'image/jpeg', quality)
+        }
+        
+        tryCompress()
+      }
+      
+      img.onerror = () => reject(new Error('Failed to load image'))
+      img.src = URL.createObjectURL(file)
+    })
+  }, [])
+
+  // ✅ NOUVEAU: Compresser toutes les images oversized
+  const handleCompressOversizedImages = useCallback(async () => {
+    setIsCompressing(true)
+    
+    try {
+      const compressedFiles: File[] = []
+      const compressedPreviews: string[] = []
+      
+      for (const { file } of oversizedImages) {
+        const compressedFile = await compressImage(file)
+        compressedFiles.push(compressedFile)
+        
+        // Créer preview pour l'image compressée
+        const preview = URL.createObjectURL(compressedFile)
+        compressedPreviews.push(preview)
+      }
+      
+      // Ajouter les images compressées
+      setSelectedImages((prev) => [...prev, ...compressedFiles])
+      setImagePreviews((prev) => [...prev, ...compressedPreviews])
+      setImageAltTexts((prev) => [...prev, ...new Array(compressedFiles.length).fill('')])
+      
+      // Reset l'état
+      setOversizedImages([])
+      setShowCompressionModal(false)
+      
+    } catch (error) {
+      console.error('Compression failed:', error)
+      alert('Failed to compress some images. Please try again or manually reduce file sizes.')
+    } finally {
+      setIsCompressing(false)
+    }
+  }, [oversizedImages, compressImage])
+
   // Validation function for videos
   const validateVideoFile = useCallback(async (file: File): Promise<string | null> => {
     return new Promise((resolve) => {
@@ -569,6 +667,47 @@ function Schedule({ schedulings }: ScheduleProps) {
     if ((selectedImages.length > 0 || imageFiles.length > 0) && (selectedVideos.length > 0 || videoFiles.length > 0)) {
       alert('You cannot mix images and videos in the same post')
       return
+    }
+
+    // ✅ NOUVEAU: Séparer les images par taille (limite Bluesky = 976KB)
+    const maxImageSize = 976 * 1024 // 976KB en bytes
+    const validImages: File[] = []
+    const oversized: {file: File, index: number}[] = []
+    
+    imageFiles.forEach((imageFile, index) => {
+      if (imageFile.size > maxImageSize) {
+        oversized.push({ file: imageFile, index })
+      } else {
+        validImages.push(imageFile)
+      }
+    })
+
+    // Si des images sont trop lourdes, montrer le modal de compression
+    if (oversized.length > 0) {
+      setOversizedImages(oversized)
+      setShowCompressionModal(true)
+      // Ne pas traiter les images oversized maintenant, attendre la compression
+    }
+
+    // Traiter les images valides normalement
+    if (validImages.length > 0) {
+      const newPreviews: string[] = []
+      const newAltTexts: string[] = []
+
+      validImages.forEach((file) => {
+        const reader = new FileReader()
+        reader.onload = (e) => {
+          newPreviews.push(e.target?.result as string)
+          if (newPreviews.length === validImages.length) {
+            setImagePreviews((prev) => [...prev, ...newPreviews])
+          }
+        }
+        reader.readAsDataURL(file)
+        newAltTexts.push('')
+      })
+
+      setSelectedImages((prev) => [...prev, ...validImages])
+      setImageAltTexts((prev) => [...prev, ...newAltTexts])
     }
 
     // Validate video files
@@ -1343,6 +1482,8 @@ function Schedule({ schedulings }: ScheduleProps) {
                         setVideoAltTexts([])
                         setContentWarnings([])
                         setExplicitLinks([]) // ✅ NOUVEAU: Reset des liens explicites
+                        setOversizedImages([]) // ✅ NOUVEAU: Reset des images oversized
+                        setShowCompressionModal(false) // ✅ NOUVEAU: Fermer le modal de compression
                         setVideoValidationError('')
                       }}
                       className="flex-1"
@@ -1410,6 +1551,73 @@ function Schedule({ schedulings }: ScheduleProps) {
             onSave={setContentWarnings}
             initialWarnings={contentWarnings}
           />
+
+          {/* ✅ NOUVEAU: Image Compression Modal */}
+          {showCompressionModal && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+              <Card className="w-full max-w-lg mx-4">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                    </svg>
+                    Images Too Large
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="text-sm text-muted-foreground">
+                    <p className="mb-3">
+                      The following images exceed Bluesky's maximum size limit of <strong>976KB</strong>:
+                    </p>
+                    <ul className="space-y-2">
+                      {oversizedImages.map(({ file }, index) => (
+                        <li key={index} className="flex items-center justify-between p-2 bg-orange-50 dark:bg-orange-950/20 rounded border border-orange-200 dark:border-orange-800">
+                          <span className="font-medium">{file.name}</span>
+                          <span className="text-orange-600 dark:text-orange-400 text-xs">
+                            {(file.size / (1024 * 1024)).toFixed(2)}MB
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                  
+                  <div className="bg-blue-50 dark:bg-blue-950/20 p-3 rounded border border-blue-200 dark:border-blue-800">
+                    <p className="text-sm text-blue-900 dark:text-blue-100">
+                      <strong>We can automatically compress these images</strong> to meet Bluesky's requirements while maintaining good quality.
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+                    <Button
+                      onClick={handleCompressOversizedImages}
+                      disabled={isCompressing}
+                      className="flex-1 bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-300 disabled:text-white transition-colors"
+                    >
+                      {isCompressing ? (
+                        <>
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
+                          Compressing...
+                        </>
+                      ) : (
+                        'Compress Images'
+                      )}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => {
+                        setShowCompressionModal(false)
+                        setOversizedImages([])
+                      }}
+                      disabled={isCompressing}
+                      className="flex-1"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
         </div>
       </Layout>
     </>
