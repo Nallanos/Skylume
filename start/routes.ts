@@ -566,6 +566,18 @@ router
   .post('/campaign/:id/execute', [dm_campaign_analysis_controller, 'executeCampaign'])
   .use(middleware.auth())
 router
+  .post('/campaign/:id/stop', [dm_campaign_analysis_controller, 'stopCampaignExecution'])
+  .use(middleware.auth())
+router
+  .post('/campaign/:id/pause', [dm_campaign_analysis_controller, 'pauseCampaignExecution'])
+  .use(middleware.auth())
+router
+  .post('/campaign/:id/resume', [dm_campaign_analysis_controller, 'resumeCampaignExecution'])
+  .use(middleware.auth())
+router
+  .get('/api/campaign/:id/execution-status', [dm_campaign_analysis_controller, 'getExecutionStatus'])
+  .use(middleware.auth())
+router
   .post('/campaign/:id/count-responses', [campaign_conversations_controller, 'countResponses'])
   .use(middleware.auth())
 router

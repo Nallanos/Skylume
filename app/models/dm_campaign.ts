@@ -113,6 +113,25 @@ export default class DmCampaign extends BaseModel {
   @column.dateTime()
   declare executionCompletedAt: DateTime | null
 
+  // État d'exécution pour le suivi en temps réel
+  @column()
+  declare executionStatus: string | null // 'running', 'paused', 'stopping', 'stopped', 'completed', 'failed'
+
+  // Flag pour arrêter l'exécution
+  @column()
+  declare shouldStop: boolean
+
+  // Flag pour mettre en pause l'exécution
+  @column()
+  declare shouldPause: boolean
+
+  // Progress tracking
+  @column()
+  declare executionProgress: number // Nombre de messages envoyés pendant cette exécution
+
+  @column()
+  declare executionTargetCount: number // Objectif pour cette exécution
+
   @column.dateTime({ autoCreate: true })
   declare createdAt: DateTime
 

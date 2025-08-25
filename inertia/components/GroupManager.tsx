@@ -71,11 +71,13 @@ export default function GroupManager({ campaignId, groups, variables, onGroupUpd
 
   const [data, setData] = useState({
     name: '',
-    conditions: {
-      field: '',
-      operator: '',
-      value: ''
-    },
+    conditions: [
+      {
+        field: '',
+        operator: '',
+        value: ''
+      }
+    ],
     priority: 0,
     message: ''
   })
@@ -83,11 +85,13 @@ export default function GroupManager({ campaignId, groups, variables, onGroupUpd
   const reset = () => {
     setData({
       name: '',
-      conditions: {
-        field: '',
-        operator: '',
-        value: ''
-      },
+      conditions: [
+        {
+          field: '',
+          operator: '',
+          value: ''
+        }
+      ],
       priority: 0,
       message: ''
     })
@@ -113,9 +117,42 @@ export default function GroupManager({ campaignId, groups, variables, onGroupUpd
     setLocalGroups(groups)
   }, [groups])
 
+  // Fonctions pour gérer les conditions multiples
+  const addCondition = () => {
+    setData({
+      ...data,
+      conditions: [
+        ...data.conditions,
+        { field: '', operator: '', value: '' }
+      ]
+    })
+  }
+
+  const removeCondition = (index: number) => {
+    if (data.conditions.length > 1) {
+      setData({
+        ...data,
+        conditions: data.conditions.filter((_, i) => i !== index)
+      })
+    }
+  }
+
+  const updateCondition = (index: number, field: string, value: string) => {
+    const newConditions = [...data.conditions]
+    newConditions[index] = { ...newConditions[index], [field]: value }
+    setData({ ...data, conditions: newConditions })
+  }
+
+  // Vérifier si toutes les conditions sont complètes
+  const areConditionsComplete = () => {
+    return data.conditions.length > 0 && data.conditions.every(condition => 
+      condition.field && condition.operator && condition.value
+    )
+  }
+
   // Estimate targets when conditions change
   useEffect(() => {
-    if (data.conditions.field && data.conditions.operator && data.conditions.value) {
+    if (areConditionsComplete()) {
       fetchEstimation()
     } else {
       setEstimatedTargets(null) // ✅ Reset estimation if conditions are incomplete
@@ -235,11 +272,38 @@ export default function GroupManager({ campaignId, groups, variables, onGroupUpd
         toast.success(editingGroup ? 'Group updated successfully' : 'Group created successfully')
         
         if (editingGroup) {
+          // ✅ NOUVEAU: Mettre à jour le groupe immédiatement avec les données du serveur
+          if (result.data) {
+            setLocalGroups(prev => prev.map(g => 
+              g.id === editingGroup.id 
+                ? {
+                    ...g,
+                    ...result.data,
+                    conditions: result.data.conditions || g.conditions,
+                    targetCount: result.data.targetCount || result.data.target_count || g.targetCount,
+                    explicitLinks: result.data.explicitLinks || result.data.explicit_links || g.explicitLinks
+                  }
+                : g
+            ))
+          }
           setEditingGroup(null)
           reset()
           setIsLoading(false)
         } else {
-          // Pour les nouvelles créations, supprimer le groupe temporaire et déclencher le refresh
+          // Pour les nouvelles créations, remplacer le groupe temporaire par les vraies données
+          if (result.data) {
+            setLocalGroups(prev => prev.map(g => 
+              g.id === tempId 
+                ? {
+                    ...result.data,
+                    id: result.data.id,
+                    conditions: result.data.conditions,
+                    targetCount: result.data.targetCount || result.data.target_count || 0,
+                    explicitLinks: result.data.explicitLinks || result.data.explicit_links || null
+                  }
+                : g
+            ))
+          }
           setPendingGroups(prev => {
             const newSet = new Set(prev)
             newSet.delete(tempId)
@@ -247,9 +311,9 @@ export default function GroupManager({ campaignId, groups, variables, onGroupUpd
           })
         }
         
-        // ✅ CORRECTION: Assurer que la liste se met à jour
+        // ✅ CORRECTION: Assurer que la liste se met à jour en arrière-plan aussi
         if (onGroupUpdate) {
-          onGroupUpdate()
+          setTimeout(() => onGroupUpdate(), 100) // Petit délai pour laisser le temps au backend de finir
         }
       } else {
         // En cas d'erreur, supprimer le groupe temporaire si c'était une création
@@ -298,9 +362,12 @@ export default function GroupManager({ campaignId, groups, variables, onGroupUpd
         const result = await response.json()
 
         if (result.success) {
+          // ✅ NOUVEAU: Supprimer immédiatement le groupe de la liste locale
+          setLocalGroups(prev => prev.filter(g => g.id !== group.id))
+          
           toast.success('Group deleted successfully')
           if (onGroupUpdate) {
-            onGroupUpdate()
+            setTimeout(() => onGroupUpdate(), 100) // Rafraîchir en arrière-plan
           }
         } else {
           toast.error(result.message || 'Failed to delete group')
@@ -315,7 +382,22 @@ export default function GroupManager({ campaignId, groups, variables, onGroupUpd
   const handlePriorityChange = async (group: CampaignGroup, direction: 'up' | 'down') => {
     const newPriority = direction === 'up' ? group.order - 1 : group.order + 1
     
+    // Ensure conditions are in array format
+    let conditionsArray
+    if (Array.isArray(group.conditions)) {
+      conditionsArray = group.conditions
+    } else if (group.conditions && typeof group.conditions === 'object') {
+      conditionsArray = [{
+        field: group.conditions.field || '',
+        operator: group.conditions.operator || '',
+        value: group.conditions.value || ''
+      }]
+    } else {
+      conditionsArray = [{ field: '', operator: '', value: '' }]
+    }
+    
     try {
+      console.log("Conditions Array:", conditionsArray)
       const response = await fetch(`/campaign/${campaignId}/groups/${group.id}`, {
         method: 'PUT',
         headers: {
@@ -324,16 +406,31 @@ export default function GroupManager({ campaignId, groups, variables, onGroupUpd
         },
         body: JSON.stringify({
           name: group.name,
-          conditions: group.conditions,
+          conditions: conditionsArray,
           priority: newPriority,
           message: group.message
         })
       })
 
       if (response.ok) {
+        const result = await response.json()
+        
+        // ✅ NOUVEAU: Mettre à jour immédiatement l'ordre du groupe dans la liste locale
+        if (result.success && result.data) {
+          setLocalGroups(prev => prev.map(g => 
+            g.id === group.id 
+              ? { 
+                  ...g, 
+                  order: result.data.order || newPriority,
+                  targetCount: result.data.targetCount || result.data.target_count || g.targetCount
+                }
+              : g
+          ))
+        }
+        
         toast.success('Priority updated')
         if (onGroupUpdate) {
-          onGroupUpdate()
+          setTimeout(() => onGroupUpdate(), 100) // Rafraîchir en arrière-plan
         }
       } else {
         toast.error('Failed to update priority')
@@ -344,13 +441,25 @@ export default function GroupManager({ campaignId, groups, variables, onGroupUpd
   }
 
   const openEditModal = (group: CampaignGroup) => {
+    // Convertir les anciennes conditions (object) vers le nouveau format (array)
+    let conditionsArray
+    if (Array.isArray(group.conditions)) {
+      conditionsArray = group.conditions
+    } else if (group.conditions && typeof group.conditions === 'object') {
+      // Conversion de l'ancien format single condition vers array
+      conditionsArray = [{
+        field: group.conditions.field || '',
+        operator: group.conditions.operator || '',
+        value: group.conditions.value || ''
+      }]
+    } else {
+      conditionsArray = [{ field: '', operator: '', value: '' }]
+    }
+    console.log("Conditions Array:", conditionsArray)
+
     setData({
       name: group.name,
-      conditions: {
-        field: group.conditions?.field || '',
-        operator: group.conditions?.operator || '',
-        value: group.conditions?.value || ''
-      },
+      conditions: conditionsArray,
       priority: group.order,
       message: group.message || ''
     })
@@ -365,11 +474,23 @@ export default function GroupManager({ campaignId, groups, variables, onGroupUpd
   }
 
   const formatCondition = (conditions: Record<string, any>) => {
-    const { field, operator, value } = conditions
-    const fieldLabel = VARIABLE_FIELDS.find(f => f.value === field)?.label || field
-    const operatorLabel = CONDITION_OPERATORS.find(op => op.value === operator)?.label || operator
-    
-    return `${fieldLabel} ${operatorLabel} ${value}`
+    // Support pour l'ancien format (single condition) et le nouveau format (array)
+    if (Array.isArray(conditions)) {
+      return conditions.map((condition) => {
+        const { field, operator, value } = condition
+        const fieldLabel = VARIABLE_FIELDS.find(f => f.value === field)?.label || field
+        const operatorLabel = CONDITION_OPERATORS.find(op => op.value === operator)?.label || operator
+        
+        return `${fieldLabel} ${operatorLabel} ${value}`
+      }).join(' AND ')
+    } else {
+      // Support pour l'ancien format
+      const { field, operator, value } = conditions
+      const fieldLabel = VARIABLE_FIELDS.find(f => f.value === field)?.label || field
+      const operatorLabel = CONDITION_OPERATORS.find(op => op.value === operator)?.label || operator
+      
+      return `${fieldLabel} ${operatorLabel} ${value}`
+    }
   }
 
   const renderGroupMessagePreview = (group: CampaignGroup) => {
@@ -492,7 +613,7 @@ export default function GroupManager({ campaignId, groups, variables, onGroupUpd
             </Button>
           </DialogTrigger>
           
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Create New Group</DialogTitle>
             </DialogHeader>
@@ -513,61 +634,92 @@ export default function GroupManager({ campaignId, groups, variables, onGroupUpd
               </div>
 
               <div className="space-y-3">
-                <Label>Targeting Conditions</Label>
-                
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <Label htmlFor="field" className="text-xs">Field</Label>
-                    <Select
-                      value={data.conditions.field}
-                      onValueChange={(value) => setData({ ...data, conditions: { ...data.conditions, field: value } })}
-                    >
-                      <SelectTrigger className="text-sm">
-                        <SelectValue placeholder="Field" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {VARIABLE_FIELDS.map((field) => (
-                          <SelectItem key={field.value} value={field.value}>
-                            {field.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="operator" className="text-xs">Operator</Label>
-                    <Select
-                      value={data.conditions.operator}
-                      onValueChange={(value) => setData({ ...data, conditions: { ...data.conditions, operator: value } })}
-                    >
-                      <SelectTrigger className="text-sm">
-                        <SelectValue placeholder="Op" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CONDITION_OPERATORS.map((op) => (
-                          <SelectItem key={op.value} value={op.value}>
-                            {op.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="value" className="text-xs">Value</Label>
-                    <Input
-                      id="value"
-                      type="number"
-                      value={data.conditions.value}
-                      onChange={(e) => setData({ ...data, conditions: { ...data.conditions, value: e.target.value } })}
-                      placeholder="1000"
-                      className="text-sm"
-                    />
-                  </div>
+                <div className="flex items-center justify-between">
+                  <Label>Targeting Conditions</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addCondition}
+                    className="flex items-center gap-1"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Add Condition
+                  </Button>
                 </div>
+                
+                {data.conditions.map((condition, index) => (
+                  <div key={index} className="space-y-2 p-3 border rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Condition {index + 1}</span>
+                      {data.conditions.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeCondition(index)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <Label htmlFor={`field-${index}`} className="text-xs">Field</Label>
+                        <Select
+                          value={condition.field}
+                          onValueChange={(value) => updateCondition(index, 'field', value)}
+                        >
+                          <SelectTrigger className="text-sm">
+                            <SelectValue placeholder="Field" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {VARIABLE_FIELDS.map((field) => (
+                              <SelectItem key={field.value} value={field.value}>
+                                {field.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
 
-                {data.conditions.field && data.conditions.operator && data.conditions.value && (
+                      <div>
+                        <Label htmlFor={`operator-${index}`} className="text-xs">Operator</Label>
+                        <Select
+                          value={condition.operator}
+                          onValueChange={(value) => updateCondition(index, 'operator', value)}
+                        >
+                          <SelectTrigger className="text-sm">
+                            <SelectValue placeholder="Op" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {CONDITION_OPERATORS.map((op) => (
+                              <SelectItem key={op.value} value={op.value}>
+                                {op.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div>
+                        <Label htmlFor={`value-${index}`} className="text-xs">Value</Label>
+                        <Input
+                          id={`value-${index}`}
+                          type="number"
+                          value={condition.value}
+                          onChange={(e) => updateCondition(index, 'value', e.target.value)}
+                          placeholder="1000"
+                          className="text-sm"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+
+                {areConditionsComplete() && (
                   <div className="p-3 bg-muted rounded-lg">
                     <div className="text-sm">
                       <span className="font-medium">Condition:</span> {formatCondition(data.conditions)}
@@ -783,7 +935,7 @@ export default function GroupManager({ campaignId, groups, variables, onGroupUpd
       {/* Edit Modal */}
       {editingGroup && (
         <Dialog open={true} onOpenChange={closeModals}>
-          <DialogContent className="sm:max-w-lg">
+          <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
             <DialogHeader>
               <DialogTitle>Edit Group</DialogTitle>
             </DialogHeader>
@@ -803,53 +955,84 @@ export default function GroupManager({ campaignId, groups, variables, onGroupUpd
               </div>
 
               <div className="space-y-3">
-                <Label>Targeting Conditions</Label>
-                
-                <div className="grid grid-cols-3 gap-2">
-                  <div>
-                    <Select
-                      value={data.conditions.field}
-                      onValueChange={(value) => setData({ ...data, conditions: { ...data.conditions, field: value } })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {VARIABLE_FIELDS.map((field) => (
-                          <SelectItem key={field.value} value={field.value}>
-                            {field.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div>
-                    <Select
-                      value={data.conditions.operator}
-                      onValueChange={(value) => setData({ ...data, conditions: { ...data.conditions, operator: value } })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {CONDITION_OPERATORS.map((op) => (
-                          <SelectItem key={op.value} value={op.value}>
-                            {op.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  
-                  <div>
-                    <Input
-                      type="number"
-                      value={data.conditions.value}
-                      onChange={(e) => setData({ ...data, conditions: { ...data.conditions, value: e.target.value } })}
-                    />
-                  </div>
+                <div className="flex items-center justify-between">
+                  <Label>Targeting Conditions</Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addCondition}
+                    className="flex items-center gap-1"
+                  >
+                    <Plus className="h-3 w-3" />
+                    Add Condition
+                  </Button>
                 </div>
+                
+                {data.conditions.map((condition, index) => (
+                  <div key={index} className="space-y-2 p-3 border rounded-lg">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium">Condition {index + 1}</span>
+                      {data.conditions.length > 1 && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeCondition(index)}
+                          className="text-red-500 hover:text-red-700"
+                        >
+                          <Trash2 className="h-3 w-3" />
+                        </Button>
+                      )}
+                    </div>
+                    
+                    <div className="grid grid-cols-3 gap-2">
+                      <div>
+                        <Select
+                          value={condition.field}
+                          onValueChange={(value) => updateCondition(index, 'field', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {VARIABLE_FIELDS.map((field) => (
+                              <SelectItem key={field.value} value={field.value}>
+                                {field.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div>
+                        <Select
+                          value={condition.operator}
+                          onValueChange={(value) => updateCondition(index, 'operator', value)}
+                        >
+                          <SelectTrigger>
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {CONDITION_OPERATORS.map((op) => (
+                              <SelectItem key={op.value} value={op.value}>
+                                {op.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div>
+                        <Input
+                          type="number"
+                          value={condition.value}
+                          onChange={(e) => updateCondition(index, 'value', e.target.value)}
+                        />
+                      </div>
+                    </div>
+                  </div>
+                ))}
 
                 {estimatedTargets !== null && (
                   <div className="p-3 bg-muted rounded-lg">

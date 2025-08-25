@@ -28,6 +28,9 @@ export interface SimpleConditions {
   value: string
 }
 
+// Format array simple depuis le frontend (nouveau)
+export type SimpleConditionsArray = SimpleConditions[]
+
 export interface GroupEstimation {
   groupId: number
   groupName: string
@@ -89,7 +92,7 @@ export default class GroupService {
   async createGroup(
     campaignId: number,
     name: string,
-    conditions: GroupConditions | SimpleConditions,
+    conditions: GroupConditions | SimpleConditions | SimpleConditionsArray,
     message: string,
     order?: number,
     explicitLinks?: Array<{text: string, url: string}>,
@@ -99,7 +102,10 @@ export default class GroupService {
     let normalizedConditions: any
     
     if (this.isSimpleConditions(conditions)) {
-      // Format simple depuis le frontend - on le sauvegarde tel quel
+      // Format simple depuis le frontend (single condition) - on le sauvegarde tel quel
+      normalizedConditions = conditions
+    } else if (this.isSimpleConditionsArray(conditions)) {
+      // Format array simple depuis le frontend (multiple conditions) - on le sauvegarde tel quel
       normalizedConditions = conditions
     } else {
       // Format complexe - on le valide d'abord
@@ -153,13 +159,27 @@ export default class GroupService {
   }
 
   /**
+   * Vérifier si les conditions sont au format array simple (nouveau format frontend)
+   */
+  private isSimpleConditionsArray(conditions: any): boolean {
+    return Array.isArray(conditions) && 
+           conditions.length > 0 &&
+           conditions.every(condition => 
+             condition && 
+             typeof condition.field === 'string' && 
+             typeof condition.operator === 'string' && 
+             typeof condition.value === 'string'
+           )
+  }
+
+  /**
    * Mettre à jour un groupe
    */
   async updateGroup(
     groupId: number,
     updates: Partial<{
       name: string
-      conditions: GroupConditions | SimpleConditions
+      conditions: GroupConditions | SimpleConditions | SimpleConditionsArray
       message: string
       order: number
       target_count: number
@@ -171,7 +191,10 @@ export default class GroupService {
     // Normaliser les conditions vers le format simple si nécessaire
     if (updates.conditions) {
       if (this.isSimpleConditions(updates.conditions)) {
-        // Format simple - on le garde tel quel
+        // Format simple (single condition) - on le garde tel quel
+        updates.conditions = updates.conditions
+      } else if (this.isSimpleConditionsArray(updates.conditions)) {
+        // Format array simple (nouveau format frontend) - on le garde tel quel
         updates.conditions = updates.conditions
       } else {
         // Format complexe - on le valide d'abord
@@ -337,41 +360,56 @@ export default class GroupService {
     followers: FollowerCampaign[],
     conditions: any
   ): FollowerCampaign[] {
-    const { field, operator, value } = conditions
+    // Support pour le nouveau format (array) et l'ancien format (object)
+    let conditionsArray: any[]
     
-    if (!field || !operator || !value) {
+    if (Array.isArray(conditions)) {
+      conditionsArray = conditions
+    } else if (conditions.field && conditions.operator && conditions.value) {
+      // Ancien format: convertir en array
+      conditionsArray = [conditions]
+    } else {
       return []
     }
 
     return followers.filter(follower => {
-      let followerValue: number
-
-      // Récupérer la valeur du follower selon le champ
-      switch (field) {
-        case 'followers_count':
-          followerValue = follower.followersCount || 0
-          break
-        default:
+      // Toutes les conditions doivent être vraies (logique AND)
+      return conditionsArray.every(condition => {
+        const { field, operator, value } = condition
+        
+        if (!field || !operator || !value) {
           return false
-      }
+        }
 
-      const targetValue = parseInt(value, 10)
+        let followerValue: number
 
-      // Appliquer l'opérateur
-      switch (operator) {
-        case 'gte':
-          return followerValue >= targetValue
-        case 'lte':
-          return followerValue <= targetValue
-        case 'gt':
-          return followerValue > targetValue
-        case 'lt':
-          return followerValue < targetValue
-        case 'eq':
-          return followerValue === targetValue
-        default:
-          return false
-      }
+        // Récupérer la valeur du follower selon le champ
+        switch (field) {
+          case 'followers_count':
+            followerValue = follower.followersCount || 0
+            break
+          default:
+            return false
+        }
+
+        const targetValue = parseInt(value, 10)
+
+        // Appliquer l'opérateur
+        switch (operator) {
+          case 'gte':
+            return followerValue >= targetValue
+          case 'lte':
+            return followerValue <= targetValue
+          case 'gt':
+            return followerValue > targetValue
+          case 'lt':
+            return followerValue < targetValue
+          case 'eq':
+            return followerValue === targetValue
+          default:
+            return false
+        }
+      })
     })
   }
 
@@ -459,10 +497,13 @@ export default class GroupService {
 
     console.log(`Evaluating complex conditions with conditions ${JSON.stringify(conditions)}`)
     if (this.isSimpleConditions(conditions)) {
-      // Format simple depuis le frontend
+      // Format simple depuis le frontend (single condition)
       eligibleFollowers = followerCampaigns.filter(fc => 
         this.evaluateSimpleCondition(fc, conditions as SimpleConditions)
       )
+    } else if (this.isSimpleConditionsArray(conditions)) {
+      // Format array simple depuis le frontend (multiple conditions)
+      eligibleFollowers = this.filterFollowersBySimpleConditions(followerCampaigns, conditions)
     } else {
       // Format complexe
       eligibleFollowers = followerCampaigns.filter(fc => 

@@ -83,7 +83,7 @@ export default class DmCampaignAnalysisController {
             const user = auth.getUserOrFail()
             const campaignId = params.id
             const { targetCount } = request.only(['targetCount'])
-            
+            console.log(targetCount)
             const campaign = await DmCampaign.query()
                 .where('id', campaignId)
                 .where('user_id', user.id)
@@ -93,6 +93,13 @@ export default class DmCampaignAnalysisController {
             if (campaign.analysisStatus !== 'completed') {
                 return response.status(400).json({ 
                     error: 'Campaign analysis must be completed before execution' 
+                })
+            }
+
+            // Vérifier qu'une exécution n'est pas déjà en cours
+            if (campaign.executionStatus === 'running') {
+                return response.status(400).json({ 
+                    error: 'Campaign execution is already in progress' 
                 })
             }
 
@@ -106,32 +113,202 @@ export default class DmCampaignAnalysisController {
 
             console.log(`🎯 Starting campaign execution with target count: ${finalTargetCount}`)
 
-            // Mettre à jour la campagne
+            // Initialiser l'état d'exécution
             campaign.executionStartedAt = DateTime.now()
+            campaign.executionStatus = 'running'
+            campaign.shouldStop = false
+            campaign.executionProgress = 0
+            campaign.executionTargetCount = finalTargetCount
+            campaign.executionCompletedAt = null
             await campaign.save()
 
             // Initialiser le contexte de campagne pour l'exécution
             await this.initializeCampaignContext(campaignId.toString())
 
-            // Exécuter par groupes avec la limite globale
-            const messagesSent = await this.executeByGroups(campaign, finalTargetCount)
-
-            // Mettre à jour les statistiques de la campagne
-            campaign.number_of_message_sent += messagesSent
-            campaign.executionCompletedAt = DateTime.now()
-            await campaign.save()
-
-            console.log(`Campaign execution completed: ${messagesSent} messages sent`)
+            // Exécuter par groupes avec la limite globale (en arrière-plan)
+            this.executeByGroupsAsync(campaign, finalTargetCount)
+                .catch(error => {
+                    console.error('❌ Error in background execution:', error)
+                    // Marquer la campagne comme failed
+                    campaign.executionStatus = 'failed'
+                    campaign.executionCompletedAt = DateTime.now()
+                    campaign.save()
+                })
 
             return response.json({ 
                 success: true,
-                messagesSent,
+                message: 'Campaign execution started',
                 targetCount: finalTargetCount
             })
 
         } catch (error) {
             console.error('Error executing campaign:', error)
             return response.status(500).json({ error: error.message })
+        }
+    }
+
+    /**
+     * Arrêter l'exécution d'une campagne
+     */
+    public async stopCampaignExecution({ params, response, auth }: HttpContext) {
+        try {
+            const user = auth.getUserOrFail()
+            const campaignId = params.id
+            
+            const campaign = await DmCampaign.query()
+                .where('id', campaignId)
+                .where('user_id', user.id)
+                .firstOrFail()
+
+            if (campaign.executionStatus !== 'running') {
+                return response.status(400).json({ 
+                    error: 'No active execution to stop' 
+                })
+            }
+
+            // Marquer pour arrêt
+            campaign.shouldStop = true
+            campaign.executionStatus = 'stopping'
+            await campaign.save()
+
+            console.log(`🛑 Campaign execution stop requested for campaign ${campaignId}`)
+
+            return response.json({ 
+                success: true,
+                message: 'Campaign execution stop requested'
+            })
+
+        } catch (error) {
+            console.error('Error stopping campaign execution:', error)
+            return response.status(500).json({ error: error.message })
+        }
+    }
+
+    /**
+     * Mettre en pause l'exécution d'une campagne
+     */
+    public async pauseCampaignExecution({ params, response, auth }: HttpContext) {
+        try {
+            const user = auth.getUserOrFail()
+            const campaignId = params.id
+            
+            const campaign = await DmCampaign.query()
+                .where('id', campaignId)
+                .where('user_id', user.id)
+                .firstOrFail()
+
+            if (campaign.executionStatus !== 'running') {
+                return response.status(400).json({ 
+                    error: 'No active execution to pause' 
+                })
+            }
+
+            // Marquer pour pause
+            campaign.shouldPause = true
+            campaign.executionStatus = 'paused'
+            await campaign.save()
+
+            console.log(`⏸️ Campaign execution pause requested for campaign ${campaignId}`)
+
+            return response.json({ 
+                success: true,
+                message: 'Campaign execution paused'
+            })
+
+        } catch (error) {
+            console.error('Error pausing campaign execution:', error)
+            return response.status(500).json({ error: error.message })
+        }
+    }
+
+    /**
+     * Reprendre l'exécution d'une campagne en pause
+     */
+    public async resumeCampaignExecution({ params, response, auth }: HttpContext) {
+        try {
+            const user = auth.getUserOrFail()
+            const campaignId = params.id
+            
+            const campaign = await DmCampaign.query()
+                .where('id', campaignId)
+                .where('user_id', user.id)
+                .firstOrFail()
+
+            if (campaign.executionStatus !== 'paused') {
+                return response.status(400).json({ 
+                    error: 'Campaign is not paused' 
+                })
+            }
+
+            // Retirer la pause et relancer
+            campaign.shouldPause = false
+            campaign.executionStatus = 'running'
+            await campaign.save()
+
+            console.log(`▶️ Campaign execution resume requested for campaign ${campaignId}`)
+
+            // Relancer l'exécution en arrière-plan avec le target count original
+            this.executeByGroupsAsync(campaign, campaign.executionTargetCount || 0)
+
+            return response.json({ 
+                success: true,
+                message: 'Campaign execution resumed'
+            })
+
+        } catch (error) {
+            console.error('Error resuming campaign execution:', error)
+            return response.status(500).json({ error: error.message })
+        }
+    }
+
+    /**
+     * Obtenir le statut d'exécution d'une campagne
+     */
+    public async getExecutionStatus({ params, response, auth }: HttpContext) {
+        try {
+            const user = auth.getUserOrFail()
+            const campaignId = params.id
+            
+            const campaign = await DmCampaign.query()
+                .where('id', campaignId)
+                .where('user_id', user.id)
+                .firstOrFail()
+
+            return response.json({
+                executionStatus: campaign.executionStatus,
+                executionProgress: campaign.executionProgress || 0,
+                executionTargetCount: campaign.executionTargetCount || 0,
+                shouldStop: campaign.shouldStop || false,
+                executionStartedAt: campaign.executionStartedAt,
+                executionCompletedAt: campaign.executionCompletedAt
+            })
+
+        } catch (error) {
+            console.error('Error getting execution status:', error)
+            return response.status(500).json({ error: error.message })
+        }
+    }
+
+    /**
+     * Exécution asynchrone avec suivi de progression
+     */
+    private async executeByGroupsAsync(campaign: DmCampaign, finalTargetCount: number): Promise<void> {
+        try {
+            const messagesSent = await this.executeByGroups(campaign, finalTargetCount)
+
+            // Mettre à jour les statistiques de la campagne
+            campaign.number_of_message_sent += messagesSent
+            campaign.executionStatus = campaign.shouldStop ? 'stopped' : 'completed'
+            campaign.executionCompletedAt = DateTime.now()
+            await campaign.save()
+
+            console.log(`Campaign execution completed: ${messagesSent} messages sent`)
+        } catch (error) {
+            console.error('❌ Error in executeByGroupsAsync:', error)
+            campaign.executionStatus = 'failed'
+            campaign.executionCompletedAt = DateTime.now()
+            await campaign.save()
+            throw error
         }
     }
 
@@ -240,7 +417,7 @@ export default class DmCampaignAnalysisController {
                 console.log(`🎯 Processing group "${group.name}"`)
                 
                 // Filtrer les followers qui correspondent aux conditions du groupe
-                const groupFollowers = this.filterFollowersByGroup(allAvailableFollowers, group)
+                const groupFollowers = await this.filterFollowersByGroup(allAvailableFollowers, group)
                 
                 if (groupFollowers.length === 0) {
                     console.log(`⚠️ No followers match conditions for group "${group.name}"`)
@@ -258,6 +435,21 @@ export default class DmCampaignAnalysisController {
                 
                 // Envoyer des messages aux followers du groupe
                 for (const followerCampaign of groupFollowers) {
+                    // Vérifier si l'arrêt a été demandé
+                    await campaign.refresh()
+                    if (campaign.shouldStop) {
+                        console.log(`🛑 Execution stop requested, stopping at ${totalMessagesSent} messages sent`)
+                        return totalMessagesSent
+                    }
+
+                    // Vérifier si la pause a été demandée
+                    if (campaign.shouldPause) {
+                        console.log(`⏸️ Execution pause requested, pausing at ${totalMessagesSent} messages sent`)
+                        campaign.executionStatus = 'paused'
+                        await campaign.save()
+                        return totalMessagesSent
+                    }
+
                     if (totalMessagesSent >= finalTargetCount) {
                         console.log(`🛑 Global target reached: ${totalMessagesSent}/${finalTargetCount}`)
                         break
@@ -275,6 +467,11 @@ export default class DmCampaignAnalysisController {
                         await campaign.incrementAlreadyContactedCount()
                         
                         totalMessagesSent++
+                        
+                        // Mettre à jour le progrès en temps réel
+                        campaign.executionProgress = totalMessagesSent
+                        await campaign.save()
+                        
                         console.log(`✅ Message sent to @${followerCampaign.followerHandle} (${totalMessagesSent}/${finalTargetCount})`)
                         
                         // Petit délai entre les messages pour éviter le rate limiting
@@ -301,7 +498,7 @@ export default class DmCampaignAnalysisController {
     /**
      * Filtrer les followers qui correspondent aux conditions d'un groupe
      */
-    private filterFollowersByGroup(followers: FollowerCampaign[], group: CampaignGroup): FollowerCampaign[] {
+    private async filterFollowersByGroup(followers: FollowerCampaign[], group: CampaignGroup): Promise<FollowerCampaign[]> {
         const conditions = group.conditions
         if (!conditions) {
             console.warn(`Group "${group.name}" has no conditions, including all followers`)
@@ -309,23 +506,33 @@ export default class DmCampaignAnalysisController {
         }
 
         console.log(`🔍 Filtering ${followers.length} followers for group "${group.name}"`)
+        console.log(`🎯 Group conditions:`, conditions)
         
-        const matchingFollowers = followers.filter(async (follower) => {
+        const matchingFollowers: FollowerCampaign[] = []
+        
+        for (const follower of followers) {
+            // Mettre à jour le nombre de followers si nécessaire
             if (follower.followersCount === 0 && this.accountService && follower.followerHandle) {
                 try {
                     const profile = await this.accountService.getProfile(follower.followerHandle)
                     follower.followersCount = profile.followersCount || 0
                     await follower.save()
+                    console.log(`🔄 Updated follower count for @${follower.followerHandle}: ${follower.followersCount}`)
                 } catch (error) {
                     console.warn(`Could not fetch follower count for @${follower.followerHandle}`)
                 }
             }
-            console.log(`📊 Follower @${follower.followerHandle} (${follower.followersCount || 0} followers)`)
+            
+            console.log(`📊 Checking @${follower.followerHandle} (${follower.followersCount || 0} followers)`)
             const matches = this.checkGroupConditions(conditions, follower)
-            return matches
-        })
+            console.log(`✅ Result for @${follower.followerHandle}: ${matches ? 'MATCHES' : 'DOES NOT MATCH'}`)
+            
+            if (matches) {
+                matchingFollowers.push(follower)
+            }
+        }
 
-        console.log(`🎯 Result: ${matchingFollowers.length}/${followers.length} followers match conditions`)
+        console.log(`🎯 Result: ${matchingFollowers.length}/${followers.length} followers match conditions for group "${group.name}"`)
         return matchingFollowers
     }
 
@@ -333,22 +540,58 @@ export default class DmCampaignAnalysisController {
      * Vérifier si les conditions d'un groupe correspondent à un follower
      */
     private checkGroupConditions(conditions: Record<string, any>, followerCampaign: FollowerCampaign): boolean {
-        if (!conditions) return false
+        if (!conditions) {
+            console.log(`⚠️ No conditions provided`)
+            return false
+        }
+
+        console.log(`🔍 Checking conditions for @${followerCampaign.followerHandle}:`, conditions)
+
+        // Support pour le nouveau format array de conditions
+        if (Array.isArray(conditions)) {
+            console.log(`📋 Processing array of ${conditions.length} conditions (AND logic)`)
+            
+            // Toutes les conditions doivent être vraies (logique AND)
+            for (let i = 0; i < conditions.length; i++) {
+                const condition = conditions[i]
+                console.log(`🔍 Checking condition ${i + 1}:`, condition)
+                
+                if (!this.evaluateCondition(condition, followerCampaign)) {
+                    console.log(`❌ Condition ${i + 1} failed, returning false`)
+                    return false
+                }
+                console.log(`✅ Condition ${i + 1} passed`)
+            }
+            
+            console.log(`✅ All ${conditions.length} conditions passed`)
+            return true
+        }
 
         // Si les conditions sont dans le format simple {field, operator, value}
         if (conditions.field && conditions.operator && conditions.value !== undefined) {
-            return this.evaluateCondition(conditions, followerCampaign)
+            const result = this.evaluateCondition(conditions, followerCampaign)
+            console.log(`📋 Single condition result: ${result}`)
+            return result
         }
 
         // Si les conditions sont dans un format plus complexe, itérer
-        for (const [, condition] of Object.entries(conditions)) {
-            if (typeof condition === 'object' && condition.field) {
-                if (this.evaluateCondition(condition, followerCampaign)) {
+        for (const [key, condition] of Object.entries(conditions)) {
+            console.log(`🔍 Checking condition key "${key}":`, condition)
+            
+            if (typeof condition === 'object' && condition && condition.field) {
+                const result = this.evaluateCondition(condition, followerCampaign)
+                console.log(`📋 Condition "${key}" result: ${result}`)
+                
+                if (result) {
+                    console.log(`✅ Condition "${key}" matched, returning true`)
                     return true
                 }
+            } else {
+                console.log(`⚠️ Invalid condition format for key "${key}":`, typeof condition, condition)
             }
         }
 
+        console.log(`❌ No conditions matched for @${followerCampaign.followerHandle}`)
         return false
     }
 

@@ -43,6 +43,9 @@ import {
   Group,
   AlertTriangle,
   UserCheck,
+  Square,
+  Play,
+  Pause,
 } from 'lucide-react'
 
 import type {
@@ -73,6 +76,19 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
   const [executionConfig, setExecutionConfig] = useState<Record<number, { enabled: boolean, targetCount: number }>>({})
   const [isExecutionModalOpen, setIsExecutionModalOpen] = useState(false)
   const [isExecuting, setIsExecuting] = useState(false)
+  const [executionStatus, setExecutionStatus] = useState<{
+    status: string | null,
+    progress: number,
+    targetCount: number,
+    shouldStop: boolean,
+    shouldPause: boolean
+  }>({
+    status: null,
+    progress: 0,
+    targetCount: 0,
+    shouldStop: false,
+    shouldPause: false
+  })
 
   // Helper function to parse keywords from JSON string
   const parseKeywords = (keywords: string): string[] => {
@@ -262,6 +278,41 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
     }
   }, [localCampaign.analysisStatus])
 
+  // Initialize execution status on component mount
+  useEffect(() => {
+    const loadExecutionStatus = async () => {
+      try {
+        const response = await fetch(`/api/campaign/${campaign.id}/execution-status`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          setExecutionStatus({
+            status: data.executionStatus,
+            progress: data.executionProgress || 0,
+            targetCount: data.executionTargetCount || 0,
+            shouldStop: data.shouldStop || false,
+            shouldPause: data.shouldPause || false
+          })
+
+          // Start polling if execution is running
+          if (data.executionStatus === 'running') {
+            startExecutionPolling()
+          }
+        }
+      } catch (error) {
+        console.error('Error loading execution status:', error)
+      }
+    }
+
+    loadExecutionStatus()
+  }, [campaign.id])
+
   // Load stats on component mount if not already provided
   useEffect(() => {
     const loadInitialStats = async () => {
@@ -285,7 +336,36 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
       }
     }
 
+    const loadExecutionStatus = async () => {
+      try {
+        const response = await fetch(`/api/campaign/${campaign.id}/execution-status`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Requested-With': 'XMLHttpRequest',
+          },
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          if (data.executionStatus && ['running', 'stopping', 'paused'].includes(data.executionStatus)) {
+            setExecutionStatus({
+              status: data.executionStatus,
+              progress: data.executionProgress || 0,
+              targetCount: data.executionTargetCount || 0,
+              shouldStop: data.shouldStop || false,
+              shouldPause: data.shouldPause || false
+            })
+            startExecutionPolling()
+          }
+        }
+      } catch (error) {
+        console.error('Error loading execution status:', error)
+      }
+    }
+
     loadInitialStats()
+    loadExecutionStatus()
   }, [campaign.id, localStats])
 
   // Initialize execution config when groups change
@@ -342,6 +422,14 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
       return
     }
 
+    // Calculer le total des targetCount à partir des groupes sélectionnés
+    const totalTargetCount = selectedGroups.reduce((total, group) => total + group.targetCount, 0)
+
+    if (totalTargetCount <= 0) {
+      alert('Total target count must be greater than 0.')
+      return
+    }
+
     setIsExecuting(true)
     try {
       const response = await fetch(`/campaign/${campaign.id}/execute`, {
@@ -351,15 +439,24 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
           'X-Requested-With': 'XMLHttpRequest',
         },
         body: JSON.stringify({
-          selectedGroups
+          targetCount: totalTargetCount,
+          selectedGroups,
         })
       })
 
       if (response.ok) {
         const data = await response.json()
         if (data.success) {
-          setLocalCampaign((prev) => ({ ...prev, executionStatus: 'in_progress' }))
+          setLocalCampaign((prev) => ({ ...prev, executionStatus: 'running' }))
+          setExecutionStatus({
+            status: 'running',
+            progress: 0,
+            targetCount: totalTargetCount,
+            shouldStop: false,
+            shouldPause: false
+          })
           setIsExecutionModalOpen(false)
+          startExecutionPolling()
           alert('Campaign execution started!')
         }
       } else {
@@ -372,6 +469,147 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
     } finally {
       setIsExecuting(false)
     }
+  }
+
+  const handleStopExecution = async () => {
+    if (!confirm('Are you sure you want to stop the campaign execution?')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/campaign/${campaign.id}/stop`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setExecutionStatus(prev => ({
+            ...prev,
+            status: 'stopping',
+            shouldStop: true
+          }))
+          alert('Campaign execution stop requested!')
+        }
+      } else {
+        const errorData = await response.json()
+        alert(errorData.error || 'Failed to stop campaign execution')
+      }
+    } catch (error) {
+      console.error('Error stopping campaign execution:', error)
+      alert('Error stopping campaign execution. Please try again.')
+    }
+  }
+
+  const handlePauseExecution = async () => {
+    if (!confirm('Are you sure you want to pause the campaign execution?')) {
+      return
+    }
+
+    try {
+      const response = await fetch(`/campaign/${campaign.id}/pause`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setExecutionStatus(prev => ({
+            ...prev,
+            status: 'paused',
+            shouldPause: true
+          }))
+          alert('Campaign execution paused!')
+        }
+      } else {
+        const errorData = await response.json()
+        alert(errorData.error || 'Failed to pause campaign execution')
+      }
+    } catch (error) {
+      console.error('Error pausing campaign execution:', error)
+      alert('Error pausing campaign execution. Please try again.')
+    }
+  }
+
+  const handleResumeExecution = async () => {
+    try {
+      const response = await fetch(`/campaign/${campaign.id}/resume`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.success) {
+          setExecutionStatus(prev => ({
+            ...prev,
+            status: 'running',
+            shouldPause: false
+          }))
+          alert('Campaign execution resumed!')
+        }
+      } else {
+        const errorData = await response.json()
+        alert(errorData.error || 'Failed to resume campaign execution')
+      }
+    } catch (error) {
+      console.error('Error resuming campaign execution:', error)
+      alert('Error resuming campaign execution. Please try again.')
+    }
+  }
+
+  // Polling pour le statut d'exécution
+  const pollExecutionStatus = async () => {
+    try {
+      const response = await fetch(`/api/campaign/${campaign.id}/execution-status`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Requested-With': 'XMLHttpRequest',
+        },
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setExecutionStatus({
+          status: data.executionStatus,
+          progress: data.executionProgress || 0,
+          targetCount: data.executionTargetCount || 0,
+          shouldStop: data.shouldStop || false,
+          shouldPause: data.shouldPause || false
+        })
+
+        // Mettre à jour les stats générales aussi
+        if (data.executionStatus && ['completed', 'stopped', 'failed'].includes(data.executionStatus)) {
+          pollAnalysisStatus() // Refresh main stats
+          return false // Stop polling
+        }
+        return true // Continue polling
+      }
+    } catch (error) {
+      console.error('Error polling execution status:', error)
+      return false // Stop polling on error
+    }
+  }
+
+  const startExecutionPolling = () => {
+    const interval = setInterval(async () => {
+      const shouldContinue = await pollExecutionStatus()
+      if (!shouldContinue) {
+        clearInterval(interval)
+      }
+    }, 2000) // Poll every 2 seconds
   }
 
   const handleGroupExecutionToggle = (groupId: number, enabled: boolean) => {
@@ -464,7 +702,14 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
       case 'completed':
         return 'bg-green-500'
       case 'in_progress':
+      case 'running':
         return 'bg-blue-600'
+      case 'paused':
+        return 'bg-yellow-600'
+      case 'stopping':
+        return 'bg-yellow-500'
+      case 'stopped':
+        return 'bg-orange-500'
       case 'pending':
         return 'bg-gray-400'
       case 'failed':
@@ -481,6 +726,14 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
         return 'Completed'
       case 'in_progress':
         return 'In Progress'
+      case 'running':
+        return 'Running'
+      case 'paused':
+        return 'Paused'
+      case 'stopping':
+        return 'Stopping...'
+      case 'stopped':
+        return 'Stopped'
       case 'pending':
         return 'Pending'
       case 'failed':
@@ -843,6 +1096,91 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
               </Card>
             </div>
           )}
+
+          {/* Execution Progress */}
+          {executionStatus.status && ['running', 'stopping', 'paused'].includes(executionStatus.status) && (
+            <Card className="border-blue-200 bg-blue-50 dark:bg-blue-900/20">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Play className="h-5 w-5 text-blue-600" />
+                  Campaign Execution in Progress
+                  {executionStatus.status === 'stopping' && (
+                    <Badge variant="outline" className="text-orange-600 border-orange-300">
+                      Stopping...
+                    </Badge>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between text-sm">
+                  <span>Progress: {executionStatus.progress} / {executionStatus.targetCount} messages</span>
+                  <span>{executionStatus.targetCount > 0 ? Math.round((executionStatus.progress / executionStatus.targetCount) * 100) : 0}%</span>
+                </div>
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div 
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-500" 
+                    style={{ 
+                      width: `${executionStatus.targetCount > 0 ? (executionStatus.progress / executionStatus.targetCount) * 100 : 0}%` 
+                    }}
+                  ></div>
+                </div>
+                <div className="flex justify-center gap-2">
+                  {executionStatus.status === 'running' && (
+                    <>
+                      <Button
+                        onClick={handlePauseExecution}
+                        variant="outline"
+                        className="flex items-center gap-2"
+                      >
+                        <Pause className="h-4 w-4" />
+                        Pause
+                      </Button>
+                      <Button
+                        onClick={handleStopExecution}
+                        variant="destructive"
+                        className="flex items-center gap-2"
+                      >
+                        <Square className="h-4 w-4" />
+                        Stop
+                      </Button>
+                    </>
+                  )}
+                  
+                  {executionStatus.status === 'paused' && (
+                    <>
+                      <Button
+                        onClick={handleResumeExecution}
+                        variant="default"
+                        className="flex items-center gap-2"
+                      >
+                        <Play className="h-4 w-4" />
+                        Resume
+                      </Button>
+                      <Button
+                        onClick={handleStopExecution}
+                        variant="destructive"
+                        className="flex items-center gap-2"
+                      >
+                        <Square className="h-4 w-4" />
+                        Stop
+                      </Button>
+                    </>
+                  )}
+                  
+                  {executionStatus.status === 'stopping' && (
+                    <Button
+                      disabled
+                      variant="destructive"
+                      className="flex items-center gap-2"
+                    >
+                      <Square className="h-4 w-4" />
+                      Stopping...
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
           {/* Analysis Status */}
           <Card>
             <CardHeader>
@@ -869,6 +1207,97 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
               </div>
             </CardContent>
           </Card>
+
+          {/* Execution Status */}
+          {executionStatus.status && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Send className="h-5 w-5" />
+                    Execution Status
+                    {executionStatus.status === 'running' && (
+                      <div className="ml-2 flex items-center gap-1">
+                        <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                        <span className="text-xs text-muted-foreground">Live</span>
+                      </div>
+                    )}
+                  </div>
+                  {(executionStatus.status === 'running' || executionStatus.status === 'paused') && (
+                    <div className="flex items-center gap-2">
+                      {executionStatus.status === 'running' && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={handlePauseExecution}
+                          className="flex items-center gap-2"
+                        >
+                          <Pause className="h-4 w-4" />
+                          Pause
+                        </Button>
+                      )}
+                      {executionStatus.status === 'paused' && (
+                        <Button
+                          variant="default"
+                          size="sm"
+                          onClick={handleResumeExecution}
+                          className="flex items-center gap-2"
+                        >
+                          <Play className="h-4 w-4" />
+                          Resume
+                        </Button>
+                      )}
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={handleStopExecution}
+                        className="flex items-center gap-2"
+                      >
+                        <X className="h-4 w-4" />
+                        Stop
+                      </Button>
+                    </div>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className={`w-3 h-3 rounded-full ${getStatusColor(executionStatus.status || '')}`}
+                    ></div>
+                    <span className="font-medium">{getStatusText(executionStatus.status || '')}</span>
+                    {executionStatus.status === 'running' && (
+                      <Loader className="h-4 w-4 animate-spin text-green-500" />
+                    )}
+                  </div>
+                  
+                  {executionStatus.targetCount > 0 && (
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span>Progress</span>
+                        <span>{executionStatus.progress}/{executionStatus.targetCount}</span>
+                      </div>
+                      <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-green-600 h-2 rounded-full transition-all duration-300"
+                          style={{
+                            width: `${Math.min(100, (executionStatus.progress / executionStatus.targetCount) * 100)}%`
+                          }}
+                        ></div>
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {executionStatus.targetCount > 0 ? 
+                          `${((executionStatus.progress / executionStatus.targetCount) * 100).toFixed(1)}% complete` :
+                          'Preparing...'
+                        }
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
           {/* Detailed Analysis Breakdown */}
           {localStats && localStats.campaign && localStats.campaign.analysisStatus === 'completed' && (

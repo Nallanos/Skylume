@@ -249,14 +249,47 @@ export default class CampaignGroupsController {
       const campaignId = params.id
       const { conditions } = request.only(['conditions'])
       
-      if (!conditions || !conditions.field || !conditions.operator || !conditions.value) {
+      if (!conditions) {
         return response.badRequest({
           success: false,
-          message: 'Missing required conditions (field, operator, value)',
+          message: 'Missing conditions',
+        })
+      }
+
+      // Support pour le nouveau format (array) et l'ancien format (object)
+      let normalizedConditions
+      
+      if (Array.isArray(conditions)) {
+        // Nouveau format: array de conditions
+        if (conditions.length === 0) {
+          return response.badRequest({
+            success: false,
+            message: 'At least one condition is required',
+          })
+        }
+        
+        // Vérifier que toutes les conditions sont complètes
+        for (const condition of conditions) {
+          if (!condition.field || !condition.operator || !condition.value) {
+            return response.badRequest({
+              success: false,
+              message: 'All conditions must have field, operator, and value',
+            })
+          }
+        }
+        
+        normalizedConditions = conditions
+      } else if (conditions.field && conditions.operator && conditions.value) {
+        // Ancien format: single condition object
+        normalizedConditions = [conditions]
+      } else {
+        return response.badRequest({
+          success: false,
+          message: 'Invalid conditions format',
         })
       }
       
-      const estimatedTargets = await this.groupService.estimateTargetsForConditions(campaignId, conditions)
+      const estimatedTargets = await this.groupService.estimateTargetsForConditions(campaignId, normalizedConditions)
       
       return response.ok({
         success: true,
