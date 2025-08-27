@@ -898,7 +898,66 @@ function Home() {
 
   return (
     <>
-      <Head title="Skynalytic - Social Media Management">
+      <Head title="Skynalytic - AI Bluesky Marketing Automation Tool | Grow Your Audience">
+        <meta name="description" content="Automate Bluesky growth with AI audience analysis, post scheduling & engagement tools. Track followers, boost engagement, and monetize your audience. Free plan available." />
+        <meta name="keywords" content="bluesky marketing, bluesky automation, bluesky scheduler, bluesky analytics, bluesky growth tool, bluesky bot, social media automation" />
+        
+        {/* Google Search Console Verification - REMPLACEZ PAR VOTRE CODE */}
+        
+        {/* Open Graph */}
+        <meta property="og:title" content="Skynalytic - AI Bluesky Marketing Automation Tool" />
+        <meta property="og:description" content="Grow your Bluesky audience with AI-powered marketing automation. Schedule posts, analyze followers, and boost engagement automatically." />
+        <meta property="og:url" content="https://bluesky-bot.com" />
+        <meta property="og:type" content="website" />
+        <meta property="og:site_name" content="Skynalytic" />
+        
+        {/* Twitter Card */}
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="Skynalytic - AI Bluesky Marketing Tool" />
+        <meta name="twitter:description" content="Automate your Bluesky growth with AI-driven audience analysis and engagement tools" />
+        <meta name="twitter:site" content="@skynalytic" />
+        
+        {/* Additional SEO Meta */}
+        <meta name="author" content="Skynalytic" />
+        <meta name="robots" content="index, follow" />
+        <meta name="language" content="en" />
+        <meta name="revisit-after" content="7 days" />
+        <link rel="canonical" href="https://bluesky-bot.com" />
+        
+        {/* Schema Markup - SoftwareApplication */}
+        <script type="application/ld+json">
+          {`
+            {
+              "@context": "https://schema.org",
+              "@type": "SoftwareApplication",
+              "name": "Skynalytic",
+              "description": "AI-powered marketing automation tool for Bluesky social media platform. Schedule posts, analyze audience, and automate engagement.",
+              "url": "https://bluesky-bot.com",
+              "applicationCategory": "BusinessApplication",
+              "operatingSystem": "Web",
+              "offers": {
+                "@type": "Offer",
+                "price": "0",
+                "priceCurrency": "USD",
+                "description": "Free plan available"
+              },
+              "creator": {
+                "@type": "Organization",
+                "name": "Skynalytic",
+                "url": "https://bluesky-bot.com"
+              },
+              "featureList": [
+                "AI Audience Analysis",
+                "Post Scheduling",
+                "Follower Tracking", 
+                "Engagement Automation",
+                "Analytics Dashboard",
+                "DM Campaigns"
+              ]
+            }
+          `}
+        </script>
+        
         <script
           dangerouslySetInnerHTML={{
             __html: `

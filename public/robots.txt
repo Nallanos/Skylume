@@ -1,0 +1,22 @@
+User-agent: *
+Disallow: /admin/
+Disallow: /api/
+Disallow: /dashboard/settings/
+Disallow: /profile/edit
+Disallow: /_debugbar/
+Disallow: /tmp/
+
+# Allow crawling of public pages
+Allow: /
+Allow: /blog/
+Allow: /guides/
+Allow: /features/
+Allow: /pricing
+Allow: /terms
+Allow: /privacy
+
+# Sitemap location
+Sitemap: https://bluesky-bot.com/sitemap.xml
+
+# Crawl delay (be respectful)
+Crawl-delay: 1
