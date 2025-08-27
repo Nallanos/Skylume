@@ -10,7 +10,7 @@ export default async function render(page: any) {
   return createInertiaApp({
     page,
     render: renderToString,
-    title: (title: string) => `${title} - AdonisJS`,
+    title: (title: string) => `${title} - Skynalytic`,
     resolve: (name: string) => {
       return resolvePageComponent(
         `../pages/${name}.tsx`,

@@ -29,7 +29,7 @@ function ContactUs() {
               Get in Touch
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Have questions about Bluesky Bot? We're here to help. Reach out to our team and we'll
+              Have questions about Skynalytic? We're here to help. Reach out to our team and we'll
               get back to you as soon as possible.
             </p>
           </div>

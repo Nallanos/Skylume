@@ -19,9 +19,9 @@ const Navigation = ({ darkMode, toggleTheme }: { darkMode: boolean; toggleTheme:
       <div className="flex items-center">
         <div className="flex items-center space-x-2">
           <div className="w-6 sm:w-8 h-6 sm:h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-xs sm:text-sm">BC</span>
+            <span className="text-white font-bold text-xs sm:text-sm">SK</span>
           </div>
-          <span className="font-bold text-lg sm:text-xl text-gray-900 dark:text-white">BluePilot</span>
+          <span className="font-bold text-lg sm:text-xl text-gray-900 dark:text-white">Skynalytic</span>
         </div>
       </div>
 
@@ -761,14 +761,14 @@ const TestimonialsSection = () => (
           avatar="/images/bafkreihdgxviv4vxx7dv4zfwhjylkmbharti2s7jhlndmu4nswpwhk677e.jpg"
           handle="@alexisbouchez.com"
           title="Founder"
-          quote="Making use of BluePilot is a great way to grow and engage with your audience on Bluesky."
+          quote="Making use of Skynalytic is a great way to grow and engage with your audience on Bluesky."
           link="https://bsky.app/profile/alexisbouchez.com"
         />
         <TestimonialCard
           avatar="/images/pdpDemon.jpg"
           handle="@dem...ny.bsky.social"
           title="Content creator"
-          quote="I started using the BluePilot to help grow my platform, and honestly, it's been a game changer."
+          quote="I started using the Skynalytic to help grow my platform, and honestly, it's been a game changer."
         />
         <TestimonialCard
           avatar="/images/nallanos.jpg"
@@ -898,7 +898,7 @@ function Home() {
 
   return (
     <>
-      <Head title="BluePilot - Social Media Management">
+      <Head title="Skynalytic - Social Media Management">
         <script
           dangerouslySetInnerHTML={{
             __html: `

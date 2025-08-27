@@ -1,4 +1,4 @@
-# Bluesky Copilot Development Guide
+# Skynalytic Development Guide
 
 ## Architecture Overview
 

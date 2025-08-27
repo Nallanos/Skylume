@@ -28,7 +28,7 @@ for arg in "$@"; do
   esac
 done
 
-echo "🚀 Démarrage du worker Python de Bluesky Copilot"
+echo "🚀 Démarrage du worker Python de Skynalytic"
 echo "📂 Script exécuté: $(basename "$0") (via $(basename "$(readlink /proc/$$/exe)"))"
 
 # Chargement des variables d'environnement depuis .env si le fichier existe

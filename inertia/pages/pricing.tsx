@@ -23,10 +23,10 @@ const Navigation = ({ darkMode, toggleTheme }: { darkMode: boolean; toggleTheme:
       <div className="flex items-center">
         <div className="flex items-center space-x-2">
           <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
-            <span className="text-white font-bold text-sm">BC</span>
+            <span className="text-white font-bold text-sm">SK</span>
           </div>
           <a href="/" className="font-bold text-xl text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-            BluePilot
+            Skynalytic
           </a>
         </div>
       </div>
@@ -193,7 +193,7 @@ function Pricing({ user }: Props) {
 
   return (
     <>
-      <Head title="Pricing - Bluesky Copilot">
+      <Head title="Pricing - Skynalytic">
         <script
           dangerouslySetInnerHTML={{
             __html: `

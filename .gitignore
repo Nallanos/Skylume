@@ -89,3 +89,4 @@ python-service/user_embeddings_global.log
 python-service/umap_users.png
 python-service/umap_users.png
 python-service/umap_users.png
+docker-compose.yaml

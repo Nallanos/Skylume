@@ -2,7 +2,7 @@
 
 ## 🎯 Overview
 
-This implementation adds comprehensive crossposting functionality to Bluesky-copilot, allowing users to simultaneously post to X (Twitter), Threads, and Bluesky from a single interface.
+This implementation adds comprehensive crossposting functionality to Skynalytic, allowing users to simultaneously post to X (Twitter), Threads, and Bluesky from a single interface.
 
 ## 🏗️ Architecture
 

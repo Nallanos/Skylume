@@ -24,7 +24,7 @@ for arg in "$@"; do
   esac
 done
 
-echo "🚀 Démarrage du worker Python de Bluesky Copilot (mode simple)"
+echo "🚀 Démarrage du worker Python de Skynalytic (mode simple)"
 echo "📂 Script exécuté: $(basename "$0")"
 
 # Load environment variables from .env if the file exists

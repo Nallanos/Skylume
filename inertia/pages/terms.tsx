@@ -17,7 +17,7 @@ function Terms() {
               <section className="mb-8">
                 <h2 className="text-xl font-semibold mb-4">1. Acceptance of Terms</h2>
                 <p className="text-muted-foreground mb-4">
-                  By accessing and using Bluesky Bot, you accept and agree to be bound by the terms
+                  By accessing and using Skynalytic, you accept and agree to be bound by the terms
                   and provision of this agreement. If you do not agree to abide by the above, please
                   do not use this service.
                 </p>
@@ -26,7 +26,7 @@ function Terms() {
               <section className="mb-8">
                 <h2 className="text-xl font-semibold mb-4">2. Service Description</h2>
                 <p className="text-muted-foreground mb-4">
-                  Bluesky Bot provides social media management tools for the Bluesky platform,
+                  Skynalytic provides social media management tools for the Bluesky platform,
                   including post scheduling, analytics, and account management features.
                 </p>
               </section>
@@ -64,7 +64,7 @@ function Terms() {
               <section className="mb-8">
                 <h2 className="text-xl font-semibold mb-4">6. Limitation of Liability</h2>
                 <p className="text-muted-foreground mb-4">
-                  In no event shall Bluesky Bot be liable for any indirect, incidental, special,
+                  In no event shall Skynalytic be liable for any indirect, incidental, special,
                   consequential, or punitive damages, including without limitation, loss of profits,
                   data, use, goodwill, or other intangible losses.
                 </p>
