@@ -36,12 +36,13 @@ const Navigation = ({ darkMode, toggleTheme }: { darkMode: boolean; toggleTheme:
         >
           Pricing
         </a>
-        <a
-          href="/dashboard"
-          className="px-3 sm:px-4 py-2 bg-gray-100 dark:bg-gray-800 hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-900 dark:text-white font-medium rounded-lg transition-colors text-sm sm:text-base"
+        <Button
+          variant={"cta"}
+          onClick={() => (window.location.href = '/dashboard')}
+          className="px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white font-medium rounded-lg transition-all duration-300 text-sm sm:text-base shadow-lg hover:shadow-xl transform hover:scale-105"
         >
-          Sign Up
-        </a>
+          Start Selling
+        </Button>
         
         {/* Toggle Theme Button */}
         <button
@@ -78,22 +79,53 @@ const HeroSection = () => (
         </div>
       </div>
       <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold mb-4 sm:mb-6 leading-tight text-gray-900 dark:text-white">
-        <span className="text-blue-500">Grow</span> and <span className="text-blue-500">Monetize</span> your Bluesky audience—faster, smarter, automatically
+        Turn Your Bluesky Followers Into <span className="text-blue-500">Paying Customers</span>
       </h1>
       <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-600 dark:text-gray-300 mb-6 sm:mb-8 px-2">
-        Follower tracking, post scheduling, and AI-driven audience analysis—all in one place.
+        Run targeted DM campaigns. Track performance. Convert followers into customers automatically.
       </p>
 
       <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 mb-3 sm:mb-4 px-4">
         <Button variant="cta" size="cta" onClick={() => (window.location.href = '/dashboard')} className="w-full sm:w-auto">
-          Get Started Free
+          💸 Turn Followers Into Customers
           <ArrowRight className="w-5 h-5" />
         </Button>
       </div>
       <div className="text-center">
         <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">
-          100% Free - No hidden costs
+          100% Free - Start monetizing today
         </p>
+      </div>
+    </div>
+  </section>
+)
+
+const UniqueValueSection = () => (
+  <section className="py-12 px-4 bg-gray-50 dark:bg-gray-800/50 transition-colors duration-300 relative overflow-hidden">
+    <div className="absolute inset-0 opacity-5 dark:opacity-10">
+      <div className="absolute top-0 left-1/4 w-32 h-32 bg-blue-400 rounded-full filter blur-2xl"></div>
+      <div className="absolute bottom-0 right-1/4 w-24 h-24 bg-blue-600 rounded-full filter blur-2xl"></div>
+    </div>
+    <div className="max-w-4xl mx-auto text-center relative z-10">
+      <h2 className="text-2xl md:text-3xl lg:text-4xl font-bold mb-4 text-gray-900 dark:text-white">
+        🚀 Unlike Buffer or Hootsuite...
+      </h2>
+      <p className="text-lg md:text-xl mb-6 text-gray-600 dark:text-gray-300">
+        <strong>Only Bluesky tool</strong> for direct sales via DM campaigns
+      </p>
+      <div className="flex flex-col sm:flex-row justify-center items-center gap-6 sm:gap-8">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
+            <span className="text-lg">❌</span>
+          </div>
+          <span className="text-sm sm:text-base text-gray-600 dark:text-gray-400">Others: Just analytics</span>
+        </div>
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
+            <span className="text-lg">✅</span>
+          </div>
+          <span className="text-sm sm:text-base font-medium text-gray-900 dark:text-white">Skynalytic: Direct revenue</span>
+        </div>
       </div>
     </div>
   </section>
@@ -104,10 +136,10 @@ const ProblemSolutionSection = () => (
     <div className="max-w-6xl mx-auto">
       <div className="text-center mb-16">
         <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-900 dark:text-white">
-          Unlock Your Bluesky Potential
+          Turn Silent Followers Into Revenue
         </h2>
         <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300">
-          Stop wasting time and money on a dead audience.
+          Stop leaving money on the table.
         </p>
       </div>
       <div className="grid md:grid-cols-2 gap-8">
@@ -116,15 +148,13 @@ const ProblemSolutionSection = () => (
             The Problem
           </div>
           <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
-            Your Audience is Silent
+            Your Audience is Silent & Not Buying
           </h3>
           <p className="text-gray-600 dark:text-gray-300 mb-4">
-            Your posts get ignored, your follower count stagnates, and worst of all, you're losing
-            money.
+            Posts ignored. Followers stagnate. Revenue lost.
           </p>
           <p className="text-gray-600 dark:text-gray-300 mb-4">
-            Whether you're a brand or a creator, an inactive audience means wasted effort and missed
-            opportunities.
+            Inactive audience = zero sales opportunities.
           </p>
         </div>
         <div className="p-6 md:p-8 bg-white dark:bg-blue-900/10 rounded-xl border border-blue-200 dark:border-blue-800 shadow-sm">
@@ -132,15 +162,40 @@ const ProblemSolutionSection = () => (
             Our Solution
           </div>
           <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
-            AI-Driven Engagement
+            Direct Monetization via Smart DM Campaigns
           </h3>
           <p className="text-gray-600 dark:text-gray-300 mb-4">
-            Automate interactions, target the right people, and turn your followers into active
-            supporters.
+            Target prospects. Send personalized DMs. Convert to customers.
           </p>
           <p className="text-gray-600 dark:text-gray-300">
-            More engagement, more visibility, more revenue—without the manual grind.
+            Unlike other tools - we focus on direct sales, not just analytics.
           </p>
+        </div>
+      </div>
+      
+      {/* Comparison Section */}
+      <div className="mt-16 max-w-4xl mx-auto">
+        <div className="text-center mb-8">
+          <h3 className="text-2xl md:text-3xl font-bold mb-4 text-gray-900 dark:text-white">
+            Why Skynalytic vs Other Tools?
+          </h3>
+        </div>
+        <div className="grid md:grid-cols-3 gap-6">
+          <div className="p-6 bg-gray-100 dark:bg-gray-800/30 rounded-xl text-center">
+            <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-3">Buffer/Hootsuite</h4>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Just scheduling & analytics</p>
+            <p className="text-xs text-red-500 mt-2">❌ No direct monetization</p>
+          </div>
+          <div className="p-6 bg-gray-100 dark:bg-gray-800/30 rounded-xl text-center">
+            <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-3">Generic Social Tools</h4>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Basic follower tracking</p>
+            <p className="text-xs text-red-500 mt-2">❌ No sales features</p>
+          </div>
+          <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl text-center border-2 border-blue-200 dark:border-blue-800">
+            <h4 className="font-semibold text-blue-700 dark:text-blue-300 mb-3">Skynalytic</h4>
+            <p className="text-sm text-blue-600 dark:text-blue-400">Smart DM campaigns + analytics</p>
+            <p className="text-xs text-green-600 dark:text-green-400 mt-2">✅ Direct customer conversion</p>
+          </div>
         </div>
       </div>
     </div>
@@ -171,8 +226,7 @@ const CrosspostingSection = () => (
             </span>
           </h2>
           <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300 leading-relaxed">
-            Schedule and crosspost to Bluesky and X (Twitter) simultaneously. Share videos, images, 
-            hashtags, and links with intelligent formatting for each platform.
+            Schedule and crosspost to Bluesky and X simultaneously. Videos, images, hashtags with smart formatting.
           </p>
           <div className="space-y-6">
             <div className="flex items-start gap-4">
@@ -182,7 +236,7 @@ const CrosspostingSection = () => (
               <div>
                 <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Multi-Platform Posting</h4>
                 <p className="text-gray-600 dark:text-gray-300">
-                  Crosspost to Bluesky and X with platform-specific optimizations and formatting
+                  Crosspost to Bluesky and X with platform-specific optimization
                 </p>
               </div>
             </div>
@@ -193,7 +247,7 @@ const CrosspostingSection = () => (
               <div>
                 <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Rich Media Support</h4>
                 <p className="text-gray-600 dark:text-gray-300">
-                  Upload videos, images, and GIFs with automatic compression and format optimization
+                  Upload videos, images, GIFs with automatic compression
                 </p>
               </div>
             </div>
@@ -204,7 +258,7 @@ const CrosspostingSection = () => (
               <div>
                 <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Smart Scheduling</h4>
                 <p className="text-gray-600 dark:text-gray-300">
-                  AI-powered optimal timing, hashtag suggestions, and link shortening for maximum reach
+                  AI-powered timing, hashtag suggestions, link shortening
                 </p>
               </div>
             </div>
@@ -216,18 +270,25 @@ const CrosspostingSection = () => (
               onClick={() => (window.location.href = '/dashboard')}
               className="bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
             >
-              Start Crossposting
+              Monetize My Audience Now
               <ArrowRight className="w-5 h-5" />
             </Button>
           </div>
         </div>
 
         {/* Image */}
-        <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 transform hover:scale-105 transition-transform duration-500 mx-4 sm:mx-0">
+        <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 transform hover:scale-105 transition-transform duration-500 mx-4 sm:mx-0 cursor-pointer">
+          <img
+            src="/images/queueSchedulingLight.png"
+            alt="Crossposting Dashboard"
+            className="w-full h-[400px] md:h-[450px] object-cover object-top select-text block dark:hidden"
+            onClick={() => window.open('/images/queueSchedulingLight.png', '_blank')}
+          />
           <img
             src="/images/scheduleDashboard.png"
             alt="Crossposting Dashboard"
-            className="w-full h-auto object-cover"
+            className="w-full h-[400px] md:h-[450px] object-cover object-top select-text hidden dark:block"
+            onClick={() => window.open('/images/scheduleDashboard.png', '_blank')}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-blue-900/20 to-transparent"></div>
         </div>
@@ -236,95 +297,6 @@ const CrosspostingSection = () => (
   </section>
 )
 
-// Section Followback Analysis
-const FollowbackSection = () => (
-  <section className="py-20 px-4 bg-white dark:bg-gray-900 transition-colors duration-300 relative overflow-hidden">
-    {/* Background decorative elements */}
-    <div className="absolute inset-0 opacity-5 dark:opacity-10">
-      <div className="absolute top-20 right-20 w-64 h-64 bg-blue-500 rounded-full filter blur-3xl"></div>
-      <div className="absolute bottom-20 left-20 w-48 h-48 bg-blue-600 rounded-full filter blur-3xl"></div>
-    </div>
-    
-    <div className="max-w-7xl mx-auto relative z-10">
-      <div className="grid lg:grid-cols-2 gap-16 items-center">
-        {/* Image */}
-        <div className="order-2 lg:order-1">
-          <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 transform hover:scale-105 transition-transform duration-500">
-            <img
-              src="/images/followback.png"
-              alt="Followback Analysis Dashboard"
-              className="w-full h-auto object-cover"
-            />
-            <div className="absolute inset-0 bg-gradient-to-t from-blue-900/20 to-transparent"></div>
-          </div>
-        </div>
-
-        {/* Text Content */}
-        <div className="order-1 lg:order-2 space-y-8">
-          <div className="inline-flex items-center bg-blue-100 dark:bg-blue-900/30 px-6 py-3 rounded-full text-sm font-medium text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
-            <span className="mr-2">🎯</span>
-            Relationship Management
-          </div>
-          <h2 className="text-4xl md:text-5xl font-bold leading-tight text-gray-900 dark:text-white">
-            Discover who doesn't{' '}
-            <span className="bg-gradient-to-r from-blue-500 to-blue-700 bg-clip-text text-transparent">
-              follow you back
-            </span>
-          </h2>
-          <p className="text-xl text-gray-600 dark:text-gray-300 leading-relaxed">
-            Stop wasting time on one-sided relationships. Our analysis tool instantly reveals who doesn't follow you back, allowing you to optimize your following strategy.
-          </p>
-          <div className="space-y-6">
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center flex-shrink-0">
-                <CheckCircle className="w-5 h-5 text-blue-500" />
-              </div>
-              <div>
-                <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Automatic Detection</h4>
-                <p className="text-gray-600 dark:text-gray-300">
-                  Instantly identify accounts that don't follow you back with real-time analysis
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center flex-shrink-0">
-                <CheckCircle className="w-5 h-5 text-blue-500" />
-              </div>
-              <div>
-                <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Bulk Actions</h4>
-                <p className="text-gray-600 dark:text-gray-300">
-                  Perform mass unfollowing operations with smart filtering and safety controls
-                </p>
-              </div>
-            </div>
-            <div className="flex items-start gap-4">
-              <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900/30 rounded-xl flex items-center justify-center flex-shrink-0">
-                <CheckCircle className="w-5 h-5 text-blue-500" />
-              </div>
-              <div>
-                <h4 className="font-semibold text-gray-900 dark:text-white mb-2">Detailed Statistics</h4>
-                <p className="text-gray-600 dark:text-gray-300">
-                  Get comprehensive insights on your mutual relationships and engagement patterns
-                </p>
-              </div>
-            </div>
-          </div>
-          <div className="pt-6">
-            <Button
-              variant="cta"
-              size="cta"
-              onClick={() => (window.location.href = '/dashboard')}
-              className="bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
-            >
-              Analyze my relationships
-              <ArrowRight className="w-5 h-5" />
-            </Button>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-)
 
 // Section Analytics Globale
 const AnalyticsSection = () => (
@@ -394,18 +366,25 @@ const AnalyticsSection = () => (
               onClick={() => (window.location.href = '/dashboard')}
               className="bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
             >
-              View my analytics
+              Start Converting Followers
               <ArrowRight className="w-5 h-5" />
             </Button>
           </div>
         </div>
 
         {/* Image */}
-        <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 transform hover:scale-105 transition-transform duration-500">
+        <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 transform hover:scale-105 transition-transform duration-500 cursor-pointer">
+          <img
+            src="/images/AccountDashboardLight.png"
+            alt="Analytics Dashboard Global"
+            className="w-full object-cover object-top select-text block dark:hidden"
+            onClick={() => window.open('/images/AccountDashboardLight.png', '_blank')}
+          />
           <img
             src="/images/analytics.png"
             alt="Analytics Dashboard Global"
-            className="w-full h-auto object-cover"
+            className="w-full h-[400px] md:h-[450px] object-cover object-top select-text hidden dark:block"
+            onClick={() => window.open('/images/analytics.png', '_blank')}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-blue-900/20 to-transparent"></div>
         </div>
@@ -427,11 +406,18 @@ const RelationshipTrackerSection = () => (
       <div className="grid lg:grid-cols-2 gap-16 items-center">
         {/* Image */}
         <div className="order-2 lg:order-1">
-          <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 transform hover:scale-105 transition-transform duration-500">
+          <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 transform hover:scale-105 transition-transform duration-500 cursor-pointer">
+            <img
+              src="/images/RelationshipDashboardLight.png"
+              alt="Relationship Evolution Tracker"
+              className="w-full h-[400px] md:h-[450px] object-cover object-top select-text block dark:hidden"
+              onClick={() => window.open('/images/RelationshipDashboardLight.png', '_blank')}
+            />
             <img
               src="/images/relationshiptracker.png"
               alt="Relationship Evolution Tracker"
-              className="w-full h-auto object-cover"
+              className="w-full h-[400px] md:h-[450px] object-cover object-top select-text hidden dark:block"
+              onClick={() => window.open('/images/relationshiptracker.png', '_blank')}
             />
             <div className="absolute inset-0 bg-gradient-to-t from-blue-900/20 to-transparent"></div>
           </div>
@@ -494,7 +480,7 @@ const RelationshipTrackerSection = () => (
               onClick={() => (window.location.href = '/dashboard')}
               className="bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
             >
-              Track my relationships
+              Optimize My Revenue
               <ArrowRight className="w-5 h-5" />
             </Button>
           </div>
@@ -523,7 +509,7 @@ const DMCampaignSection = () => (
 
         {/* Title */}
         <h2 className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight text-gray-900 dark:text-white">
-          Target exactly who you want with{' '}
+          Turn followers into customers with{' '}
           <span className="bg-gradient-to-r from-blue-500 to-blue-700 bg-clip-text text-transparent">
             precision targeting
           </span>
@@ -531,16 +517,23 @@ const DMCampaignSection = () => (
 
         {/* Description */}
         <p className="text-lg md:text-xl lg:text-2xl text-gray-600 dark:text-gray-300 max-w-4xl mx-auto leading-relaxed">
-          Create custom groups based on followers of specific accounts. Send personalized messages 
-          with variables like name, bio keywords, and account data to maximize conversion rates.
+          Create prospect lists from any account's followers. Send personalized DMs with smart variables. 
+          Maximize conversion rates and revenue.
         </p>
 
         {/* Image */}
-        <div className="relative rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 max-w-5xl mx-auto transform hover:scale-105 transition-transform duration-500">
+        <div className="relative rounded-2xl md:rounded-3xl overflow-hidden shadow-2xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-700 max-w-6xl mx-auto transform hover:scale-105 transition-transform duration-500 cursor-pointer">
+          <img
+            src="/images/DMDahsboardLight.png"
+            alt="DM Campaign Dashboard"
+            className="w-full object-cover object-top select-text block dark:hidden"
+            onClick={() => window.open('/images/DMDahsboardLight.png', '_blank')}
+          />
           <img
             src="/images/dmCampaign.png"
             alt="DM Campaign Dashboard"
-            className="w-full h-auto object-cover"
+            className="w-full h-[450px] md:h-[500px] object-cover object-top select-text hidden dark:block"
+            onClick={() => window.open('/images/dmCampaign.png', '_blank')}
           />
           <div className="absolute inset-0 bg-gradient-to-t from-blue-900/20 to-transparent"></div>
         </div>
@@ -553,28 +546,28 @@ const DMCampaignSection = () => (
             </div>
             <h3 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Precision Targeting</h3>
             <p className="text-sm md:text-base text-gray-600 dark:text-gray-300 leading-relaxed">
-              Create custom groups from followers of any account. Target users based on bio keywords, 
-              follower count, and engagement patterns for laser-focused outreach.
+              Target by bio keywords, follower count, engagement. 
+              Convert prospects into customers with laser-focused campaigns.
             </p>
           </div>
           <div className="text-center space-y-4 md:space-y-6 p-6 md:p-8 bg-white/60 dark:bg-gray-800/30 rounded-xl md:rounded-2xl border border-blue-100 dark:border-blue-800/30 backdrop-blur-sm hover:bg-white/80 dark:hover:bg-gray-800/50 transition-all duration-300">
             <div className="w-16 md:w-20 h-16 md:h-20 bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/30 rounded-xl md:rounded-2xl flex items-center justify-center mx-auto shadow-lg">
               <Zap className="w-8 md:w-10 h-8 md:h-10 text-blue-500" />
             </div>
-            <h3 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Smart Personalization</h3>
+            <h3 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Sales-Driven Personalization</h3>
             <p className="text-sm md:text-base text-gray-600 dark:text-gray-300 leading-relaxed">
-              Use variables like {'{name}'}, {'{bio_keywords}'}, {'{follower_count}'} in your messages. 
-              Each message is automatically customized for maximum impact and authenticity.
+              Use {'{name}'}, {'{bio_keywords}'}, {'{follower_count}'} variables. 
+              Each DM customized for maximum conversion and revenue.
             </p>
           </div>
           <div className="text-center space-y-4 md:space-y-6 p-6 md:p-8 bg-white/60 dark:bg-gray-800/30 rounded-xl md:rounded-2xl border border-blue-100 dark:border-blue-800/30 backdrop-blur-sm hover:bg-white/80 dark:hover:bg-gray-800/50 transition-all duration-300 md:col-span-2 lg:col-span-1">
             <div className="w-16 md:w-20 h-16 md:h-20 bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/30 rounded-xl md:rounded-2xl flex items-center justify-center mx-auto shadow-lg">
               <Brain className="w-8 md:w-10 h-8 md:h-10 text-blue-500" />
             </div>
-            <h3 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Automated Campaigns</h3>
+            <h3 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Revenue-Driven Automation</h3>
             <p className="text-sm md:text-base text-gray-600 dark:text-gray-300 leading-relaxed">
-              Set up once and let AI handle the rest. Smart timing, follow-up sequences, 
-              and response tracking to convert prospects into customers on autopilot.
+              Set up once. AI handles sales process. 
+              Smart timing, follow-ups, tracking to convert prospects into revenue.
             </p>
           </div>
         </div>
@@ -587,11 +580,11 @@ const DMCampaignSection = () => (
             onClick={() => (window.location.href = '/dashboard')}
             className="bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 px-8 md:px-12 py-4 md:py-5 text-lg md:text-xl shadow-2xl hover:shadow-3xl transform hover:scale-105 transition-all duration-300"
           >
-            Start Targeted Campaigns
+            Launch My First Campaign
             <ArrowRight className="w-6 md:w-7 h-6 md:h-7" />
           </Button>
           <p className="text-gray-500 dark:text-gray-400 text-base md:text-lg mt-4 md:mt-6">
-            100% Free - Start converting prospects in minutes
+            100% Free - Start converting prospects into customers
           </p>
         </div>
       </div>
@@ -630,9 +623,9 @@ const VideoSection = () => (
 
       {/* Centered Large Video */}
       <div className="mb-16">
-        <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800 transform hover:scale-105 transition-transform duration-500 max-w-5xl mx-auto">
+        <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-900 dark:to-gray-800 transform hover:scale-105 transition-transform duration-500 max-w-6xl mx-auto cursor-pointer">
           <video
-            className="w-full aspect-video object-cover"
+            className="w-full h-[400px] md:h-[450px] object-cover select-text"
             src="/videos/landing_video.mp4"
             autoPlay
             muted
@@ -679,11 +672,11 @@ const VideoSection = () => (
           onClick={() => (window.location.href = '/dashboard')}
           className="bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
         >
-          Get Started Free
+          Start Selling Today
           <ArrowRight className="w-5 h-5" />
         </Button>
         <p className="text-gray-500 dark:text-gray-400 text-lg mt-4">
-          100% Free 
+          100% Free - Turn followers into revenue
         </p>
       </div>
     </div>
@@ -795,10 +788,10 @@ const Footer = () => (
           <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">
             © 2024 Made with ❤️ par{' '}
             <a
-              href="https://x.com/Nallan0s"
+              href="https://bsky.app/profile/allanbe.bsky.social"
               className="hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
             >
-              @Nallan0s
+              allanbe.bsky.social
             </a>
           </p>
         </div>
@@ -855,15 +848,14 @@ const Footer = () => (
 
 // Hook personnalisé pour la gestion du thème
 const useTheme = () => {
-  const [darkMode, setDarkMode] = useState(false)
+  const [darkMode, setDarkMode] = useState(true) // Thème sombre par défaut
   const [mounted, setMounted] = useState(false)
 
   useEffect(() => {
     setMounted(true)
-    // Vérifier d'abord localStorage, sinon utiliser la préférence système
+    // Vérifier d'abord localStorage, sinon utiliser le thème sombre par défaut
     const savedTheme = localStorage.getItem('darkMode')
-    const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches
-    const isDark = savedTheme ? savedTheme === 'true' : systemDark
+    const isDark = savedTheme ? savedTheme === 'true' : true // Thème sombre par défaut
 
     setDarkMode(isDark)
     if (isDark) {
@@ -898,23 +890,23 @@ function Home() {
 
   return (
     <>
-      <Head title="Skynalytic - AI Bluesky Marketing Automation Tool | Grow Your Audience">
-        <meta name="description" content="Automate Bluesky growth with AI audience analysis, post scheduling & engagement tools. Track followers, boost engagement, and monetize your audience. Free plan available." />
-        <meta name="keywords" content="bluesky marketing, bluesky automation, bluesky scheduler, bluesky analytics, bluesky growth tool, bluesky bot, social media automation" />
+      <Head title="Skynalytic - Turn Bluesky Followers Into Paying Customers | DM Campaigns & AI Marketing">
+        <meta name="description" content="The only Bluesky tool that lets you directly monetize your audience. Run targeted DM campaigns, track performance, and convert followers into customers automatically." />
+        <meta name="keywords" content="bluesky monetization, bluesky dm campaigns, bluesky marketing, bluesky revenue, bluesky sales automation, bluesky customer conversion" />
         
         {/* Google Search Console Verification - REMPLACEZ PAR VOTRE CODE */}
         
         {/* Open Graph */}
-        <meta property="og:title" content="Skynalytic - AI Bluesky Marketing Automation Tool" />
-        <meta property="og:description" content="Grow your Bluesky audience with AI-powered marketing automation. Schedule posts, analyze followers, and boost engagement automatically." />
+        <meta property="og:title" content="Skynalytic - Turn Bluesky Followers Into Paying Customers" />
+        <meta property="og:description" content="The only Bluesky tool that lets you directly sell to your audience. Run targeted DM campaigns and convert followers into revenue automatically." />
         <meta property="og:url" content="https://bluesky-bot.com" />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Skynalytic" />
         
         {/* Twitter Card */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Skynalytic - AI Bluesky Marketing Tool" />
-        <meta name="twitter:description" content="Automate your Bluesky growth with AI-driven audience analysis and engagement tools" />
+        <meta name="twitter:title" content="Skynalytic - Turn Bluesky Followers Into Customers" />
+        <meta name="twitter:description" content="The only Bluesky tool for direct audience monetization via targeted DM campaigns and smart automation" />
         <meta name="twitter:site" content="@skynalytic" />
         
         {/* Additional SEO Meta */}
@@ -964,8 +956,7 @@ function Home() {
               (function() {
                 try {
                   const savedTheme = localStorage.getItem('darkMode');
-                  const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-                  const isDark = savedTheme ? savedTheme === 'true' : systemDark;
+                  const isDark = savedTheme ? savedTheme === 'true' : true; // Thème sombre par défaut
                   if (isDark) {
                     document.documentElement.classList.add('dark');
                   }
@@ -978,11 +969,11 @@ function Home() {
       <div className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white transition-colors duration-300">
         <Navigation darkMode={darkMode} toggleTheme={toggleTheme} />
         <HeroSection />
+        <UniqueValueSection />
         <ProblemSolutionSection />
-        <CrosspostingSection />
-        <TestimonialsSection />
-        <FollowbackSection />
         <DMCampaignSection />
+        <TestimonialsSection />
+        <CrosspostingSection />
         <AnalyticsSection />
         <RelationshipTrackerSection />
         <VideoSection />
