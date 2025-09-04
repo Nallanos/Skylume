@@ -28,30 +28,35 @@ const UserProfileCarousel = ({ userHandles, totalUsers }: { userHandles: string[
     return () => clearInterval(interval)
   }, [userHandles.length])
 
-  // Fonction pour récupérer le profil Bluesky
-  const getBlueskyProfile = async (handle: string) => {
+  // Fonction pour récupérer les profils via l'API backend
+  const getProfilesFromBackend = async (handles: string[]) => {
     try {
-      console.log(`🔍 Attempting to fetch profile for: ${handle}`);
+      console.log(`🔍 Fetching profiles via backend API for: ${handles.join(', ')}`);
       
-      // Utiliser l'API AT Protocol pour récupérer le profil
-      const response = await fetch(`https://public.api.bsky.app/xrpc/com.atproto.repo.getRecord?repo=${handle}&collection=app.bsky.actor.profile&rkey=self`);
+      const response = await fetch('/api/bluesky-profiles', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ handles })
+      });
       
       if (!response.ok) {
-        console.log(`❌ Profile fetch failed for ${handle}: ${response.status} ${response.statusText}`);
+        console.log(`❌ Backend API request failed: ${response.status} ${response.statusText}`);
         return null;
       }
       
       const data = await response.json();
+      console.log(`✅ Backend API response:`, data);
       
-      if (data.value?.avatar) {
-        console.log(`✅ Avatar found for ${handle}: ${data.value.avatar.substring(0, 50)}...`);
-        return data.value.avatar;
+      if (data.profiles && Array.isArray(data.profiles)) {
+        return data.profiles;
       } else {
-        console.log(`⚠️ No avatar in profile data for ${handle}`);
+        console.log(`⚠️ Invalid response format from backend API`);
         return null;
       }
     } catch (error) {
-      console.error(`❌ Error fetching profile for ${handle}:`, error);
+      console.error(`❌ Error fetching profiles from backend:`, error);
     }
     return null;
   }
@@ -62,27 +67,39 @@ const UserProfileCarousel = ({ userHandles, totalUsers }: { userHandles: string[
       console.log(`🎯 Loading profile images for ${userHandles.length} handles:`, userHandles);
       const images: {[key: string]: string} = {}
       
-      // Charger les 20 premiers profils
-      for (const handle of userHandles.slice(0, 20)) {
-        const avatar = await getBlueskyProfile(handle)
-        if (avatar) {
-          images[handle] = avatar
-        } else {
-          // Fallback vers UI Avatars
-          images[handle] = `https://ui-avatars.com/api/?name=${handle}&background=random&size=40&bold=true`
-          console.log(`🔄 Using fallback avatar for ${handle}`);
-        }
+      if (userHandles.length === 0) {
+        console.log(`⚠️ No user handles provided to carousel`);
+        return;
+      }
+
+      // Use backend API to fetch profiles in batch
+      const profiles = await getProfilesFromBackend(userHandles.slice(0, 20));
+      
+      if (profiles && profiles.length > 0) {
+        console.log(`📸 Received ${profiles.length} profiles from backend`);
+        profiles.forEach((profile: any) => {
+          if (profile.avatar) {
+            images[profile.handle] = profile.avatar;
+            console.log(`✅ Avatar loaded for ${profile.handle}`);
+          } else {
+            // Fallback to UI Avatars for profiles without avatar
+            images[profile.handle] = `https://ui-avatars.com/api/?name=${profile.handle}&background=random&size=40&bold=true`;
+            console.log(`🔄 Using fallback avatar for ${profile.handle}`);
+          }
+        });
+      } else {
+        // Fallback to UI Avatars for all handles if backend fails
+        console.log(`⚠️ Backend API failed, using fallback avatars for all handles`);
+        userHandles.slice(0, 20).forEach(handle => {
+          images[handle] = `https://ui-avatars.com/api/?name=${handle}&background=random&size=40&bold=true`;
+        });
       }
       
       console.log(`📸 Profile images loaded:`, Object.keys(images));
       setProfileImages(images)
     }
 
-    if (userHandles.length > 0) {
-      loadProfileImages()
-    } else {
-      console.log(`⚠️ No user handles provided to carousel`);
-    }
+    loadProfileImages()
   }, [userHandles])
 
   // Images de fallback statiques
@@ -263,14 +280,6 @@ const HeroSection = ({ businessPlanCounter }: { businessPlanCounter?: BusinessPl
     </div>
 
     <div className="max-w-4xl mb-6 sm:mb-8 relative z-10">
-      {/* Carrousel de profils utilisateurs - Preuve sociale */}
-      <div className="mb-6 sm:mb-8">
-        <UserProfileCarousel 
-          userHandles={businessPlanCounter?.userHandles || []} 
-          totalUsers={businessPlanCounter?.totalUsers || 50}
-        />
-      </div>
-
       {/* Compteur des places limitées */}
       {businessPlanCounter && businessPlanCounter.canSignUp && (
         <div className="mb-6 sm:mb-8">
@@ -289,6 +298,14 @@ const HeroSection = ({ businessPlanCounter }: { businessPlanCounter?: BusinessPl
       <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold mb-4 sm:mb-6 leading-tight text-gray-900 dark:text-white">
         Turn Your Bluesky Followers Into <span className="text-blue-500">Paying Customers</span>
       </h1>
+      
+      {/* Carrousel de profils utilisateurs - Preuve sociale - Moved below h1 */}
+      <div className="mb-6 sm:mb-8">
+        <UserProfileCarousel 
+          userHandles={businessPlanCounter?.userHandles || []} 
+          totalUsers={businessPlanCounter?.totalUsers || 50}
+        />
+      </div>
       <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-600 dark:text-gray-300 mb-6 sm:mb-8 px-2">
         Run targeted DM campaigns. Track performance. Convert followers into customers automatically.
       </p>
