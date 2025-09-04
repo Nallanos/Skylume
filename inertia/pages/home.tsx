@@ -17,13 +17,13 @@ const UserProfileCarousel = ({ userHandles, totalUsers }: { userHandles: string[
   const [currentIndex, setCurrentIndex] = useState(0)
   const [profileImages, setProfileImages] = useState<{[key: string]: string}>({})
 
-  // Auto-rotation du carrousel
+  // Auto-rotation du carrousel - défilement plus fluide
   useEffect(() => {
     if (userHandles.length === 0) return
     
     const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % userHandles.length)
-    }, 2000) // Change toutes les 2 secondes
+      setCurrentIndex((prev) => (prev + 1) % Math.max(userHandles.length - 4, 1))
+    }, 3000) // Change toutes les 3 secondes
 
     return () => clearInterval(interval)
   }, [userHandles.length])
@@ -31,9 +31,15 @@ const UserProfileCarousel = ({ userHandles, totalUsers }: { userHandles: string[
   // Fonction pour récupérer le profil Bluesky
   const getBlueskyProfile = async (handle: string) => {
     try {
-      // Construction de l'URL de l'API AT Protocol
-      const response = await fetch(`https://public.api.bsky.app/xrpc/com.atproto.repo.getRecord?repo=${handle}&collection=app.bsky.actor.profile&rkey=self`)
-      const data = await response.json()
+      // Essayer d'abord l'API directe Bluesky
+      const response = await fetch(`https://cdn.bsky.app/img/avatar/plain/${handle}@jpeg`)
+      if (response.ok) {
+        return response.url
+      }
+      
+      // Fallback vers l'API AT Protocol
+      const atResponse = await fetch(`https://public.api.bsky.app/xrpc/com.atproto.repo.getRecord?repo=${handle}&collection=app.bsky.actor.profile&rkey=self`)
+      const data = await atResponse.json()
       
       if (data.value?.avatar) {
         return data.value.avatar
@@ -44,15 +50,19 @@ const UserProfileCarousel = ({ userHandles, totalUsers }: { userHandles: string[
     return null
   }
 
-  // Charger les images de profil
+  // Charger les images de profil pour tous les utilisateurs
   useEffect(() => {
     const loadProfileImages = async () => {
       const images: {[key: string]: string} = {}
       
-      for (const handle of userHandles.slice(0, 8)) { // Limiter à 8 pour les performances
+      // Charger les 20 premiers profils
+      for (const handle of userHandles.slice(0, 20)) {
         const avatar = await getBlueskyProfile(handle)
         if (avatar) {
           images[handle] = avatar
+        } else {
+          // Fallback vers UI Avatars
+          images[handle] = `https://ui-avatars.com/api/?name=${handle}&background=random&size=40&bold=true`
         }
       }
       
@@ -71,20 +81,43 @@ const UserProfileCarousel = ({ userHandles, totalUsers }: { userHandles: string[
     "/images/nallanos.jpg"
   ]
 
+  if (userHandles.length === 0) {
+    return (
+      <div className="flex items-center justify-center gap-2 mb-6">
+        <div className="flex -space-x-2">
+          {fallbackImages.map((img, index) => (
+            <div key={index} className="relative">
+              <img
+                src={img}
+                alt="User profile"
+                className="w-10 h-10 rounded-full border-2 border-white dark:border-gray-800 shadow-lg"
+              />
+            </div>
+          ))}
+          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 border-2 border-white dark:border-gray-800 flex items-center justify-center shadow-lg">
+            <span className="text-white text-xs font-bold">+</span>
+          </div>
+        </div>
+        <span className="text-sm text-gray-600 dark:text-gray-300 ml-2">
+          Trusted by creators worldwide
+        </span>
+      </div>
+    )
+  }
+
+  // Obtenir 5 profils visibles avec animation fluide
   const getVisibleProfiles = () => {
     const profiles = []
-    const totalProfiles = Math.max(userHandles.length, 4)
     
-    for (let i = 0; i < Math.min(4, totalProfiles); i++) {
-      const index = (currentIndex + i) % Math.max(userHandles.length, fallbackImages.length)
+    for (let i = 0; i < 5; i++) {
+      const index = (currentIndex + i) % userHandles.length
       const handle = userHandles[index]
-      const avatar = handle ? profileImages[handle] : null
-      const fallbackAvatar = fallbackImages[i % fallbackImages.length]
+      const avatar = profileImages[handle] || `https://ui-avatars.com/api/?name=${handle}&background=random&size=40`
       
       profiles.push({
-        id: handle || `fallback-${i}`,
-        avatar: avatar || fallbackAvatar,
-        handle: handle
+        id: `${handle}-${index}`,
+        avatar,
+        handle
       })
     }
     
@@ -94,32 +127,52 @@ const UserProfileCarousel = ({ userHandles, totalUsers }: { userHandles: string[
   const visibleProfiles = getVisibleProfiles()
 
   return (
-    <div className="flex items-center justify-center gap-2 mb-4">
-      <div className="flex -space-x-2">
-        {visibleProfiles.map((profile, index) => (
-          <div key={profile.id} className="relative">
-            <img
-              src={profile.avatar}
-              alt={profile.handle ? `@${profile.handle}` : "User profile"}
-              className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800 shadow-sm transition-transform duration-500 hover:scale-110"
-              onError={(e) => {
-                // Fallback en cas d'erreur de chargement
-                const target = e.target as HTMLImageElement
-                target.src = fallbackImages[index % fallbackImages.length]
+    <div className="flex items-center justify-center gap-3 mb-6">
+      <div className="relative overflow-hidden">
+        <div className="flex -space-x-3 transition-all duration-700 ease-in-out">
+          {visibleProfiles.map((profile, index) => (
+            <div 
+              key={profile.id} 
+              className="relative transform transition-all duration-700 hover:scale-110 hover:z-10"
+              style={{
+                animationDelay: `${index * 100}ms`
               }}
-            />
-            {index === 0 && (
-              <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border border-white dark:border-gray-800 animate-pulse"></div>
-            )}
-          </div>
-        ))}
-        <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 border-2 border-white dark:border-gray-800 flex items-center justify-center">
-          <span className="text-white text-xs font-bold">+</span>
+            >
+              <img
+                src={profile.avatar}
+                alt={`@${profile.handle}`}
+                className="w-10 h-10 rounded-full border-3 border-white dark:border-gray-800 shadow-lg object-cover"
+                onError={(e) => {
+                  const target = e.target as HTMLImageElement
+                  target.src = `https://ui-avatars.com/api/?name=${profile.handle}&background=random&size=40`
+                }}
+              />
+              {/* Indicateur d'activité sur le premier profil */}
+              {index === 0 && (
+                <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800 animate-pulse"></div>
+              )}
+              {/* Overlay au hover */}
+              <div className="absolute inset-0 rounded-full bg-gradient-to-t from-black/30 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300"></div>
+            </div>
+          ))}
+          
+          {/* Indicateur "+X" pour montrer qu'il y a plus d'utilisateurs */}
+          {userHandles.length > 5 && (
+            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 border-3 border-white dark:border-gray-800 flex items-center justify-center shadow-lg">
+              <span className="text-white text-xs font-bold">+{userHandles.length - 5}</span>
+            </div>
+          )}
         </div>
       </div>
-      <span className="text-sm text-gray-600 dark:text-gray-300 ml-2">
-        Trusted by {totalUsers}+ creators
-      </span>
+      
+      <div className="flex flex-col">
+        <span className="text-sm font-semibold text-gray-900 dark:text-white">
+          Trusted by {totalUsers}+ creators
+        </span>
+        <span className="text-xs text-gray-500 dark:text-gray-400">
+          Join the community
+        </span>
+      </div>
     </div>
   )
 }

@@ -171,6 +171,10 @@ router
   .use(middleware.auth())
 router.get('/api/plan-info', [plans_controller, 'getPlanInfo'])
 
+// Route pour récupérer les profils Bluesky pour le carousel
+const bluesky_profile_controller = () => import('#controllers/bluesky_profile_controller')
+router.post('/api/bluesky-profiles', [bluesky_profile_controller, 'getProfiles'])
+
 // Route pour valider les codes promo
 router.get('/api/validate-promo/:code/:plan', async ({ params, response }) => {
   const { PromoCodeService } = await import('#services/promo_code_service')
