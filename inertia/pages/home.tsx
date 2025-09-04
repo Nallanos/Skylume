@@ -31,15 +31,15 @@ const UserProfileCarousel = ({ userHandles, totalUsers }: { userHandles: string[
   // Fonction pour récupérer le profil Bluesky
   const getBlueskyProfile = async (handle: string) => {
     try {
-      // Essayer d'abord l'API directe Bluesky
-      const response = await fetch(`https://cdn.bsky.app/img/avatar/plain/${handle}@jpeg`)
-      if (response.ok) {
-        return response.url
+      // Utiliser l'API AT Protocol pour récupérer le profil
+      const response = await fetch(`https://public.api.bsky.app/xrpc/com.atproto.repo.getRecord?repo=${handle}&collection=app.bsky.actor.profile&rkey=self`)
+      
+      if (!response.ok) {
+        console.log(`Profile fetch failed for ${handle}: ${response.status}`)
+        return null
       }
       
-      // Fallback vers l'API AT Protocol
-      const atResponse = await fetch(`https://public.api.bsky.app/xrpc/com.atproto.repo.getRecord?repo=${handle}&collection=app.bsky.actor.profile&rkey=self`)
-      const data = await atResponse.json()
+      const data = await response.json()
       
       if (data.value?.avatar) {
         return data.value.avatar

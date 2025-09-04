@@ -1,4 +1,5 @@
 import User from '#models/user'
+import Account from '#models/account'
 
 export class BusinessPlanCounterService {
   /**
@@ -33,12 +34,27 @@ export class BusinessPlanCounterService {
   }
 
   /**
-   * Récupère les IDs/handles de quelques utilisateurs pour le carrousel
+   * Récupère les handles Bluesky de quelques utilisateurs pour le carrousel
    */
   static async getUserHandlesForCarousel(limit: number = 20): Promise<string[]> {
     try {
+      // Option 1: Try to get handles from accounts table first
+      const accounts = await Account.query()
+        .whereNotNull('handle')
+        .where('handle', '!=', '')
+        .whereRaw("platform IS NULL OR platform = 'bluesky'")
+        .orderByRaw('RANDOM()')
+        .limit(limit)
+        .select('handle')
+      
+      if (accounts.length > 0) {
+        return accounts.map(account => account.handle).filter(handle => handle && handle.length > 0)
+      }
+      
+      // Option 2: Fallback to users table if no accounts found (users IDs are often Bluesky handles)
       const users = await User.query()
         .whereNotNull('id')
+        .where('id', 'LIKE', '%.%') // Bluesky handles typically contain dots
         .orderByRaw('RANDOM()')
         .limit(limit)
         .select('id')
