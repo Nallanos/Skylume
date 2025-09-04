@@ -38,6 +38,8 @@ export class BusinessPlanCounterService {
    */
   static async getUserHandlesForCarousel(limit: number = 20): Promise<string[]> {
     try {
+      console.log('🔍 Fetching user handles for carousel...')
+      
       // Option 1: Try to get handles from accounts table first
       const accounts = await Account.query()
         .whereNotNull('handle')
@@ -47,11 +49,16 @@ export class BusinessPlanCounterService {
         .limit(limit)
         .select('handle')
       
+      console.log(`📊 Found ${accounts.length} accounts with valid handles`)
+      
       if (accounts.length > 0) {
-        return accounts.map(account => account.handle).filter(handle => handle && handle.length > 0)
+        const handles = accounts.map(account => account.handle).filter(handle => handle && handle.length > 0)
+        console.log('✅ Using handles from accounts table:', handles.slice(0, 3), handles.length > 3 ? '...' : '')
+        return handles
       }
       
       // Option 2: Fallback to users table if no accounts found (users IDs are often Bluesky handles)
+      console.log('📊 No accounts found, checking users table...')
       const users = await User.query()
         .whereNotNull('id')
         .where('id', 'LIKE', '%.%') // Bluesky handles typically contain dots
@@ -59,9 +66,12 @@ export class BusinessPlanCounterService {
         .limit(limit)
         .select('id')
       
-      return users.map(user => user.id).filter(id => id && id.length > 0)
+      console.log(`📊 Found ${users.length} users with handle-like IDs`)
+      const handles = users.map(user => user.id).filter(id => id && id.length > 0)
+      console.log('✅ Using handles from users table:', handles.slice(0, 3), handles.length > 3 ? '...' : '')
+      return handles
     } catch (error) {
-      console.error('Error fetching user handles:', error)
+      console.error('❌ Error fetching user handles:', error)
       return []
     }
   }
