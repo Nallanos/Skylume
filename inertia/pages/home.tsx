@@ -31,28 +31,35 @@ const UserProfileCarousel = ({ userHandles, totalUsers }: { userHandles: string[
   // Fonction pour récupérer le profil Bluesky
   const getBlueskyProfile = async (handle: string) => {
     try {
+      console.log(`🔍 Attempting to fetch profile for: ${handle}`);
+      
       // Utiliser l'API AT Protocol pour récupérer le profil
-      const response = await fetch(`https://public.api.bsky.app/xrpc/com.atproto.repo.getRecord?repo=${handle}&collection=app.bsky.actor.profile&rkey=self`)
+      const response = await fetch(`https://public.api.bsky.app/xrpc/com.atproto.repo.getRecord?repo=${handle}&collection=app.bsky.actor.profile&rkey=self`);
       
       if (!response.ok) {
-        console.log(`Profile fetch failed for ${handle}: ${response.status}`)
-        return null
+        console.log(`❌ Profile fetch failed for ${handle}: ${response.status} ${response.statusText}`);
+        return null;
       }
       
-      const data = await response.json()
+      const data = await response.json();
       
       if (data.value?.avatar) {
-        return data.value.avatar
+        console.log(`✅ Avatar found for ${handle}: ${data.value.avatar.substring(0, 50)}...`);
+        return data.value.avatar;
+      } else {
+        console.log(`⚠️ No avatar in profile data for ${handle}`);
+        return null;
       }
     } catch (error) {
-      console.error('Error fetching profile for', handle, error)
+      console.error(`❌ Error fetching profile for ${handle}:`, error);
     }
-    return null
+    return null;
   }
 
   // Charger les images de profil pour tous les utilisateurs
   useEffect(() => {
     const loadProfileImages = async () => {
+      console.log(`🎯 Loading profile images for ${userHandles.length} handles:`, userHandles);
       const images: {[key: string]: string} = {}
       
       // Charger les 20 premiers profils
@@ -63,14 +70,18 @@ const UserProfileCarousel = ({ userHandles, totalUsers }: { userHandles: string[
         } else {
           // Fallback vers UI Avatars
           images[handle] = `https://ui-avatars.com/api/?name=${handle}&background=random&size=40&bold=true`
+          console.log(`🔄 Using fallback avatar for ${handle}`);
         }
       }
       
+      console.log(`📸 Profile images loaded:`, Object.keys(images));
       setProfileImages(images)
     }
 
     if (userHandles.length > 0) {
       loadProfileImages()
+    } else {
+      console.log(`⚠️ No user handles provided to carousel`);
     }
   }, [userHandles])
 
