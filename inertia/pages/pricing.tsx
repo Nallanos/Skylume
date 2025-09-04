@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react'
-import { Check, X, Sun, Moon, ArrowRight, Star, Zap, Crown } from 'lucide-react'
+import { Check, X, Sun, Moon, ArrowRight, Star, Crown, Timer, Users } from 'lucide-react'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
 import { Badge } from '../components/ui/badge'
@@ -11,8 +11,18 @@ interface User {
   plan: string
 }
 
+interface BusinessPlanCounter {
+  currentCount: number
+  maxSpots: number
+  availableSpots: number
+  canSignUp: boolean
+  totalUsers: number
+  userHandles: string[]
+}
+
 interface Props {
   user?: User
+  businessPlanCounter?: BusinessPlanCounter
 }
 
 // Components
@@ -94,7 +104,7 @@ const useTheme = () => {
   return { darkMode, mounted, toggleTheme }
 }
 
-function Pricing({ user }: Props) {
+function Pricing({ user, businessPlanCounter }: Props) {
   const { darkMode, mounted, toggleTheme } = useTheme()
 
   // Avoid flash before hydration
@@ -109,8 +119,12 @@ function Pricing({ user }: Props) {
       return
     }
     
-    // For paid plans, redirect directly to Stripe checkout
-    if (planKey === 'pro' || planKey === 'business') {
+    // For business plan, check if spots are available
+    if (planKey === 'business') {
+      if (!businessPlanCounter?.canSignUp) {
+        alert('Désolé, il n\'y a plus de places disponibles pour cette offre spéciale!')
+        return
+      }
       window.location.href = `/stripe/checkout/${planKey}`
       return
     }
@@ -121,10 +135,10 @@ function Pricing({ user }: Props) {
 
   const plans = [
     {
-      name: 'Freemium',
+      name: 'Free',
       key: 'free',
       price: 0,
-      period: 'Free',
+      period: 'Forever',
       description: 'Perfect to discover Bluesky',
       icon: Star,
       iconColor: 'text-gray-500',
@@ -144,50 +158,29 @@ function Pricing({ user }: Props) {
       popular: false
     },
     {
-      name: 'Pro',
-      key: 'pro',
-      price: 10,
-      period: '/month',
-      description: 'For serious creators',
-      icon: Zap,
-      iconColor: 'text-blue-500',
-      cardBorder: 'border-blue-500 shadow-lg scale-105',
-      features: [
-        { name: 'Unlimited scheduled posts', included: true },
-        { name: 'Unlimited Bluesky accounts', included: true },
-        { name: 'Advanced analytics', included: true },
-        { name: 'Unlimited feeds', included: true },
-        { name: 'Unlimited follower analyses', included: true },
-        { name: 'Unlimited follow actions', included: true },
-        { name: 'DM Campaigns (analysis)', included: true },
-        { name: 'DM campaigns execution', included: false }
-      ],
-      buttonText: user?.plan === 'pro' ? 'Current plan' : 'Upgrade to Pro',
-      buttonVariant: 'default' as const,
-      popular: true
-    },
-    {
-      name: 'Business',
+      name: 'Early Bird Special',
       key: 'business',
-      price: 19,
+      price: 1,
       period: '/month',
-      description: 'For businesses and agencies',
+      description: 'Limited to first 50 users only!',
       icon: Crown,
-      iconColor: 'text-purple-500',
-      cardBorder: 'border-purple-500',
+      iconColor: 'text-gold-500',
+      cardBorder: 'border-gold-500 shadow-xl scale-105 bg-gradient-to-br from-gold-50 to-yellow-50 dark:from-gold-900/20 dark:to-yellow-900/20',
       features: [
+        { name: 'Everything in Free plan', included: true },
         { name: 'Unlimited scheduled posts', included: true },
         { name: 'Unlimited Bluesky accounts', included: true },
         { name: 'Advanced analytics', included: true },
         { name: 'Unlimited feeds', included: true },
         { name: 'Unlimited follower analyses', included: true },
         { name: 'Unlimited follow actions', included: true },
-        { name: 'DM Campaigns (analysis)', included: true },
-        { name: 'DM campaigns execution', included: true }
+        { name: 'DM Campaigns (full execution)', included: true },
+        { name: 'Priority support', included: true }
       ],
-      buttonText: user?.plan === 'business' ? 'Current plan' : 'Upgrade to Business',
+      buttonText: user?.plan === 'business' ? 'Current plan' : businessPlanCounter?.canSignUp ? 'Grab your spot - $1/month' : 'Sold out',
       buttonVariant: 'default' as const,
-      popular: false
+      popular: true,
+      specialOffer: true
     }
   ]
 
@@ -218,14 +211,22 @@ function Pricing({ user }: Props) {
           {/* Header */}
           <div className="text-center mb-16">
             <h1 className="text-4xl md:text-6xl font-bold mb-6 leading-tight text-gray-900 dark:text-white">
-              Choose your{' '}
-              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                plan
+              Special Launch{' '}
+              <span className="bg-gradient-to-r from-gold-600 to-yellow-600 bg-clip-text text-transparent">
+                Offer
               </span>
             </h1>
             <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto mb-8">
-              Powerful tools to automate and grow your presence on Bluesky
+              Get unlimited access to all premium features for just $1/month - Limited to the first 50 users!
             </p>
+
+            {/* Compteur des places restantes */}
+            {businessPlanCounter && (
+              <div className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-red-100 to-orange-100 dark:from-red-900/30 dark:to-orange-900/30 text-red-800 dark:text-red-200 rounded-full text-lg font-bold border-2 border-red-200 dark:border-red-800 mb-6">
+                <Timer className="w-5 h-5 mr-2" />
+                <span>Only {businessPlanCounter.availableSpots} spots left out of 50!</span>
+              </div>
+            )}
             
             {user && (
               <div className="inline-flex items-center px-4 py-2 bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 rounded-full text-sm font-medium">
@@ -235,7 +236,7 @@ function Pricing({ user }: Props) {
           </div>
 
           {/* Pricing Cards */}
-          <div className="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+          <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
             {plans.map((plan) => {
               const Icon = plan.icon
               const isCurrentPlan = user?.plan === plan.key
@@ -243,28 +244,44 @@ function Pricing({ user }: Props) {
               return (
                 <Card 
                   key={plan.key} 
-                  className={`relative transition-all duration-300 hover:shadow-xl ${plan.cardBorder} bg-white dark:bg-gray-800/50`}
+                  className={`relative transition-all duration-300 hover:shadow-xl ${plan.cardBorder} bg-white dark:bg-gray-800/50 ${plan.specialOffer ? 'ring-4 ring-gold-400 ring-opacity-50' : ''}`}
                 >
                   {plan.popular && (
                     <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                      <Badge className="bg-blue-500 hover:bg-blue-600 text-white">
-                        Most popular
+                      <Badge className="bg-gradient-to-r from-gold-500 to-yellow-500 hover:from-gold-600 hover:to-yellow-600 text-white text-sm px-4 py-1">
+                        🔥 Limited Time
                       </Badge>
+                    </div>
+                  )}
+
+                  {plan.specialOffer && businessPlanCounter && (
+                    <div className="absolute -top-2 -right-2">
+                      <div className="bg-red-500 text-white text-xs font-bold px-3 py-1 rounded-full animate-pulse">
+                        {businessPlanCounter.availableSpots}/{businessPlanCounter.maxSpots} left
+                      </div>
                     </div>
                   )}
                   
                   <CardHeader className="text-center pb-8">
                     <div className="flex justify-center mb-4">
-                      <div className={`p-3 rounded-full bg-gray-100 dark:bg-gray-800`}>
+                      <div className={`p-3 rounded-full ${plan.specialOffer ? 'bg-gradient-to-r from-gold-100 to-yellow-100 dark:from-gold-900/50 dark:to-yellow-900/50' : 'bg-gray-100 dark:bg-gray-800'}`}>
                         <Icon className={`h-8 w-8 ${plan.iconColor}`} />
                       </div>
                     </div>
                     <CardTitle className="text-2xl font-bold text-gray-900 dark:text-white">{plan.name}</CardTitle>
                     <div className="mt-4">
                       <div className="flex items-center justify-center gap-1">
-                        <span className="text-4xl font-bold text-gray-900 dark:text-white">{plan.price}€</span>
+                        <span className={`text-4xl font-bold ${plan.specialOffer ? 'bg-gradient-to-r from-gold-600 to-yellow-600 bg-clip-text text-transparent' : 'text-gray-900 dark:text-white'}`}>
+                          ${plan.price}
+                        </span>
                         <span className="text-gray-600 dark:text-gray-400">{plan.period}</span>
                       </div>
+                      {plan.specialOffer && (
+                        <div className="mt-2">
+                          <span className="text-sm text-gray-500 line-through">Usually $19/month</span>
+                          <span className="ml-2 text-sm font-bold text-red-600">95% OFF!</span>
+                        </div>
+                      )}
                     </div>
                     <p className="text-gray-600 dark:text-gray-400 mt-2">{plan.description}</p>
                   </CardHeader>
@@ -292,20 +309,24 @@ function Pricing({ user }: Props) {
                         variant={plan.buttonVariant} 
                         className={`w-full ${
                           plan.popular 
-                            ? 'bg-blue-600 hover:bg-blue-700 text-white' 
-                            : plan.key === 'business'
-                            ? 'bg-purple-600 hover:bg-purple-700 text-white'
+                            ? 'bg-gradient-to-r from-gold-500 to-yellow-500 hover:from-gold-600 hover:to-yellow-600 text-white shadow-lg' 
                             : ''
                         }`}
                         size="lg"
-                        disabled={isCurrentPlan}
+                        disabled={isCurrentPlan || (plan.key === 'business' && !businessPlanCounter?.canSignUp)}
                         onClick={() => handleUpgrade(plan.key)}
                       >
                         {plan.buttonText}
-                        {!isCurrentPlan && plan.key !== 'free' && (
+                        {!isCurrentPlan && plan.key !== 'free' && businessPlanCounter?.canSignUp && (
                           <ArrowRight className="ml-2 h-4 w-4" />
                         )}
                       </Button>
+                      
+                      {plan.specialOffer && businessPlanCounter && !businessPlanCounter.canSignUp && (
+                        <p className="text-red-600 text-sm mt-2 font-medium">
+                          All 50 spots have been taken!
+                        </p>
+                      )}
                     </div>
                     
                     {isCurrentPlan && (
@@ -324,48 +345,52 @@ function Pricing({ user }: Props) {
           {/* Comparison Table */}
           <div className="mt-20 max-w-4xl mx-auto">
             <h2 className="text-2xl font-bold text-center mb-8 text-gray-900 dark:text-white">
-              Detailed feature comparison
+              Feature comparison
             </h2>
             <div className="overflow-x-auto">
               <table className="w-full border-collapse bg-white dark:bg-gray-800 rounded-lg overflow-hidden shadow-lg">
                 <thead>
                   <tr className="bg-gray-50 dark:bg-gray-700">
                     <th className="text-left p-4 font-semibold">Feature</th>
-                    <th className="text-center p-4 font-semibold">Freemium</th>
-                    <th className="text-center p-4 font-semibold">Pro</th>
-                    <th className="text-center p-4 font-semibold">Business</th>
+                    <th className="text-center p-4 font-semibold">Free</th>
+                    <th className="text-center p-4 font-semibold">Early Bird Special ($1)</th>
                   </tr>
                 </thead>
                 <tbody>
                   <tr className="border-t border-gray-200 dark:border-gray-600">
                     <td className="p-4">Scheduled posts</td>
                     <td className="text-center p-4">7 simultaneous</td>
-                    <td className="text-center p-4">Unlimited</td>
-                    <td className="text-center p-4">Unlimited</td>
+                    <td className="text-center p-4">✅ Unlimited</td>
                   </tr>
                   <tr className="border-t border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
                     <td className="p-4">Bluesky accounts</td>
                     <td className="text-center p-4">2 max</td>
-                    <td className="text-center p-4">Unlimited</td>
-                    <td className="text-center p-4">Unlimited</td>
+                    <td className="text-center p-4">✅ Unlimited</td>
                   </tr>
                   <tr className="border-t border-gray-200 dark:border-gray-600">
                     <td className="p-4">Follower analyses</td>
                     <td className="text-center p-4">5/month</td>
-                    <td className="text-center p-4">Unlimited</td>
-                    <td className="text-center p-4">Unlimited</td>
+                    <td className="text-center p-4">✅ Unlimited</td>
                   </tr>
                   <tr className="border-t border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
                     <td className="p-4">Follow/unfollow actions</td>
                     <td className="text-center p-4">200/day</td>
-                    <td className="text-center p-4">Unlimited</td>
-                    <td className="text-center p-4">Unlimited</td>
+                    <td className="text-center p-4">✅ Unlimited</td>
                   </tr>
                   <tr className="border-t border-gray-200 dark:border-gray-600">
                     <td className="p-4">DM Campaigns</td>
                     <td className="text-center p-4"><X className="h-4 w-4 text-red-500 mx-auto" /></td>
-                    <td className="text-center p-4">Analysis only</td>
-                    <td className="text-center p-4">Full execution</td>
+                    <td className="text-center p-4">✅ Full execution</td>
+                  </tr>
+                  <tr className="border-t border-gray-200 dark:border-gray-600 bg-gray-50 dark:bg-gray-700">
+                    <td className="p-4">Advanced Analytics</td>
+                    <td className="text-center p-4"><X className="h-4 w-4 text-red-500 mx-auto" /></td>
+                    <td className="text-center p-4">✅ Included</td>
+                  </tr>
+                  <tr className="border-t border-gray-200 dark:border-gray-600">
+                    <td className="p-4">Priority Support</td>
+                    <td className="text-center p-4"><X className="h-4 w-4 text-red-500 mx-auto" /></td>
+                    <td className="text-center p-4">✅ Included</td>
                   </tr>
                 </tbody>
               </table>
@@ -378,27 +403,36 @@ function Pricing({ user }: Props) {
             <div className="space-y-6">
               <Card className="bg-white dark:bg-gray-800/50 border-gray-200 dark:border-gray-700">
                 <CardContent className="p-6">
-                  <h3 className="font-semibold mb-2 text-gray-900 dark:text-white">Can I change my plan anytime?</h3>
+                  <h3 className="font-semibold mb-2 text-gray-900 dark:text-white">Why only $1/month?</h3>
                   <p className="text-gray-600 dark:text-gray-300">
-                    Yes, you can upgrade or downgrade your plan at any time. Changes are effective immediately and billed pro-rata.
+                    This is our special launch offer to celebrate the first 50 users of our platform. After these spots are taken, the price will return to the regular $19/month.
                   </p>
                 </CardContent>
               </Card>
 
               <Card className="bg-white dark:bg-gray-800/50 border-gray-200 dark:border-gray-700">
                 <CardContent className="p-6">
-                  <h3 className="font-semibold mb-2 text-gray-900 dark:text-white">What happens if I exceed my limits?</h3>
+                  <h3 className="font-semibold mb-2 text-gray-900 dark:text-white">What happens after I secure my spot?</h3>
                   <p className="text-gray-600 dark:text-gray-300">
-                    You'll receive a notification inviting you to upgrade your plan. Your existing data won't be deleted, but you won't be able to create new content until you upgrade, or wait for 1 month to reset your limits.
+                    You'll keep the $1/month pricing forever, as long as your subscription remains active. This price is locked in for life!
                   </p>
                 </CardContent>
               </Card>
 
               <Card className="bg-white dark:bg-gray-800/50 border-gray-200 dark:border-gray-700">
                 <CardContent className="p-6">
-                  <h3 className="font-semibold mb-2 text-gray-900 dark:text-white">Are there hidden fees?</h3>
+                  <h3 className="font-semibold mb-2 text-gray-900 dark:text-white">Can I upgrade later if I miss this offer?</h3>
                   <p className="text-gray-600 dark:text-gray-300">
-                    No, our prices are transparent. No setup, configuration, or cancellation fees. You only pay your monthly subscription.
+                    Yes, but you'll pay the regular price of $19/month. The $1/month deal is only available to the first 50 users and won't be offered again.
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-white dark:bg-gray-800/50 border-gray-200 dark:border-gray-700">
+                <CardContent className="p-6">
+                  <h3 className="font-semibold mb-2 text-gray-900 dark:text-white">Is there a cancellation fee?</h3>
+                  <p className="text-gray-600 dark:text-gray-300">
+                    No cancellation fees ever. However, if you cancel and want to rejoin later, you'll pay the regular $19/month price.
                   </p>
                 </CardContent>
               </Card>
@@ -407,9 +441,11 @@ function Pricing({ user }: Props) {
 
           {/* CTA Section */}
           <div className="text-center mt-16">
-            <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">Ready to get started?</h2>
+            <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-white">Don't miss out!</h2>
             <p className="text-gray-600 dark:text-gray-300 mb-6">
-              Join thousands of users growing their audience on Bluesky
+              {businessPlanCounter?.canSignUp 
+                ? `Only ${businessPlanCounter.availableSpots} spots remaining at this special price` 
+                : "All early bird spots have been taken"}
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button 
@@ -419,17 +455,21 @@ function Pricing({ user }: Props) {
               >
                 Start for free
               </Button>
-              <Button 
-                size="lg" 
-                className="bg-blue-600 hover:bg-blue-700 text-white"
-                onClick={() => handleUpgrade('pro')}
-              >
-                Try Pro - $10/month
-                <ArrowRight className="ml-2 h-4 w-4" />
-              </Button>
+              {businessPlanCounter?.canSignUp && (
+                <Button 
+                  size="lg" 
+                  className="bg-gradient-to-r from-gold-500 to-yellow-500 hover:from-gold-600 hover:to-yellow-600 text-white shadow-lg"
+                  onClick={() => handleUpgrade('business')}
+                >
+                  🔥 Secure your spot for $1/month
+                  <ArrowRight className="ml-2 h-4 w-4" />
+                </Button>
+              )}
             </div>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
-              No credit card required for free trial
+              {businessPlanCounter?.canSignUp 
+                ? "Secure your lifetime $1/month rate now" 
+                : "Regular pricing: $19/month after first 50 users"}
             </p>
           </div>
         </div>

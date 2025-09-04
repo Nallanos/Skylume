@@ -20,10 +20,8 @@ import Feed from '#models/feed'
 |
 */
 
-router.on('/').renderInertia('home')
 router.on('/terms').renderInertia('terms')
 router.on('/privacy').renderInertia('privacy')
-router.on('/pricing').renderInertia('pricing')
 router.on('/philosophy').renderInertia('philosophy')
 router.on('/password/reset').renderInertia('contact-us')
 
@@ -65,6 +63,8 @@ const oauth_metadata_controller = () => import('#controllers/oauth_metadata_cont
 const twitter_auth_controller = () => import('#controllers/twitter_auth_controller')
 const stripe_controller = () => import('#controllers/stripes_controller')
 const plans_controller = () => import('#controllers/plans_controller')
+const pricing_controller = () => import('#controllers/pricing_controller')
+const home_controller = () => import('#controllers/home_controller')
 const feed_controller = () => import('#controllers/feeds_controller')
 const analytics_controller = () => import('#controllers/analytics_controller')
 const follower_analysis_controller = () => import('#controllers/follower_analysis_controller')
@@ -86,6 +86,14 @@ const campaign_groups_controller = () => import('#controllers/campaigns/campaign
 |
 */
 
+/*
+|--------------------------------------------------------------------------
+| Routes pour la gestion des utilisateurs et sessions
+|
+*/
+
+router.get('/', [home_controller, 'index'])
+router.get('/pricing', [pricing_controller, 'index'])
 router.put('/logout', [session_controller, 'logout']).use(middleware.auth())
 router.delete('/delete', [session_controller, 'deleteUser']).use(middleware.auth())
 router.get('/session/status', [session_controller, 'status'])

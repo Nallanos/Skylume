@@ -8,8 +8,134 @@ import {
   Brain,
   Target,
   Zap,
+  Timer,
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
+
+// Composant carrousel pour les profils utilisateurs
+const UserProfileCarousel = ({ userHandles, totalUsers }: { userHandles: string[], totalUsers: number }) => {
+  const [currentIndex, setCurrentIndex] = useState(0)
+  const [profileImages, setProfileImages] = useState<{[key: string]: string}>({})
+
+  // Auto-rotation du carrousel
+  useEffect(() => {
+    if (userHandles.length === 0) return
+    
+    const interval = setInterval(() => {
+      setCurrentIndex((prev) => (prev + 1) % userHandles.length)
+    }, 2000) // Change toutes les 2 secondes
+
+    return () => clearInterval(interval)
+  }, [userHandles.length])
+
+  // Fonction pour récupérer le profil Bluesky
+  const getBlueskyProfile = async (handle: string) => {
+    try {
+      // Construction de l'URL de l'API AT Protocol
+      const response = await fetch(`https://public.api.bsky.app/xrpc/com.atproto.repo.getRecord?repo=${handle}&collection=app.bsky.actor.profile&rkey=self`)
+      const data = await response.json()
+      
+      if (data.value?.avatar) {
+        return data.value.avatar
+      }
+    } catch (error) {
+      console.error('Error fetching profile for', handle, error)
+    }
+    return null
+  }
+
+  // Charger les images de profil
+  useEffect(() => {
+    const loadProfileImages = async () => {
+      const images: {[key: string]: string} = {}
+      
+      for (const handle of userHandles.slice(0, 8)) { // Limiter à 8 pour les performances
+        const avatar = await getBlueskyProfile(handle)
+        if (avatar) {
+          images[handle] = avatar
+        }
+      }
+      
+      setProfileImages(images)
+    }
+
+    if (userHandles.length > 0) {
+      loadProfileImages()
+    }
+  }, [userHandles])
+
+  // Images de fallback statiques
+  const fallbackImages = [
+    "/images/bafkreihdgxviv4vxx7dv4zfwhjylkmbharti2s7jhlndmu4nswpwhk677e.jpg",
+    "/images/pdpDemon.jpg", 
+    "/images/nallanos.jpg"
+  ]
+
+  const getVisibleProfiles = () => {
+    const profiles = []
+    const totalProfiles = Math.max(userHandles.length, 4)
+    
+    for (let i = 0; i < Math.min(4, totalProfiles); i++) {
+      const index = (currentIndex + i) % Math.max(userHandles.length, fallbackImages.length)
+      const handle = userHandles[index]
+      const avatar = handle ? profileImages[handle] : null
+      const fallbackAvatar = fallbackImages[i % fallbackImages.length]
+      
+      profiles.push({
+        id: handle || `fallback-${i}`,
+        avatar: avatar || fallbackAvatar,
+        handle: handle
+      })
+    }
+    
+    return profiles
+  }
+
+  const visibleProfiles = getVisibleProfiles()
+
+  return (
+    <div className="flex items-center justify-center gap-2 mb-4">
+      <div className="flex -space-x-2">
+        {visibleProfiles.map((profile, index) => (
+          <div key={profile.id} className="relative">
+            <img
+              src={profile.avatar}
+              alt={profile.handle ? `@${profile.handle}` : "User profile"}
+              className="w-8 h-8 rounded-full border-2 border-white dark:border-gray-800 shadow-sm transition-transform duration-500 hover:scale-110"
+              onError={(e) => {
+                // Fallback en cas d'erreur de chargement
+                const target = e.target as HTMLImageElement
+                target.src = fallbackImages[index % fallbackImages.length]
+              }}
+            />
+            {index === 0 && (
+              <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border border-white dark:border-gray-800 animate-pulse"></div>
+            )}
+          </div>
+        ))}
+        <div className="w-8 h-8 rounded-full bg-gradient-to-r from-blue-500 to-purple-500 border-2 border-white dark:border-gray-800 flex items-center justify-center">
+          <span className="text-white text-xs font-bold">+</span>
+        </div>
+      </div>
+      <span className="text-sm text-gray-600 dark:text-gray-300 ml-2">
+        Trusted by {totalUsers}+ creators
+      </span>
+    </div>
+  )
+}
+
+interface BusinessPlanCounter {
+  currentCount: number
+  maxSpots: number
+  availableSpots: number
+  canSignUp: boolean
+  totalUsers: number
+  userHandles: string[]
+}
+
+interface Props {
+  businessPlanCounter?: BusinessPlanCounter
+}
 
 // Components
 const Navigation = ({ darkMode, toggleTheme }: { darkMode: boolean; toggleTheme: () => void }) => (
@@ -61,7 +187,7 @@ const Navigation = ({ darkMode, toggleTheme }: { darkMode: boolean; toggleTheme:
   </nav>
 )
 
-const HeroSection = () => (
+const HeroSection = ({ businessPlanCounter }: { businessPlanCounter?: BusinessPlanCounter }) => (
   <section className="relative flex flex-col justify-center items-center text-center px-4 sm:px-6 pt-12 sm:pt-16 pb-16 sm:pb-20 overflow-hidden w-full bg-gradient-to-br from-blue-50 via-white to-blue-100 dark:from-gray-900 dark:via-gray-900 dark:to-gray-800 transition-colors duration-300">
     {/* Fond animé similaire au Svelte */}
     <div className="absolute inset-0 w-full opacity-10 dark:opacity-20">
@@ -73,6 +199,24 @@ const HeroSection = () => (
     </div>
 
     <div className="max-w-4xl mb-6 sm:mb-8 relative z-10">
+      {/* Carrousel de profils utilisateurs - Preuve sociale */}
+      <div className="mb-6 sm:mb-8">
+        <UserProfileCarousel 
+          userHandles={businessPlanCounter?.userHandles || []} 
+          totalUsers={businessPlanCounter?.totalUsers || 50}
+        />
+      </div>
+
+      {/* Compteur des places limitées */}
+      {businessPlanCounter && businessPlanCounter.canSignUp && (
+        <div className="mb-6 sm:mb-8">
+          <div className="inline-flex items-center px-4 py-2 bg-gradient-to-r from-red-100 to-orange-100 dark:from-red-900/30 dark:to-orange-900/30 text-red-800 dark:text-red-200 rounded-full text-sm font-bold border border-red-200 dark:border-red-800">
+            <Timer className="w-4 h-4 mr-2" />
+            <span>🔥 Special Launch: Only {businessPlanCounter.availableSpots} spots left at $1/month!</span>
+          </div>
+        </div>
+      )}
+
       <div className="mb-4 sm:mb-6 flex justify-center items-center gap-2">
         <div className="bg-blue-100 dark:bg-blue-900/30 px-3 sm:px-4 py-2 rounded-full text-xs sm:text-sm font-medium text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800">
           🎉 Completely Free, No Credit Card Required
@@ -90,6 +234,16 @@ const HeroSection = () => (
           💸 Turn Followers Into Customers
           <ArrowRight className="w-5 h-5" />
         </Button>
+        {businessPlanCounter?.canSignUp && (
+          <Button 
+            variant="outline" 
+            size="cta" 
+            onClick={() => (window.location.href = '/pricing')} 
+            className="w-full sm:w-auto border-2 border-gold-500 text-gold-700 hover:bg-gold-50 dark:border-gold-400 dark:text-gold-300 dark:hover:bg-gold-900/20"
+          >
+            🔥 Get $1/month deal
+          </Button>
+        )}
       </div>
       <div className="text-center">
         <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">
@@ -880,7 +1034,7 @@ const useTheme = () => {
   return { darkMode, mounted, toggleTheme }
 }
 
-function Home() {
+function Home({ businessPlanCounter }: Props) {
   const { darkMode, mounted, toggleTheme } = useTheme()
 
   // Éviter le flash avant hydratation
@@ -968,7 +1122,7 @@ function Home() {
       </Head>
       <div className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white transition-colors duration-300">
         <Navigation darkMode={darkMode} toggleTheme={toggleTheme} />
-        <HeroSection />
+        <HeroSection businessPlanCounter={businessPlanCounter} />
         <UniqueValueSection />
         <ProblemSolutionSection />
         <DMCampaignSection />
