@@ -17,6 +17,10 @@ public/assets
 npm-debug.log
 yarn-error.log
 
+# Test files
+test_*.js
+test_*.ts
+
 # Editors specific
 .fleet
 .idea
