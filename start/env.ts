@@ -66,6 +66,14 @@ export default await Env.create(new URL('../', import.meta.url), {
 
   /*
   |----------------------------------------------------------
+  | Variables for Bluesky API integration
+  |----------------------------------------------------------
+  */
+  BLUESKY_IDENTIFIER: Env.schema.string.optional(),
+  BLUESKY_PASSWORD: Env.schema.string.optional(),
+
+  /*
+  |----------------------------------------------------------
   | Variables for Threads API integration
   |----------------------------------------------------------
   */
