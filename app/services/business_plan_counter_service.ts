@@ -35,10 +35,11 @@ export class BusinessPlanCounterService {
   /**
    * Récupère les IDs/handles de quelques utilisateurs pour le carrousel
    */
-  static async getUserHandlesForCarousel(limit: number = 10): Promise<string[]> {
+  static async getUserHandlesForCarousel(limit: number = 20): Promise<string[]> {
     try {
       const users = await User.query()
         .whereNotNull('id')
+        .orderByRaw('RANDOM()')
         .limit(limit)
         .select('id')
       
