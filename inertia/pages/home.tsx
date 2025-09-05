@@ -16,33 +16,34 @@ import { useState, useEffect } from 'react'
 const UserProfileCarousel = ({ userHandles, totalUsers }: { userHandles: string[], totalUsers: number }) => {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [profileImages, setProfileImages] = useState<{[key: string]: string}>({})
+  const [isLoaded, setIsLoaded] = useState(false)
 
   // Auto-rotation du carrousel - défilement plus fluide
   useEffect(() => {
-    if (userHandles.length === 0) return
+    // Filtrer pour ne garder que les handles avec des vraies photos
+    const handlesWithPhotos = userHandles.filter(handle => profileImages[handle])
+    if (handlesWithPhotos.length === 0) return
     
     const interval = setInterval(() => {
-      setCurrentIndex((prev) => (prev + 1) % Math.max(userHandles.length - 4, 1))
-    }, 3000) // Change toutes les 3 secondes
+      setCurrentIndex((prev) => (prev + 1) % Math.max(handlesWithPhotos.length - 4, 1))
+    }, 2500) // Animation plus rapide
 
     return () => clearInterval(interval)
-  }, [userHandles.length])
+  }, [userHandles, profileImages])
 
   // Fonction pour récupérer le profil Bluesky
   const getBlueskyProfile = async (handle: string) => {
     try {
-      // Essayer d'abord l'API directe Bluesky
-      const response = await fetch(`https://cdn.bsky.app/img/avatar/plain/${handle}@jpeg`)
+      // Utiliser l'API Bluesky correcte pour récupérer le profil complet
+      const response = await fetch(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfile?actor=${handle}`)
+      
       if (response.ok) {
-        return response.url
-      }
-      
-      // Fallback vers l'API AT Protocol
-      const atResponse = await fetch(`https://public.api.bsky.app/xrpc/com.atproto.repo.getRecord?repo=${handle}&collection=app.bsky.actor.profile&rkey=self`)
-      const data = await atResponse.json()
-      
-      if (data.value?.avatar) {
-        return data.value.avatar
+        const data = await response.json()
+        
+        // Retourner l'avatar s'il existe
+        if (data.avatar) {
+          return data.avatar
+        }
       }
     } catch (error) {
       console.error('Error fetching profile for', handle, error)
@@ -60,10 +61,8 @@ const UserProfileCarousel = ({ userHandles, totalUsers }: { userHandles: string[
         const avatar = await getBlueskyProfile(handle)
         if (avatar) {
           images[handle] = avatar
-        } else {
-          // Fallback vers UI Avatars
-          images[handle] = `https://ui-avatars.com/api/?name=${handle}&background=random&size=40&bold=true`
         }
+        // Ne pas ajouter de fallback - on ne garde que les vraies photos
       }
       
       setProfileImages(images)
@@ -105,14 +104,20 @@ const UserProfileCarousel = ({ userHandles, totalUsers }: { userHandles: string[
     )
   }
 
-  // Obtenir 5 profils visibles avec animation fluide
+  // Obtenir les profils visibles avec de vraies photos seulement
   const getVisibleProfiles = () => {
-    const profiles = []
+    // Filtrer pour ne garder que les handles avec des vraies photos
+    const handlesWithPhotos = userHandles.filter(handle => profileImages[handle])
     
-    for (let i = 0; i < 5; i++) {
-      const index = (currentIndex + i) % userHandles.length
-      const handle = userHandles[index]
-      const avatar = profileImages[handle] || `https://ui-avatars.com/api/?name=${handle}&background=random&size=40`
+    if (handlesWithPhotos.length === 0) return []
+    
+    const profiles = []
+    const visibleCount = Math.min(5, handlesWithPhotos.length)
+    
+    for (let i = 0; i < visibleCount; i++) {
+      const index = (currentIndex + i) % handlesWithPhotos.length
+      const handle = handlesWithPhotos[index]
+      const avatar = profileImages[handle]
       
       profiles.push({
         id: `${handle}-${index}`,
@@ -127,39 +132,36 @@ const UserProfileCarousel = ({ userHandles, totalUsers }: { userHandles: string[
   const visibleProfiles = getVisibleProfiles()
 
   return (
-    <div className="flex items-center justify-center gap-3 mb-6">
+    <div className="flex items-center justify-center gap-3 mb-8">
       <div className="relative overflow-hidden">
-        <div className="flex -space-x-3 transition-all duration-700 ease-in-out">
+        <div className="flex -space-x-3 transition-transform duration-1000 ease-in-out carousel-container">
           {visibleProfiles.map((profile, index) => (
             <div 
               key={profile.id} 
-              className="relative transform transition-all duration-700 hover:scale-110 hover:z-10"
+              className="relative transform transition-all duration-500 hover:scale-110 hover:z-10 animate-slideInProfile"
               style={{
-                animationDelay: `${index * 100}ms`
+                animationDelay: `${index * 150}ms`,
+                transform: `translateX(${index * 2}px)`
               }}
             >
               <img
                 src={profile.avatar}
                 alt={`@${profile.handle}`}
-                className="w-10 h-10 rounded-full border-3 border-white dark:border-gray-800 shadow-lg object-cover"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement
-                  target.src = `https://ui-avatars.com/api/?name=${profile.handle}&background=random&size=40`
-                }}
+                className="w-12 h-12 rounded-full border-3 border-white dark:border-gray-800 shadow-lg object-cover transition-transform duration-300"
               />
-              {/* Indicateur d'activité sur le premier profil */}
+              {/* Indicateur d'activité animé sur le premier profil */}
               {index === 0 && (
                 <div className="absolute -top-1 -right-1 w-3 h-3 bg-green-500 rounded-full border-2 border-white dark:border-gray-800 animate-pulse"></div>
               )}
               {/* Overlay au hover */}
-              <div className="absolute inset-0 rounded-full bg-gradient-to-t from-black/30 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300"></div>
+              <div className="absolute inset-0 rounded-full bg-gradient-to-t from-black/20 to-transparent opacity-0 hover:opacity-100 transition-opacity duration-300"></div>
             </div>
           ))}
           
-          {/* Indicateur "+X" pour montrer qu'il y a plus d'utilisateurs */}
-          {userHandles.length > 5 && (
-            <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 border-3 border-white dark:border-gray-800 flex items-center justify-center shadow-lg">
-              <span className="text-white text-xs font-bold">+{userHandles.length - 5}</span>
+          {/* Indicateur "+X" seulement s'il y a plus de profils avec photos */}
+          {userHandles.filter(handle => profileImages[handle]).length > 5 && (
+            <div className="w-12 h-12 rounded-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 border-3 border-white dark:border-gray-800 flex items-center justify-center shadow-lg">
+              <span className="text-white text-xs font-bold">+{userHandles.filter(handle => profileImages[handle]).length - 5}</span>
             </div>
           )}
         </div>
@@ -252,14 +254,6 @@ const HeroSection = ({ businessPlanCounter }: { businessPlanCounter?: BusinessPl
     </div>
 
     <div className="max-w-4xl mb-6 sm:mb-8 relative z-10">
-      {/* Carrousel de profils utilisateurs - Preuve sociale */}
-      <div className="mb-6 sm:mb-8">
-        <UserProfileCarousel 
-          userHandles={businessPlanCounter?.userHandles || []} 
-          totalUsers={businessPlanCounter?.totalUsers || 50}
-        />
-      </div>
-
       {/* Compteur des places limitées */}
       {businessPlanCounter && businessPlanCounter.canSignUp && (
         <div className="mb-6 sm:mb-8">
@@ -278,10 +272,19 @@ const HeroSection = ({ businessPlanCounter }: { businessPlanCounter?: BusinessPl
       <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold mb-4 sm:mb-6 leading-tight text-gray-900 dark:text-white">
         Turn Your Bluesky Followers Into <span className="text-blue-500">Paying Customers</span>
       </h1>
+      
+      {/* Carrousel de profils utilisateurs - Preuve sociale - DÉPLACÉ SOUS LE TITRE */}
+      <div className="mb-6 sm:mb-8">
+      </div>
+      
       <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-600 dark:text-gray-300 mb-6 sm:mb-8 px-2">
         Run targeted DM campaigns. Track performance. Convert followers into customers automatically.
       </p>
 
+        <UserProfileCarousel 
+          userHandles={businessPlanCounter?.userHandles || []} 
+          totalUsers={businessPlanCounter?.totalUsers || 50}
+        />
       <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 mb-3 sm:mb-4 px-4">
         <Button variant="cta" size="cta" onClick={() => (window.location.href = '/dashboard')} className="w-full sm:w-auto">
           💸 Turn Followers Into Customers
@@ -1172,6 +1175,52 @@ function Home({ businessPlanCounter }: Props) {
             `,
           }}
         />
+        
+        {/* Styles personnalisés pour l'animation du carousel */}
+        <style>
+          {`
+            @keyframes slideInProfile {
+              0% {
+                opacity: 0;
+                transform: translateX(-30px) scale(0.7);
+              }
+              50% {
+                opacity: 0.5;
+                transform: translateX(-10px) scale(0.9);
+              }
+              100% {
+                opacity: 1;
+                transform: translateX(0) scale(1);
+              }
+            }
+            
+            .profile-item {
+              opacity: 0;
+              animation: slideInProfile 0.8s ease-out forwards;
+            }
+            
+            /* Animation de défilement fluide pour le conteneur */
+            .carousel-container {
+              transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+            }
+            
+            /* Animation d'apparition progressive */
+            @keyframes fadeInUp {
+              0% {
+                opacity: 0;
+                transform: translateY(20px);
+              }
+              100% {
+                opacity: 1;
+                transform: translateY(0);
+              }
+            }
+            
+            .carousel-wrapper {
+              animation: fadeInUp 0.5s ease-out;
+            }
+          `}
+        </style>
       </Head>
       <div className="min-h-screen bg-white dark:bg-gray-900 text-gray-900 dark:text-white transition-colors duration-300">
         <Navigation darkMode={darkMode} toggleTheme={toggleTheme} />
