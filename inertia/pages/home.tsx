@@ -222,7 +222,7 @@ const Navigation = ({ darkMode, toggleTheme }: { darkMode: boolean; toggleTheme:
           onClick={() => (window.location.href = '/dashboard')}
           className="px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white font-medium rounded-lg transition-all duration-300 text-sm sm:text-base shadow-lg hover:shadow-xl transform hover:scale-105"
         >
-          Start Selling
+          Start Creating
         </Button>
         
         {/* Toggle Theme Button */}
@@ -270,7 +270,7 @@ const HeroSection = ({ businessPlanCounter }: { businessPlanCounter?: BusinessPl
         </div>
       </div>
       <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-7xl font-bold mb-4 sm:mb-6 leading-tight text-gray-900 dark:text-white">
-        Turn Your Bluesky Followers Into <span className="text-blue-500">Paying Customers</span>
+        The Best <span className="text-blue-500">Scheduling Tool</span> for Bluesky Creators
       </h1>
       
       {/* Carrousel de profils utilisateurs - Preuve sociale - DÉPLACÉ SOUS LE TITRE */}
@@ -278,7 +278,7 @@ const HeroSection = ({ businessPlanCounter }: { businessPlanCounter?: BusinessPl
       </div>
       
       <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-600 dark:text-gray-300 mb-6 sm:mb-8 px-2">
-        Run targeted DM campaigns. Track performance. Convert followers into customers automatically.
+        Create consistently. Grow authentically. Engage effortlessly. The scheduling tool that understands creators.
       </p>
 
         <UserProfileCarousel 
@@ -287,7 +287,7 @@ const HeroSection = ({ businessPlanCounter }: { businessPlanCounter?: BusinessPl
         />
       <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 mb-3 sm:mb-4 px-4">
         <Button variant="cta" size="cta" onClick={() => (window.location.href = '/dashboard')} className="w-full sm:w-auto">
-          💸 Turn Followers Into Customers
+          🎨 Start Creating Consistently
           <ArrowRight className="w-5 h-5" />
         </Button>
         {businessPlanCounter?.canSignUp && (
@@ -303,7 +303,7 @@ const HeroSection = ({ businessPlanCounter }: { businessPlanCounter?: BusinessPl
       </div>
       <div className="text-center">
         <p className="text-gray-500 dark:text-gray-400 text-xs sm:text-sm">
-          100% Free - Start monetizing today
+          100% Free - Start building your creative presence today
         </p>
       </div>
     </div>
@@ -321,20 +321,20 @@ const UniqueValueSection = () => (
         🚀 Unlike Buffer or Hootsuite...
       </h2>
       <p className="text-lg md:text-xl mb-6 text-gray-600 dark:text-gray-300">
-        <strong>Only Bluesky tool</strong> for direct sales via DM campaigns
+        <strong>The only tool built specifically</strong> for Bluesky creators and their unique needs
       </p>
       <div className="flex flex-col sm:flex-row justify-center items-center gap-6 sm:gap-8">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-gray-200 dark:bg-gray-700 rounded-lg flex items-center justify-center">
             <span className="text-lg">❌</span>
           </div>
-          <span className="text-sm sm:text-base text-gray-600 dark:text-gray-400">Others: Just analytics</span>
+          <span className="text-sm sm:text-base text-gray-600 dark:text-gray-400">Others: Generic social tools</span>
         </div>
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
             <span className="text-lg">✅</span>
           </div>
-          <span className="text-sm sm:text-base font-medium text-gray-900 dark:text-white">Skynalytic: Direct revenue</span>
+          <span className="text-sm sm:text-base font-medium text-gray-900 dark:text-white">Skynalytic: Bluesky-native features</span>
         </div>
       </div>
     </div>
@@ -346,10 +346,10 @@ const ProblemSolutionSection = () => (
     <div className="max-w-6xl mx-auto">
       <div className="text-center mb-16">
         <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-900 dark:text-white">
-          Turn Silent Followers Into Revenue
+          Break Through the Creator's Biggest Struggle
         </h2>
         <p className="text-lg md:text-xl text-gray-600 dark:text-gray-300">
-          Stop leaving money on the table.
+          Stop letting inconsistency kill your creative momentum.
         </p>
       </div>
       <div className="grid md:grid-cols-2 gap-8">
@@ -358,13 +358,13 @@ const ProblemSolutionSection = () => (
             The Problem
           </div>
           <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
-            Your Audience is Silent & Not Buying
+            The Fear Every Creator Knows Too Well
           </h3>
           <p className="text-gray-600 dark:text-gray-300 mb-4">
-            Posts ignored. Followers stagnate. Revenue lost.
+            You pour your heart into creating. But life gets busy. You skip a day. Then another.
           </p>
           <p className="text-gray-600 dark:text-gray-300 mb-4">
-            Inactive audience = zero sales opportunities.
+            Your audience forgets you exist. Your momentum dies. Your dreams feel further away.
           </p>
         </div>
         <div className="p-6 md:p-8 bg-white dark:bg-blue-900/10 rounded-xl border border-blue-200 dark:border-blue-800 shadow-sm">
@@ -372,13 +372,13 @@ const ProblemSolutionSection = () => (
             Our Solution
           </div>
           <h3 className="text-xl font-bold mb-4 text-gray-900 dark:text-white">
-            Direct Monetization via Smart DM Campaigns
+            Never Miss Your Creative Window Again
           </h3>
           <p className="text-gray-600 dark:text-gray-300 mb-4">
-            Target prospects. Send personalized DMs. Convert to customers.
+            Schedule when inspiration strikes. Post when your audience is ready. Stay consistent effortlessly.
           </p>
           <p className="text-gray-600 dark:text-gray-300">
-            Unlike other tools - we focus on direct sales, not just analytics.
+            Built for creators who understand that consistency is the bridge between talent and success.
           </p>
         </div>
       </div>
@@ -387,24 +387,24 @@ const ProblemSolutionSection = () => (
       <div className="mt-16 max-w-4xl mx-auto">
         <div className="text-center mb-8">
           <h3 className="text-2xl md:text-3xl font-bold mb-4 text-gray-900 dark:text-white">
-            Why Skynalytic vs Other Tools?
+            Why Creators Choose Skynalytic
           </h3>
         </div>
         <div className="grid md:grid-cols-3 gap-6">
           <div className="p-6 bg-gray-100 dark:bg-gray-800/30 rounded-xl text-center">
             <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-3">Buffer/Hootsuite</h4>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Just scheduling & analytics</p>
-            <p className="text-xs text-red-500 mt-2">❌ No direct monetization</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Generic scheduling, not creator-focused</p>
+            <p className="text-xs text-red-500 mt-2">❌ No Bluesky-native features</p>
           </div>
           <div className="p-6 bg-gray-100 dark:bg-gray-800/30 rounded-xl text-center">
             <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-3">Generic Social Tools</h4>
-            <p className="text-sm text-gray-600 dark:text-gray-400">Basic follower tracking</p>
-            <p className="text-xs text-red-500 mt-2">❌ No sales features</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400">Built for marketers, not creators</p>
+            <p className="text-xs text-red-500 mt-2">❌ No understanding of creative workflow</p>
           </div>
           <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl text-center border-2 border-blue-200 dark:border-blue-800">
             <h4 className="font-semibold text-blue-700 dark:text-blue-300 mb-3">Skynalytic</h4>
-            <p className="text-sm text-blue-600 dark:text-blue-400">Smart DM campaigns + analytics</p>
-            <p className="text-xs text-green-600 dark:text-green-400 mt-2">✅ Direct customer conversion</p>
+            <p className="text-sm text-blue-600 dark:text-blue-400">Made by creators, for creators</p>
+            <p className="text-xs text-green-600 dark:text-green-400 mt-2">✅ Built for creative consistency</p>
           </div>
         </div>
       </div>
@@ -480,7 +480,7 @@ const CrosspostingSection = () => (
               onClick={() => (window.location.href = '/dashboard')}
               className="bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
             >
-              Monetize My Audience Now
+              Start My Creative Journey
               <ArrowRight className="w-5 h-5" />
             </Button>
           </div>
@@ -576,7 +576,7 @@ const AnalyticsSection = () => (
               onClick={() => (window.location.href = '/dashboard')}
               className="bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
             >
-              Start Converting Followers
+              Start Growing Consistently
               <ArrowRight className="w-5 h-5" />
             </Button>
           </div>
@@ -690,7 +690,7 @@ const RelationshipTrackerSection = () => (
               onClick={() => (window.location.href = '/dashboard')}
               className="bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
             >
-              Optimize My Revenue
+              Build My Creative Presence
               <ArrowRight className="w-5 h-5" />
             </Button>
           </div>
@@ -713,22 +713,22 @@ const DMCampaignSection = () => (
       <div className="space-y-8 md:space-y-12">
         {/* Badge */}
         <div className="inline-flex items-center bg-blue-100 dark:bg-blue-900/30 px-6 md:px-8 py-3 md:py-4 rounded-full text-sm md:text-base font-medium text-blue-700 dark:text-blue-400 border border-blue-200 dark:border-blue-800 shadow-lg">
-          <span className="mr-3 text-lg md:text-xl">💼</span>
-          Automated Prospecting
+          <span className="mr-3 text-lg md:text-xl">🎯</span>
+          Audience Intelligence
         </div>
 
         {/* Title */}
         <h2 className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight text-gray-900 dark:text-white">
-          Turn followers into customers with{' '}
+          Advanced audience insights with{' '}
           <span className="bg-gradient-to-r from-blue-500 to-blue-700 bg-clip-text text-transparent">
-            precision targeting
+            smart targeting
           </span>
         </h2>
 
         {/* Description */}
         <p className="text-lg md:text-xl lg:text-2xl text-gray-600 dark:text-gray-300 max-w-4xl mx-auto leading-relaxed">
-          Create prospect lists from any account's followers. Send personalized DMs with smart variables. 
-          Maximize conversion rates and revenue.
+          Understand your audience deeply. Create targeted content that resonates. 
+          Build meaningful connections with your community.
         </p>
 
         {/* Image */}
@@ -754,30 +754,30 @@ const DMCampaignSection = () => (
             <div className="w-16 md:w-20 h-16 md:h-20 bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/30 rounded-xl md:rounded-2xl flex items-center justify-center mx-auto shadow-lg">
               <Target className="w-8 md:w-10 h-8 md:h-10 text-blue-500" />
             </div>
-            <h3 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Precision Targeting</h3>
+            <h3 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Deep Audience Understanding</h3>
             <p className="text-sm md:text-base text-gray-600 dark:text-gray-300 leading-relaxed">
-              Target by bio keywords, follower count, engagement. 
-              Convert prospects into customers with laser-focused campaigns.
+              Analyze followers by interests, engagement patterns, and content preferences. 
+              Create content that truly connects with your community.
             </p>
           </div>
           <div className="text-center space-y-4 md:space-y-6 p-6 md:p-8 bg-white/60 dark:bg-gray-800/30 rounded-xl md:rounded-2xl border border-blue-100 dark:border-blue-800/30 backdrop-blur-sm hover:bg-white/80 dark:hover:bg-gray-800/50 transition-all duration-300">
             <div className="w-16 md:w-20 h-16 md:h-20 bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/30 rounded-xl md:rounded-2xl flex items-center justify-center mx-auto shadow-lg">
               <Zap className="w-8 md:w-10 h-8 md:h-10 text-blue-500" />
             </div>
-            <h3 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Sales-Driven Personalization</h3>
+            <h3 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Smart Content Personalization</h3>
             <p className="text-sm md:text-base text-gray-600 dark:text-gray-300 leading-relaxed">
-              Use {'{name}'}, {'{bio_keywords}'}, {'{follower_count}'} variables. 
-              Each DM customized for maximum conversion and revenue.
+              Use audience insights to craft personalized content and messages. 
+              Build authentic connections that convert followers into true fans.
             </p>
           </div>
           <div className="text-center space-y-4 md:space-y-6 p-6 md:p-8 bg-white/60 dark:bg-gray-800/30 rounded-xl md:rounded-2xl border border-blue-100 dark:border-blue-800/30 backdrop-blur-sm hover:bg-white/80 dark:hover:bg-gray-800/50 transition-all duration-300 md:col-span-2 lg:col-span-1">
             <div className="w-16 md:w-20 h-16 md:h-20 bg-gradient-to-br from-blue-100 to-blue-200 dark:from-blue-900/30 dark:to-blue-800/30 rounded-xl md:rounded-2xl flex items-center justify-center mx-auto shadow-lg">
               <Brain className="w-8 md:w-10 h-8 md:h-10 text-blue-500" />
             </div>
-            <h3 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Revenue-Driven Automation</h3>
+            <h3 className="text-xl md:text-2xl font-bold text-gray-900 dark:text-white">Growth-Focused Automation</h3>
             <p className="text-sm md:text-base text-gray-600 dark:text-gray-300 leading-relaxed">
-              Set up once. AI handles sales process. 
-              Smart timing, follow-ups, tracking to convert prospects into revenue.
+              Set up once, grow consistently. Smart scheduling, audience insights, 
+              and engagement tracking to build your creative community.
             </p>
           </div>
         </div>
@@ -790,11 +790,11 @@ const DMCampaignSection = () => (
             onClick={() => (window.location.href = '/dashboard')}
             className="bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 px-8 md:px-12 py-4 md:py-5 text-lg md:text-xl shadow-2xl hover:shadow-3xl transform hover:scale-105 transition-all duration-300"
           >
-            Launch My First Campaign
+            Build My Audience
             <ArrowRight className="w-6 md:w-7 h-6 md:h-7" />
           </Button>
           <p className="text-gray-500 dark:text-gray-400 text-base md:text-lg mt-4 md:mt-6">
-            100% Free - Start converting prospects into customers
+            100% Free - Start building authentic connections
           </p>
         </div>
       </div>
@@ -882,11 +882,11 @@ const VideoSection = () => (
           onClick={() => (window.location.href = '/dashboard')}
           className="bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
         >
-          Start Selling Today
+          Start Creating Today
           <ArrowRight className="w-5 h-5" />
         </Button>
         <p className="text-gray-500 dark:text-gray-400 text-lg mt-4">
-          100% Free - Turn followers into revenue
+          100% Free - Begin your creative journey
         </p>
       </div>
     </div>
@@ -1100,23 +1100,23 @@ function Home({ businessPlanCounter }: Props) {
 
   return (
     <>
-      <Head title="Skynalytic - Turn Bluesky Followers Into Paying Customers | DM Campaigns & AI Marketing">
-        <meta name="description" content="The only Bluesky tool that lets you directly monetize your audience. Run targeted DM campaigns, track performance, and convert followers into customers automatically." />
-        <meta name="keywords" content="bluesky monetization, bluesky dm campaigns, bluesky marketing, bluesky revenue, bluesky sales automation, bluesky customer conversion" />
+      <Head title="Skynalytic - The Best Bluesky Scheduling Tool for Creators | Artists & Writers">
+        <meta name="description" content="The best scheduling tool for Bluesky creators, artists, and writers. Create consistently, grow authentically, and build your creative presence with smart scheduling and audience insights." />
+        <meta name="keywords" content="bluesky scheduling, bluesky creators, bluesky artists, bluesky writers, content creators, bluesky tool, social media scheduling, creative consistency" />
         
         {/* Google Search Console Verification - REMPLACEZ PAR VOTRE CODE */}
         
         {/* Open Graph */}
-        <meta property="og:title" content="Skynalytic - Turn Bluesky Followers Into Paying Customers" />
-        <meta property="og:description" content="The only Bluesky tool that lets you directly sell to your audience. Run targeted DM campaigns and convert followers into revenue automatically." />
+        <meta property="og:title" content="Skynalytic - The Best Bluesky Scheduling Tool for Creators" />
+        <meta property="og:description" content="Create consistently, grow authentically. The scheduling tool built specifically for Bluesky creators, artists, and writers." />
         <meta property="og:url" content="https://bluesky-bot.com" />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Skynalytic" />
         
         {/* Twitter Card */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Skynalytic - Turn Bluesky Followers Into Customers" />
-        <meta name="twitter:description" content="The only Bluesky tool for direct audience monetization via targeted DM campaigns and smart automation" />
+        <meta name="twitter:title" content="Skynalytic - Best Bluesky Scheduling Tool for Creators" />
+        <meta name="twitter:description" content="The scheduling tool that understands creators. Built specifically for Bluesky artists, writers, and content creators." />
         <meta name="twitter:site" content="@skynalytic" />
         
         {/* Additional SEO Meta */}
@@ -1133,7 +1133,7 @@ function Home({ businessPlanCounter }: Props) {
               "@context": "https://schema.org",
               "@type": "SoftwareApplication",
               "name": "Skynalytic",
-              "description": "AI-powered marketing automation tool for Bluesky social media platform. Schedule posts, analyze audience, and automate engagement.",
+              "description": "The best scheduling and audience intelligence tool for Bluesky creators, artists, and writers. Create consistently and grow authentically.",
               "url": "https://bluesky-bot.com",
               "applicationCategory": "BusinessApplication",
               "operatingSystem": "Web",
@@ -1149,12 +1149,12 @@ function Home({ businessPlanCounter }: Props) {
                 "url": "https://bluesky-bot.com"
               },
               "featureList": [
-                "AI Audience Analysis",
-                "Post Scheduling",
-                "Follower Tracking", 
-                "Engagement Automation",
-                "Analytics Dashboard",
-                "DM Campaigns"
+                "Smart Scheduling",
+                "Audience Intelligence", 
+                "Creator Analytics",
+                "Consistency Tools",
+                "Growth Tracking",
+                "Community Building"
               ]
             }
           `}
@@ -1227,11 +1227,11 @@ function Home({ businessPlanCounter }: Props) {
         <HeroSection businessPlanCounter={businessPlanCounter} />
         <UniqueValueSection />
         <ProblemSolutionSection />
-        <DMCampaignSection />
-        <TestimonialsSection />
         <CrosspostingSection />
         <AnalyticsSection />
+        <TestimonialsSection />
         <RelationshipTrackerSection />
+        <DMCampaignSection />
         <VideoSection />
         <Footer />
       </div>
