@@ -162,7 +162,7 @@ function Pricing({ user, businessPlanCounter }: Props) {
       key: 'business',
       price: 1,
       period: '/month',
-      description: 'Limited to first 50 users only!',
+      description: 'Limited to first 15 users only!',
       icon: Crown,
       iconColor: 'text-gold-500',
       cardBorder: 'border-gold-500 shadow-xl scale-105 bg-gradient-to-br from-gold-50 to-yellow-50 dark:from-gold-900/20 dark:to-yellow-900/20',
