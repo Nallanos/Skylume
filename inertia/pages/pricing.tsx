@@ -162,7 +162,7 @@ function Pricing({ user, businessPlanCounter }: Props) {
       key: 'business',
       price: 1,
       period: '/month',
-      description: 'Limited to first 50 users only!',
+      description: 'Limited to first 15 users only!',
       icon: Crown,
       iconColor: 'text-gold-500',
       cardBorder: 'border-gold-500 shadow-xl scale-105 bg-gradient-to-br from-gold-50 to-yellow-50 dark:from-gold-900/20 dark:to-yellow-900/20',
@@ -217,14 +217,14 @@ function Pricing({ user, businessPlanCounter }: Props) {
               </span>
             </h1>
             <p className="text-xl text-gray-600 dark:text-gray-300 max-w-2xl mx-auto mb-8">
-              Get unlimited access to all premium features for just $1/month - Limited to the first 50 users!
+              Get unlimited access to all premium features for just $1/month - Limited to the first 15 users!
             </p>
 
             {/* Compteur des places restantes */}
             {businessPlanCounter && (
               <div className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-red-100 to-orange-100 dark:from-red-900/30 dark:to-orange-900/30 text-red-800 dark:text-red-200 rounded-full text-lg font-bold border-2 border-red-200 dark:border-red-800 mb-6">
                 <Timer className="w-5 h-5 mr-2" />
-                <span>Only {businessPlanCounter.availableSpots} spots left out of 50!</span>
+                <span>Only {businessPlanCounter.availableSpots} spots left out of 15!</span>
               </div>
             )}
             
@@ -278,8 +278,8 @@ function Pricing({ user, businessPlanCounter }: Props) {
                       </div>
                       {plan.specialOffer && (
                         <div className="mt-2">
-                          <span className="text-sm text-gray-500 line-through">Usually $19/month</span>
-                          <span className="ml-2 text-sm font-bold text-red-600">95% OFF!</span>
+                          <span className="text-sm text-gray-500 line-through">Usually $10/month</span>
+                          <span className="ml-2 text-sm font-bold text-red-600">90% OFF!</span>
                         </div>
                       )}
                     </div>
@@ -324,7 +324,7 @@ function Pricing({ user, businessPlanCounter }: Props) {
                       
                       {plan.specialOffer && businessPlanCounter && !businessPlanCounter.canSignUp && (
                         <p className="text-red-600 text-sm mt-2 font-medium">
-                          All 50 spots have been taken!
+                          All 15 spots have been taken!
                         </p>
                       )}
                     </div>
@@ -405,7 +405,7 @@ function Pricing({ user, businessPlanCounter }: Props) {
                 <CardContent className="p-6">
                   <h3 className="font-semibold mb-2 text-gray-900 dark:text-white">Why only $1/month?</h3>
                   <p className="text-gray-600 dark:text-gray-300">
-                    This is our special launch offer to celebrate the first 50 users of our platform. After these spots are taken, the price will return to the regular $19/month.
+                    This is our special launch offer to celebrate the first 15 users of our platform. After these spots are taken, the price will return to the regular $10/month.
                   </p>
                 </CardContent>
               </Card>
@@ -423,7 +423,7 @@ function Pricing({ user, businessPlanCounter }: Props) {
                 <CardContent className="p-6">
                   <h3 className="font-semibold mb-2 text-gray-900 dark:text-white">Can I upgrade later if I miss this offer?</h3>
                   <p className="text-gray-600 dark:text-gray-300">
-                    Yes, but you'll pay the regular price of $19/month. The $1/month deal is only available to the first 50 users and won't be offered again.
+                    Yes, but you'll pay the regular price of $10/month. The $1/month deal is only available to the first 15 users and won't be offered again.
                   </p>
                 </CardContent>
               </Card>
@@ -432,7 +432,7 @@ function Pricing({ user, businessPlanCounter }: Props) {
                 <CardContent className="p-6">
                   <h3 className="font-semibold mb-2 text-gray-900 dark:text-white">Is there a cancellation fee?</h3>
                   <p className="text-gray-600 dark:text-gray-300">
-                    No cancellation fees ever. However, if you cancel and want to rejoin later, you'll pay the regular $19/month price.
+                    No cancellation fees ever. However, if you cancel and want to rejoin later, you'll pay the regular $10/month price.
                   </p>
                 </CardContent>
               </Card>
@@ -469,7 +469,7 @@ function Pricing({ user, businessPlanCounter }: Props) {
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-4">
               {businessPlanCounter?.canSignUp 
                 ? "Secure your lifetime $1/month rate now" 
-                : "Regular pricing: $19/month after first 50 users"}
+                : "Regular pricing: $10/month after first 15 users"}
             </p>
           </div>
         </div>

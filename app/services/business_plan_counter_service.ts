@@ -51,11 +51,11 @@ export class BusinessPlanCounterService {
   }
 
   /**
-   * Vérifie s'il reste des places disponibles pour le plan business (limite 50)
+   * Vérifie s'il reste des places disponibles pour le plan business (limite 15)
    */
   static async getAvailableSpots(): Promise<number> {
     const currentCount = await this.getBusinessPlanCount()
-    const maxSpots = 50
+    const maxSpots = 15
     return Math.max(0, maxSpots - currentCount)
   }
 
@@ -81,7 +81,7 @@ export class BusinessPlanCounterService {
     const currentCount = await this.getBusinessPlanCount()
     const totalUsers = await this.getTotalUsersCount()
     const userHandles = await this.getUserHandlesForCarousel()
-    const maxSpots = 50
+    const maxSpots = 15
     const availableSpots = Math.max(0, maxSpots - currentCount)
     const canSignUp = availableSpots > 0
 
