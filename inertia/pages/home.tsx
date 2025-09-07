@@ -283,7 +283,7 @@ const HeroSection = ({ businessPlanCounter }: { businessPlanCounter?: BusinessPl
 
         <UserProfileCarousel 
           userHandles={businessPlanCounter?.userHandles || []} 
-          totalUsers={businessPlanCounter?.totalUsers || 50}
+          totalUsers={businessPlanCounter?.totalUsers || 15}
         />
       <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 mb-3 sm:mb-4 px-4">
         <Button variant="cta" size="cta" onClick={() => (window.location.href = '/dashboard')} className="w-full sm:w-auto">
@@ -1233,6 +1233,7 @@ function Home({ businessPlanCounter }: Props) {
         <AnalyticsSection />
         <RelationshipTrackerSection />
         <VideoSection />
+        <DMCampaignSection />
         <Footer />
       </div>
     </>
