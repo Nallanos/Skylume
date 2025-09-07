@@ -1,15 +1,20 @@
 import User from '#models/user'
 import { DateTime } from 'luxon'
 import { readFileSync } from 'fs'
+import { BaseCommand } from '@adonisjs/core/ace'
+import type { CommandOptions } from '@adonisjs/core/types/ace'
 
-export default class ImportUsersFromCsv {
+export default class ImportUsersFromCsv extends BaseCommand {
   static commandName = 'import:users:csv'
   static description = 'Import users from CSV file'
+  static options: CommandOptions = {
+    startApp: true,
+  }
 
   async run() {
     const csvPath = '/workspaces/Bluesky-copilot/data-1757015254569.csv'
     
-    console.log('Starting CSV import...')
+    this.logger.info('Starting CSV import...')
     
     try {
       // Lire le fichier CSV
@@ -31,7 +36,7 @@ export default class ImportUsersFromCsv {
         records.push(record)
       }
 
-      console.log(`Found ${records.length} records to import`)
+      this.logger.info(`Found ${records.length} records to import`)
 
       let importedCount = 0
       let skippedCount = 0
@@ -41,7 +46,7 @@ export default class ImportUsersFromCsv {
           // Vérifier si l'utilisateur existe déjà
           const existingUser = await User.find(record.id)
           if (existingUser) {
-            console.log(`User ${record.id} already exists, skipping...`)
+            this.logger.warning(`User ${record.id} already exists, skipping...`)
             skippedCount++
             continue
           }
@@ -71,19 +76,19 @@ export default class ImportUsersFromCsv {
             updatedAt: DateTime.fromISO(record.updated_at),
           })
 
-          console.log(`✅ Imported user: ${user.id}`)
+          this.logger.success(`✅ Imported user: ${user.id}`)
           importedCount++
         } catch (error: any) {
-          console.error(`❌ Failed to import user ${record.id}: ${error.message}`)
+          this.logger.error(`❌ Failed to import user ${record.id}: ${error.message}`)
         }
       }
 
-      console.log(`Import completed!`)
-      console.log(`✅ Imported: ${importedCount} users`)
-      console.log(`⚠️  Skipped: ${skippedCount} users (already exist)`)
+      this.logger.success(`Import completed!`)
+      this.logger.info(`✅ Imported: ${importedCount} users`)
+      this.logger.info(`⚠️  Skipped: ${skippedCount} users (already exist)`)
       
     } catch (error: any) {
-      console.error(`Failed to import CSV: ${error.message}`)
+      this.logger.error(`Failed to import CSV: ${error.message}`)
     }
   }
 }
