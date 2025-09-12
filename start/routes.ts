@@ -12,6 +12,8 @@ import { middleware } from './kernel.js'
 import Account from '#models/account'
 import Feed from '#models/feed'
 
+const docker_controller = () => import('#controllers/docker_controller')
+
 /*
 |--------------------------------------------------------------------------
 | STATIC PAGES
@@ -923,3 +925,32 @@ router
     }
   })
   .use(middleware.auth())
+
+/*
+|--------------------------------------------------------------------------
+| DOCKER MANAGEMENT API
+|--------------------------------------------------------------------------
+| Routes pour la gestion des containers Docker
+|
+*/
+
+router
+  .post('/api/docker/rebuild', [docker_controller, 'rebuild'])
+
+router
+  .post('/api/docker/full-rebuild', [docker_controller, 'fullRebuild'])
+
+router
+  .get('/api/docker/status', [docker_controller, 'status'])
+
+router
+  .get('/api/docker/logs', [docker_controller, 'logs'])
+
+router
+  .get('/api/docker/app-status', [docker_controller, 'appStatus'])
+
+router
+  .post('/api/docker/github-webhook', [docker_controller, 'githubWebhook'])
+
+router
+  .post('/api/docker/clean', [docker_controller, 'clean'])
