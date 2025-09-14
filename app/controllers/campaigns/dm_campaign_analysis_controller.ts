@@ -112,11 +112,17 @@ export default class DmCampaignAnalysisController {
             }
 
             console.log(`🎯 Starting campaign execution with target count: ${finalTargetCount}`)
+            
+            // ✅ FIX: Log current shouldPause state for debugging
+            if (campaign.shouldPause) {
+                console.log(`⚠️ Campaign ${campaignId} had shouldPause=true before execution start. Resetting to false.`)
+            }
 
             // Initialiser l'état d'exécution
             campaign.executionStartedAt = DateTime.now()
             campaign.executionStatus = 'running'
             campaign.shouldStop = false
+            campaign.shouldPause = false // ✅ FIX: Reset shouldPause to prevent automatic pause
             campaign.executionProgress = 0
             campaign.executionTargetCount = finalTargetCount
             campaign.executionCompletedAt = null

@@ -52,6 +52,7 @@ function DMCampaigns() {
   const { campaigns, user } = usePage<PageProps>().props
   const [loading, setLoading] = useState<{ [key: number]: boolean }>({})
   const [countingResponses, setCountingResponses] = useState<{ [key: number]: boolean }>({})
+  const [toggleLoading, setToggleLoading] = useState<{ [key: number]: boolean }>({}) // ✅ FIX: Add toggle loading state
 
   const getStatusBadge = (status: string) => {
     const statusMap: Record<string, { label: string; variant: 'secondary' | 'default' | 'destructive' }> = {
@@ -93,6 +94,25 @@ function DMCampaigns() {
   }
 
   const handleToggleStatus = async (campaignId: number) => {
+    // ✅ FIX: Prevent duplicate requests
+    if (toggleLoading[campaignId]) {
+      console.log(`Toggle already in progress for campaign ${campaignId}`)
+      return
+    }
+
+    const campaign = campaigns.find(c => c.id === campaignId)
+    
+    // ✅ FIX: Add confirmation for critical actions
+    if (campaign?.status && campaign.number_of_message_sent > 0) {
+      if (!confirm('This will toggle the status of an active campaign. Are you sure?')) {
+        return
+      }
+    }
+
+    console.log(`🔄 Toggling campaign ${campaignId} status at:`, new Date().toISOString())
+    
+    setToggleLoading({ ...toggleLoading, [campaignId]: true })
+    
     try {
       const response = await fetch(`/campaign/toggle/${campaignId}`, {
         method: 'POST',
@@ -105,16 +125,20 @@ function DMCampaigns() {
       if (response.ok) {
         const data = await response.json()
         if (data.success) {
+          console.log(`✅ Campaign ${campaignId} status toggled successfully`)
           // Reload the page to show updated status
           window.location.reload()
         }
       } else {
         const errorData = await response.json()
+        console.error(`❌ Failed to toggle campaign ${campaignId} status:`, errorData)
         alert(errorData.error || 'Failed to toggle campaign status')
       }
     } catch (error) {
-      console.error('Error toggling campaign status:', error)
+      console.error(`❌ Error toggling campaign ${campaignId} status:`, error)
       alert('Error toggling campaign status. Please try again.')
+    } finally {
+      setToggleLoading({ ...toggleLoading, [campaignId]: false })
     }
   }
 
@@ -283,8 +307,11 @@ function DMCampaigns() {
                             size="sm"
                             variant="outline"
                             onClick={() => handleToggleStatus(campaign.id)}
+                            disabled={toggleLoading[campaign.id]} // ✅ FIX: Disable during loading
                           >
-                            {campaign.status ? (
+                            {toggleLoading[campaign.id] ? (
+                              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-600"></div>
+                            ) : campaign.status ? (
                               <Pause className="h-4 w-4" />
                             ) : (
                               <Play className="h-4 w-4" />

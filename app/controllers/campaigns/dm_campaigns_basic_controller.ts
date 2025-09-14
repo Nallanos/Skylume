@@ -74,11 +74,23 @@ export default class DmCampaignsBasicController {
         try {
             const campaignId = params.campaign_id || request.input('campaign_id')
             const campaign = await DmCampaign.findOrFail(campaignId)
+            
+            // ✅ FIX: Prevent toggle during active execution to avoid race conditions
+            if (campaign.executionStatus === 'running') {
+                console.log(`⚠️ Cannot toggle campaign ${campaignId} status: execution is currently running`)
+                return response.status(400).json({ 
+                    error: 'Cannot toggle campaign status while execution is running. Please pause or stop the execution first.' 
+                })
+            }
+            
+            console.log(`🔄 Toggling campaign ${campaignId} status from ${campaign.status} to ${!campaign.status}`)
             campaign.status = !campaign.status
             await campaign.save()
+            
+            console.log(`✅ Campaign ${campaignId} status toggled successfully to ${campaign.status}`)
             return response.json({ success: true, status: campaign.status })
         } catch (error) {
-            console.error(error)
+            console.error(`❌ Error toggling campaign status:`, error)
             return response.status(404).json({ error: error.message })
         }
     }
