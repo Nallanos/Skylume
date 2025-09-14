@@ -33,6 +33,15 @@ import BatchActions from '../components/BatchActions'
 import RelationshipEvolutionChart from '../components/RelationshipEvolutionChart'
 import FollowerTrackerSkeleton from '../components/FollowerTrackerSkeleton'
 
+// Utility function to format numbers
+const formatNumber = (num?: number): string => {
+  if (num === undefined || num === null) return '0'
+  if (num === 0) return '0'
+  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`
+  if (num >= 1000) return `${(num / 1000).toFixed(1)}K`
+  return num.toString()
+}
+
 // Composant mémorisé pour un follower individuel
 const FollowerItem = memo(({
   follower,
@@ -253,14 +262,10 @@ const FollowerTracker = memo(function FollowerTracker({
     status: string[]
     labels: string[]
     search: string
-    followersRange: { min: number | null, max: number | null }
-    followingRange: { min: number | null, max: number | null }
   }>({
     status: [],
     labels: [],
     search: '',
-    followersRange: { min: null, max: null },
-    followingRange: { min: null, max: null }
   })
   const [loadingAll, setLoadingAll] = useState(false)
   const [batchProgress, setBatchProgress] = useState<{
@@ -301,26 +306,6 @@ const FollowerTracker = memo(function FollowerTracker({
       filtered = filtered.filter((follower) => 
         filters.labels.some((label: string) => follower.labels?.includes(label))
       )
-    }
-
-    // Apply followers count range filter
-    if (filters.followersRange.min !== null || filters.followersRange.max !== null) {
-      filtered = filtered.filter((follower) => {
-        const count = follower.followersCount || 0
-        const passesMin = filters.followersRange.min === null || count >= filters.followersRange.min
-        const passesMax = filters.followersRange.max === null || count <= filters.followersRange.max
-        return passesMin && passesMax
-      })
-    }
-
-    // Apply following count range filter
-    if (filters.followingRange.min !== null || filters.followingRange.max !== null) {
-      filtered = filtered.filter((follower) => {
-        const count = follower.followingCount || 0
-        const passesMin = filters.followingRange.min === null || count >= filters.followingRange.min
-        const passesMax = filters.followingRange.max === null || count <= filters.followingRange.max
-        return passesMin && passesMax
-      })
     }
 
     // Apply search filter
@@ -413,27 +398,11 @@ const FollowerTracker = memo(function FollowerTracker({
     }))
   }, [])
 
-  const updateFollowersRange = useCallback((min: number | null, max: number | null) => {
-    setFilters(prev => ({
-      ...prev,
-      followersRange: { min, max }
-    }))
-  }, [])
-
-  const updateFollowingRange = useCallback((min: number | null, max: number | null) => {
-    setFilters(prev => ({
-      ...prev,
-      followingRange: { min, max }
-    }))
-  }, [])
-
   const clearAllFilters = useCallback(() => {
     setFilters({
       status: [],
       labels: [],
       search: '',
-      followersRange: { min: null, max: null },
-      followingRange: { min: null, max: null }
     })
   }, [])
 
@@ -443,8 +412,6 @@ const FollowerTracker = memo(function FollowerTracker({
     if (filters.status.length > 0) count++
     if (filters.labels.length > 0) count++
     if (filters.search.trim()) count++
-    if (filters.followersRange.min !== null || filters.followersRange.max !== null) count++
-    if (filters.followingRange.min !== null || filters.followingRange.max !== null) count++
     return count
   }, [filters])
 
@@ -730,13 +697,6 @@ const FollowerTracker = memo(function FollowerTracker({
     router.get(`${window.location.pathname}?${params.toString()}`)
   }, [])
 
-  const formatNumber = useCallback((num?: number) => {
-    if (!num) return '0'
-    if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`
-    if (num >= 1000) return `${(num / 1000).toFixed(1)}K`
-    return num.toString()
-  }, [])
-
   // Refresh cache function - optimisée
   const handleRefreshCache = useCallback(async () => {
     setRefreshingCache(true)
@@ -1012,10 +972,9 @@ const FollowerTracker = memo(function FollowerTracker({
         {/* Stats Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           {Object.entries(statusConfig).map(([status, config]) => {
-            // Use relationship counts from backend instead of current page data
+            // Use relationship counts from backend if available, otherwise show 0
             const count =
-              relationshipCounts?.[status as keyof typeof relationshipCounts] ||
-              followers.filter((f) => f.status === status).length
+              relationshipCounts?.[status as keyof typeof relationshipCounts] || 0
             return (
               <Card key={status} className="hover:shadow-md transition-shadow">
                 <CardContent className="pt-6">
@@ -1032,19 +991,65 @@ const FollowerTracker = memo(function FollowerTracker({
           })}
         </div>
 
-        {/* Relationship Evolution Chart */}
-        <RelationshipEvolutionChart 
-          relationshipHistory={relationshipHistory}
-          currentCounts={{
-            mutual: relationshipCounts?.mutual || followers.filter(f => f.status === 'mutual').length,
-            i_follow_only: relationshipCounts?.i_follow_only || followers.filter(f => f.status === 'i_follow_only').length,
-            they_follow_only: relationshipCounts?.they_follow_only || followers.filter(f => f.status === 'they_follow_only').length,
-          }}
-        />
+        {/* No Data Loaded Notice */}
+        {followers.length === 0 && !loadingAll && (
+          <Card className="border-blue-200 bg-blue-50 dark:border-blue-800 dark:bg-blue-950">
+            <CardContent className="pt-6">
+              <div className="flex flex-col sm:flex-row items-start gap-4">
+                <div className="flex-shrink-0">
+                  <div className="w-10 h-10 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center">
+                    <Users className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-semibold text-blue-900 dark:text-blue-100 mb-2">
+                    Ready to Analyze Your Bluesky Relationships
+                  </h3>
+                  <p className="text-blue-700 dark:text-blue-300 mb-4 text-sm sm:text-base">
+                    Welcome to the Follower Tracker! This tool will help you understand and manage your follower relationships. 
+                    {relationshipCounts?.all 
+                      ? ` We found ${relationshipCounts.all} relationships in your cache.`
+                      : ' Click "Load All Data" to start analyzing your followers and following.'
+                    }
+                  </p>
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <Button 
+                      onClick={handleLoadAll} 
+                      className="bg-blue-600 hover:bg-blue-700 text-white w-full sm:w-auto"
+                      disabled={loadingAll}
+                    >
+                      <Users className="h-4 w-4 mr-2" />
+                      {loadingAll ? 'Loading...' : 'Load All Data'}
+                      {relationshipCounts?.all && ` (${relationshipCounts.all})`}
+                    </Button>
+                    <Button variant="outline" asChild className="w-full sm:w-auto">
+                      <Link href="/dashboard">
+                        Back to Dashboard
+                      </Link>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
-        {/* Controls */}
-        <Card>
-          <CardContent className="pt-6">
+        {/* Relationship Evolution Chart - only show if we have data */}
+        {(relationshipHistory.length > 0 || followers.length > 0) && (
+          <RelationshipEvolutionChart 
+            relationshipHistory={relationshipHistory}
+            currentCounts={{
+              mutual: relationshipCounts?.mutual || followers.filter(f => f.status === 'mutual').length,
+              i_follow_only: relationshipCounts?.i_follow_only || followers.filter(f => f.status === 'i_follow_only').length,
+              they_follow_only: relationshipCounts?.they_follow_only || followers.filter(f => f.status === 'they_follow_only').length,
+            }}
+          />
+        )}
+
+        {/* Controls - only show if we have data loaded */}
+        {followers.length > 0 && (
+          <Card>
+            <CardContent className="pt-6">
             <div className="flex flex-col lg:flex-row gap-4 items-start lg:items-center justify-between">
               {/* Search and Filter */}
               <div className="flex flex-col sm:flex-row gap-2 flex-1 max-w-2xl">
@@ -1119,62 +1124,6 @@ const FollowerTracker = memo(function FollowerTracker({
                             </div>
                           </div>
                         )}
-
-                        {/* Followers Range */}
-                        <div>
-                          <label className="text-sm font-medium mb-2 block">Followers Count</label>
-                          <div className="flex gap-2 items-center">
-                            <Input
-                              type="number"
-                              placeholder="Min"
-                              value={filters.followersRange.min || ''}
-                              onChange={(e) => updateFollowersRange(
-                                e.target.value ? parseInt(e.target.value) : null,
-                                filters.followersRange.max
-                              )}
-                              className="w-20"
-                            />
-                            <span className="text-sm text-muted-foreground">to</span>
-                            <Input
-                              type="number"
-                              placeholder="Max"
-                              value={filters.followersRange.max || ''}
-                              onChange={(e) => updateFollowersRange(
-                                filters.followersRange.min,
-                                e.target.value ? parseInt(e.target.value) : null
-                              )}
-                              className="w-20"
-                            />
-                          </div>
-                        </div>
-
-                        {/* Following Range */}
-                        <div>
-                          <label className="text-sm font-medium mb-2 block">Following Count</label>
-                          <div className="flex gap-2 items-center">
-                            <Input
-                              type="number"
-                              placeholder="Min"
-                              value={filters.followingRange.min || ''}
-                              onChange={(e) => updateFollowingRange(
-                                e.target.value ? parseInt(e.target.value) : null,
-                                filters.followingRange.max
-                              )}
-                              className="w-20"
-                            />
-                            <span className="text-sm text-muted-foreground">to</span>
-                            <Input
-                              type="number"
-                              placeholder="Max"
-                              value={filters.followingRange.max || ''}
-                              onChange={(e) => updateFollowingRange(
-                                filters.followingRange.min,
-                                e.target.value ? parseInt(e.target.value) : null
-                              )}
-                              className="w-20"
-                            />
-                          </div>
-                        </div>
 
                         {/* Clear Filters */}
                         <div className="pt-2 border-t">
@@ -1265,9 +1214,10 @@ const FollowerTracker = memo(function FollowerTracker({
             </div>
           </CardContent>
         </Card>
+        )}
 
         {/* Active Filters Display */}
-        {activeFiltersCount > 0 && (
+        {activeFiltersCount > 0 && followers.length > 0 && (
           <Card>
             <CardContent className="pt-4">
               <div className="flex flex-wrap gap-2 items-center">
@@ -1318,36 +1268,6 @@ const FollowerTracker = memo(function FollowerTracker({
                   </Badge>
                 )}
 
-                {/* Followers range filter */}
-                {(filters.followersRange.min !== null || filters.followersRange.max !== null) && (
-                  <Badge variant="secondary" className="flex items-center gap-1">
-                    👥 {filters.followersRange.min || 0}-{filters.followersRange.max || '∞'} followers
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-4 w-4 p-0 hover:bg-transparent"
-                      onClick={() => updateFollowersRange(null, null)}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </Badge>
-                )}
-
-                {/* Following range filter */}
-                {(filters.followingRange.min !== null || filters.followingRange.max !== null) && (
-                  <Badge variant="secondary" className="flex items-center gap-1">
-                    ➡️ {filters.followingRange.min || 0}-{filters.followingRange.max || '∞'} following
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-4 w-4 p-0 hover:bg-transparent"
-                      onClick={() => updateFollowingRange(null, null)}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </Badge>
-                )}
-
                 {/* Clear all button */}
                 <Button
                   variant="outline"
@@ -1382,23 +1302,33 @@ const FollowerTracker = memo(function FollowerTracker({
               <div className="text-center py-12">
                 <Users className="h-12 w-12 mx-auto mb-4 opacity-50" />
                 <h3 className="text-lg font-semibold mb-2">
-                  {loadingAll ? 'Loading followers...' : 'No follower data loaded'}
+                  {loadingAll ? 'Loading followers...' : 
+                   followers.length === 0 ? 'No Follower Data Loaded' : 'No Results Found'}
                 </h3>
-                <p className="text-muted-foreground">
+                <p className="text-muted-foreground mb-4">
                   {loadingAll
                     ? 'Please wait while we load all your follower data.'
-                    : filters.search ||
-                        activeFiltersCount > 0
-                      ? 'Try adjusting your search terms or filters'
-                      : followers.length === 0 && !relationshipCounts 
-                        ? 'Click "Load All Data" to fetch and analyze your follower relationships'
+                    : followers.length === 0
+                      ? 'Click "Load All Data" to fetch and analyze your follower relationships from Bluesky'
+                      : filters.search || activeFiltersCount > 0
+                        ? 'Try adjusting your search terms or filters'
                         : 'No results match your current filters'}
                 </p>
-                {!allDataLoaded && !loadingAll && (
-                  <Button onClick={handleLoadAll} className="mt-4" variant="outline">
-                    <Users className="h-4 w-4 mr-2" />
-                    Load All Data to See More Results
-                  </Button>
+                {followers.length === 0 && !loadingAll && (
+                  <div className="space-y-4">
+                    <Button 
+                      onClick={handleLoadAll} 
+                      size="lg"
+                      className="bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white px-8 py-3"
+                    >
+                      <Users className="h-5 w-5 mr-2" />
+                      Load All Follower Data
+                      {relationshipCounts?.all && ` (${relationshipCounts.all})`}
+                    </Button>
+                    <p className="text-xs text-muted-foreground">
+                      This will fetch your complete follower and following lists from Bluesky
+                    </p>
+                  </div>
                 )}
               </div>
             ) : (

@@ -12,6 +12,28 @@ import {
 } from 'lucide-react'
 import { useState, useEffect } from 'react'
 
+// TypeScript declaration for gtag (Google Analytics)
+declare global {
+  interface Window {
+    gtag?: (...args: any[]) => void
+  }
+}
+
+// Utility function for tracking events
+const trackEvent = (eventName: string, parameters: Record<string, any> = {}) => {
+  try {
+    // Google Analytics 4 event tracking
+    if (typeof window !== 'undefined' && window.gtag) {
+      window.gtag('event', eventName, parameters)
+    }
+
+    // Console log for development
+    console.log('📈 Event Tracked:', eventName, parameters)
+  } catch (error) {
+    console.warn('Event tracking failed:', error)
+  }
+}
+
 // Composant carrousel pour les profils utilisateurs
 const UserProfileCarousel = ({ userHandles, totalUsers }: { userHandles: string[], totalUsers: number }) => {
   const [currentIndex, setCurrentIndex] = useState(0)
@@ -219,7 +241,14 @@ const Navigation = ({ darkMode, toggleTheme }: { darkMode: boolean; toggleTheme:
         </a>
         <Button
           variant={"cta"}
-          onClick={() => (window.location.href = '/dashboard')}
+          onClick={() => {
+            trackEvent('cta_click', {
+              button_text: 'Start Creating',
+              button_location: 'navigation',
+              page: '/'
+            })
+            window.location.href = '/dashboard'
+          }}
           className="px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white font-medium rounded-lg transition-all duration-300 text-sm sm:text-base shadow-lg hover:shadow-xl transform hover:scale-105"
         >
           Start Creating
@@ -286,7 +315,19 @@ const HeroSection = ({ businessPlanCounter }: { businessPlanCounter?: BusinessPl
           totalUsers={businessPlanCounter?.totalUsers || 15}
         />
       <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 mb-3 sm:mb-4 px-4">
-        <Button variant="cta" size="cta" onClick={() => (window.location.href = '/dashboard')} className="w-full sm:w-auto">
+        <Button 
+          variant="cta" 
+          size="cta" 
+          onClick={() => {
+            trackEvent('cta_click', {
+              button_text: 'Start Creating Consistently',
+              button_location: 'hero_section',
+              page: '/'
+            })
+            window.location.href = '/dashboard'
+          }} 
+          className="w-full sm:w-auto"
+        >
           🎨 Start Creating Consistently
           <ArrowRight className="w-5 h-5" />
         </Button>
@@ -294,7 +335,14 @@ const HeroSection = ({ businessPlanCounter }: { businessPlanCounter?: BusinessPl
           <Button 
             variant="outline" 
             size="cta" 
-            onClick={() => (window.location.href = '/pricing')} 
+            onClick={() => {
+              trackEvent('cta_click', {
+                button_text: 'Get $1/month deal',
+                button_location: 'hero_section',
+                page: '/'
+              })
+              window.location.href = '/pricing'
+            }} 
             className="w-full sm:w-auto border-2 border-gold-500 text-gold-700 hover:bg-gold-50 dark:border-gold-400 dark:text-gold-300 dark:hover:bg-gold-900/20"
           >
             🔥 Get $1/month deal
@@ -477,7 +525,14 @@ const CrosspostingSection = () => (
             <Button
               variant="cta"
               size="cta"
-              onClick={() => (window.location.href = '/dashboard')}
+              onClick={() => {
+                trackEvent('cta_click', {
+                  button_text: 'Start My Creative Journey',
+                  button_location: 'scheduling_section',
+                  page: '/'
+                })
+                window.location.href = '/dashboard'
+              }}
               className="bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
             >
               Start My Creative Journey
@@ -573,7 +628,14 @@ const AnalyticsSection = () => (
             <Button
               variant="cta"
               size="cta"
-              onClick={() => (window.location.href = '/dashboard')}
+              onClick={() => {
+                trackEvent('cta_click', {
+                  button_text: 'Start Growing Consistently',
+                  button_location: 'analytics_section',
+                  page: '/'
+                })
+                window.location.href = '/dashboard'
+              }}
               className="bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
             >
               Start Growing Consistently
@@ -687,7 +749,14 @@ const RelationshipTrackerSection = () => (
             <Button
               variant="cta"
               size="cta"
-              onClick={() => (window.location.href = '/dashboard')}
+              onClick={() => {
+                trackEvent('cta_click', {
+                  button_text: 'Build My Creative Presence',
+                  button_location: 'relationships_section',
+                  page: '/'
+                })
+                window.location.href = '/dashboard'
+              }}
               className="bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
             >
               Build My Creative Presence
@@ -787,7 +856,14 @@ const DMCampaignSection = () => (
           <Button
             variant="cta"
             size="cta"
-            onClick={() => (window.location.href = '/dashboard')}
+            onClick={() => {
+              trackEvent('cta_click', {
+                button_text: 'Build My Audience',
+                button_location: 'dm_campaigns_section',
+                page: '/'
+              })
+              window.location.href = '/dashboard'
+            }}
             className="bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 px-8 md:px-12 py-4 md:py-5 text-lg md:text-xl shadow-2xl hover:shadow-3xl transform hover:scale-105 transition-all duration-300"
           >
             Build My Audience
@@ -879,7 +955,14 @@ const VideoSection = () => (
         <Button 
           variant="cta" 
           size="cta" 
-          onClick={() => (window.location.href = '/dashboard')}
+          onClick={() => {
+            trackEvent('cta_click', {
+              button_text: 'Start Creating Today',
+              button_location: 'final_cta_section',
+              page: '/'
+            })
+            window.location.href = '/dashboard'
+          }}
           className="bg-gradient-to-r from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 shadow-xl hover:shadow-2xl transform hover:scale-105 transition-all duration-300"
         >
           Start Creating Today
@@ -1092,6 +1175,50 @@ const useTheme = () => {
 
 function Home({ businessPlanCounter }: Props) {
   const { darkMode, mounted, toggleTheme } = useTheme()
+
+  // Track page view manually for SPA route change
+  useEffect(() => {
+    if (mounted) {
+      // Manual page view tracking for home route
+      const trackPageView = () => {
+        try {
+          // Check if gtag is available (Google Analytics)
+          if (typeof window !== 'undefined' && (window as any).gtag) {
+            (window as any).gtag('config', 'GA_MEASUREMENT_ID', {
+              page_title: 'Home - Skynalytic',
+              page_location: window.location.href
+            })
+          }
+
+          // Custom analytics endpoint (if you have one)
+          // fetch('/api/analytics/page-view', {
+          //   method: 'POST',
+          //   headers: { 'Content-Type': 'application/json' },
+          //   body: JSON.stringify({
+          //     page: '/',
+          //     title: 'Home - Skynalytic',
+          //     url: window.location.href,
+          //     timestamp: new Date().toISOString()
+          //   })
+          // }).catch(err => console.warn('Analytics tracking failed:', err))
+
+          // Console log for development tracking
+          console.log('📊 Page View Tracked:', {
+            page: '/',
+            title: 'Home - Skynalytic',
+            url: window.location.href,
+            timestamp: new Date().toISOString(),
+            userAgent: navigator.userAgent
+          })
+        } catch (error) {
+          console.warn('Page view tracking failed:', error)
+        }
+      }
+
+      // Track page view on mount
+      trackPageView()
+    }
+  }, [mounted])
 
   // Éviter le flash avant hydratation
   if (!mounted) {

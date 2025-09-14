@@ -58,7 +58,7 @@ export default class FollowerTrackerController {
   }
 
   /**
-   * Display the Follower Tracker page - only check cache, never fetch fresh data
+   * Display the Follower Tracker page - only show empty state, no automatic data loading
    */
   public async index({ inertia, auth, params }: HttpContext) {
     const user = auth.user
@@ -78,34 +78,6 @@ export default class FollowerTrackerController {
         .where('userId', user.id)
         .firstOrFail()
 
-      // Check if we have cached data - if yes, return it, if no, return empty
-      const cacheKey = `follower_relationships:${account.did || account.handle}`
-      let followers: FollowerWithStatus[] = []
-      let relationshipCounts: any = null
-      let pagination: any = null
-
-      try {
-        const cachedData = await redis.get(cacheKey)
-        if (cachedData) {
-          const parsed = JSON.parse(cachedData)
-          if (parsed.allUsers && Array.isArray(parsed.allUsers) && 
-              parsed.relationshipCounts && typeof parsed.relationshipCounts === 'object') {
-            followers = parsed.allUsers.slice(0, 20) // Show first 20 from cache
-            relationshipCounts = parsed.relationshipCounts
-            pagination = {
-              currentPage: 1,
-              totalPages: Math.ceil(parsed.allUsers.length / 20),
-              totalCount: parsed.allUsers.length,
-              hasNextPage: parsed.allUsers.length > 20,
-              hasPrevPage: false,
-              loadedAll: true
-            }
-          }
-        }
-      } catch (cacheError) {
-        console.warn('Cache retrieval failed:', cacheError)
-      }
-
       // Get relationship history for the last 30 days
       const relationshipHistory = await RelationshipHistory
         .query()
@@ -113,23 +85,39 @@ export default class FollowerTrackerController {
         .where('recorded_at', '>=', DateTime.now().minus({ days: 30 }).startOf('day').toJSDate())
         .orderBy('recorded_at', 'asc')
 
+      // Check if we have cached data available (but don't load it automatically)
+      const cacheKey = `follower_relationships:${account.did || account.handle}`
+      let relationshipCounts: any = null
+      
+      try {
+        const cachedData = await redis.get(cacheKey)
+        if (cachedData) {
+          const parsed = JSON.parse(cachedData)
+          if (parsed.relationshipCounts && typeof parsed.relationshipCounts === 'object') {
+            relationshipCounts = parsed.relationshipCounts
+          }
+        }
+      } catch (cacheError) {
+        console.warn('Cache retrieval failed:', cacheError)
+      }
+
       return inertia.render('FollowerTracker', {
-        followers,
+        followers: [], // Always start with empty data
         account: {
           id: account.id,
           handle: account.handle,
           did: account.did,
           followersCount: account.followers_count || 0,
         },
-        relationshipCounts,
+        relationshipCounts, // Will be null if no cache, or the cached counts
         relationshipHistory: relationshipHistory.map(r => ({
           date: r.recordedAt.toFormat('yyyy-MM-dd'),
           mutual: r.mutualCount,
           i_follow_only: r.iFollowOnlyCount,
           they_follow_only: r.theyFollowOnlyCount
         })),
-        pagination,
-        isLoading: false // Never loading in index - data is either available from cache or empty
+        pagination: null, // No pagination for empty initial state
+        isLoading: false
       })
     } catch (error) {
       console.error('Error in FollowerTracker:', error)
@@ -570,6 +558,11 @@ export default class FollowerTrackerController {
       // Extract labels from profile
       const labels = profile.labels?.map(label => label.val || 'unlabeled') || []
 
+      // Debug log for the first few profiles to check count data
+      if (allUsers.length < 5) {
+        console.log(`Debug ${profile.handle}: followersCount=${profile.followersCount}, followsCount=${profile.followsCount}`)
+      }
+
       allUsers.push({
         did: profile.did,
         handle: profile.handle,
@@ -579,7 +572,7 @@ export default class FollowerTrackerController {
         labels: labels,
         status: status,
         followersCount: profile.followersCount as number | undefined,
-        followingCount: profile.followsCount as number | undefined,
+        followingCount: profile.followsCount as number | undefined, // Note: API uses followsCount not followingCount
         viewer: profile.viewer
       })
     }
@@ -605,6 +598,21 @@ export default class FollowerTrackerController {
     console.log(`- Mutual follows: ${relationshipCounts.mutual} (validation: ${validationCounts.mutual})`)
     console.log(`- They follow only: ${relationshipCounts.they_follow_only} (validation: ${validationCounts.they_follow_only})`)
     console.log(`- I follow only: ${relationshipCounts.i_follow_only} (validation: ${validationCounts.i_follow_only})`)
+
+    // Count data availability statistics
+    const countStats = {
+      withFollowersCount: allUsers.filter(u => u.followersCount !== undefined && u.followersCount !== null).length,
+      withFollowingCount: allUsers.filter(u => u.followingCount !== undefined && u.followingCount !== null).length,
+      withBothCounts: allUsers.filter(u => 
+        (u.followersCount !== undefined && u.followersCount !== null) && 
+        (u.followingCount !== undefined && u.followingCount !== null)
+      ).length,
+      total: allUsers.length
+    }
+    console.log(`Count data availability for ${account.handle}:`)
+    console.log(`- With followers count: ${countStats.withFollowersCount}/${countStats.total} (${Math.round(countStats.withFollowersCount/countStats.total*100)}%)`)
+    console.log(`- With following count: ${countStats.withFollowingCount}/${countStats.total} (${Math.round(countStats.withFollowingCount/countStats.total*100)}%)`)
+    console.log(`- With both counts: ${countStats.withBothCounts}/${countStats.total} (${Math.round(countStats.withBothCounts/countStats.total*100)}%)`)
 
     // Warn if validation fails
     if (relationshipCounts.mutual !== validationCounts.mutual ||
@@ -966,6 +974,11 @@ export default class FollowerTrackerController {
       }
 
       const labels = profile.labels?.map(label => label.val || 'unlabeled') || []
+
+      // Debug log for the first few profiles to check count data
+      if (allUsers.length < 5) {
+        console.log(`Debug ${profile.handle}: followersCount=${profile.followersCount}, followsCount=${profile.followsCount}`)
+      }
 
       allUsers.push({
         did: profile.did,
