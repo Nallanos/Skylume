@@ -495,4 +495,60 @@ export default class SchedulingsController {
             return response.redirect('/schedule')
         }
     }
+
+    // ✅ NOUVEAU: API pour gérer les créneaux personnalisés
+    public async getScheduleSlots({ auth, response }: HttpContext) {
+        const user = auth.user
+        if (!user) {
+            return response.unauthorized({ message: 'User not authenticated' })
+        }
+
+        try {
+            await user.load('scheduleSlots')
+            return response.ok({ scheduleSlots: user.scheduleSlots })
+        } catch (error) {
+            console.error('[DEBUG] Error loading schedule slots:', error)
+            return response.internalServerError({ message: 'Failed to load schedule slots' })
+        }
+    }
+
+    public async saveScheduleSlots({ auth, request, response }: HttpContext) {
+        const user = auth.user
+        if (!user) {
+            return response.unauthorized({ message: 'User not authenticated' })
+        }
+
+        try {
+            const { scheduleSlots } = request.all()
+            
+            // Supprimer tous les créneaux existants de l'utilisateur
+            const ScheduleSlot = (await import('#models/schedule_slot')).default
+            await ScheduleSlot.query().where('user_id', user.id).delete()
+
+            // Créer les nouveaux créneaux
+            const slotsToCreate = []
+            for (const [timeSlot, dayConfig] of Object.entries(scheduleSlots as Record<string, any>)) {
+                slotsToCreate.push({
+                    userId: user.id,
+                    timeSlot: timeSlot,
+                    monday: dayConfig.monday || false,
+                    tuesday: dayConfig.tuesday || false,
+                    wednesday: dayConfig.wednesday || false,
+                    thursday: dayConfig.thursday || false,
+                    friday: dayConfig.friday || false,
+                    saturday: dayConfig.saturday || false,
+                    sunday: dayConfig.sunday || false,
+                })
+            }
+
+            if (slotsToCreate.length > 0) {
+                await ScheduleSlot.createMany(slotsToCreate)
+            }
+
+            return response.ok({ message: 'Schedule slots saved successfully' })
+        } catch (error) {
+            console.error('[DEBUG] Error saving schedule slots:', error)
+            return response.internalServerError({ message: 'Failed to save schedule slots' })
+        }
+    }
 }

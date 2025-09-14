@@ -858,6 +858,15 @@ router
   .put('/schedule/delete', [schedulings_controller, 'deletePost'])
   .use(middleware.auth())
 
+// ✅ NOUVEAU: Routes pour les créneaux personnalisés
+router
+  .get('/api/schedule-slots', [schedulings_controller, 'getScheduleSlots'])
+  .use(middleware.auth())
+
+router
+  .post('/api/schedule-slots', [schedulings_controller, 'saveScheduleSlots'])
+  .use(middleware.auth())
+
 router
   .put('/schedule/edit', [schedulings_controller, 'editPost'])
   .use(middleware.auth())

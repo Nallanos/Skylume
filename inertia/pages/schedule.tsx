@@ -10,7 +10,7 @@ import LinkHighlightTextarea from '../components/LinkHighlightTextarea'
 import CustomSelect, { type Option } from '../components/ui/CustomSelect'
 import { Button } from '../components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
-import { Plus, Trash, Lock, Edit, User, Settings, FileText, X, Shield, Video, Twitter } from 'lucide-react'
+import { Plus, Trash, Lock, Edit, User, FileText, X, Shield, Video, Twitter, Calendar } from 'lucide-react'
 import { Input } from '../components/ui/input'
 import { Label } from '../components/ui/label'
 import BlueskyAvatar from '../components/BlueskyAvatar'
@@ -39,7 +39,6 @@ interface User {
   email: string
   plan?: string
   isScheduledLimitReached?: boolean
-  postsPerDay?: number
   currentStreak?: number
   longestStreak?: number
   isStreakActive?: boolean
@@ -182,6 +181,21 @@ function Schedule({ schedulings }: ScheduleProps) {
   const user = props.user as User
   const accounts = user.account || []
 
+  // ✅ NOUVEAU: Fonction pour obtenir la date/heure actuelle au format datetime-local
+  const getCurrentDateTime = useCallback(() => {
+    const now = new Date()
+    // Ajouter 5 minutes pour éviter les problèmes de timing
+    now.setMinutes(now.getMinutes() + 5)
+    return now.toISOString().slice(0, 16)
+  }, [])
+
+  // ✅ NOUVEAU: Validation des dates dans le passé
+  const isDateInPast = useCallback((dateTimeString: string) => {
+    const selectedDate = new Date(dateTimeString)
+    const now = new Date()
+    return selectedDate <= now
+  }, [])
+
   const [editingSchedule, setEditingSchedule] = useState<Scheduling | null>(null)
   const [localDateTime, setLocalDateTime] = useState('')
   const [showAddModal, setShowAddModal] = useState(false)
@@ -192,9 +206,68 @@ function Schedule({ schedulings }: ScheduleProps) {
   const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([])
   const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('')
   const [selectedDate, setSelectedDate] = useState<string>('')
-  const [showSettingsModal, setShowSettingsModal] = useState(false)
-  const [tempPostsPerDay, setTempPostsPerDay] = useState<number>(user.postsPerDay || 3)
   const [currentSelectValue, setCurrentSelectValue] = useState<string>('') // ✅ NOUVEAU: Contrôler la valeur du select
+  
+  // ✅ NOUVEAU: États pour les horaires personnalisés
+  const [showCustomTimesModal, setShowCustomTimesModal] = useState(false)
+  const [customTimes, setCustomTimes] = useState<string[]>(['9:00 AM', '12:00 PM', '3:00 PM', '6:00 PM', '8:00 PM'])
+  // ✅ MODIFIÉ: Structure pour gérer les horaires par jour individuellement
+  const [scheduledSlots, setScheduledSlots] = useState<{[timeSlot: string]: {[day: string]: boolean}}>({
+    '9:00 AM': { monday: true, tuesday: true, wednesday: true, thursday: true, friday: true, saturday: false, sunday: false },
+    '12:00 PM': { monday: true, tuesday: true, wednesday: true, thursday: true, friday: true, saturday: true, sunday: true },
+    '3:00 PM': { monday: true, tuesday: true, wednesday: true, thursday: true, friday: true, saturday: true, sunday: true },
+    '6:00 PM': { monday: true, tuesday: true, wednesday: true, thursday: true, friday: true, saturday: false, sunday: false },
+    '8:00 PM': { monday: false, tuesday: false, wednesday: false, thursday: false, friday: false, saturday: true, sunday: true }
+  })
+  const [newCustomTime, setNewCustomTime] = useState('')
+  
+  // ✅ NOUVEAU: Charger les créneaux depuis la base de données
+  useEffect(() => {
+    const loadScheduleSlots = async () => {
+      try {
+        const response = await fetch('/api/schedule-slots', {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        })
+        
+        if (response.ok) {
+          const data = await response.json()
+          
+          if (data.scheduleSlots && data.scheduleSlots.length > 0) {
+            // Convertir les données de la base de données vers notre format frontend
+            const newCustomTimes: string[] = []
+            const newScheduledSlots: {[timeSlot: string]: {[day: string]: boolean}} = {}
+            
+            data.scheduleSlots.forEach((slot: any) => {
+              const timeSlot = slot.timeSlot
+              if (!newCustomTimes.includes(timeSlot)) {
+                newCustomTimes.push(timeSlot)
+              }
+              
+              newScheduledSlots[timeSlot] = {
+                monday: slot.monday,
+                tuesday: slot.tuesday,
+                wednesday: slot.wednesday,
+                thursday: slot.thursday,
+                friday: slot.friday,
+                saturday: slot.saturday,
+                sunday: slot.sunday
+              }
+            })
+            
+            setCustomTimes(newCustomTimes)
+            setScheduledSlots(newScheduledSlots)
+          }
+        }
+      } catch (error) {
+        console.error('Error loading schedule slots:', error)
+      }
+    }
+    
+    loadScheduleSlots()
+  }, [])
   
   // Media state (images and videos)
   const [selectedImages, setSelectedImages] = useState<File[]>([])
@@ -298,17 +371,20 @@ function Schedule({ schedulings }: ScheduleProps) {
     }
   }, [isTwitterSelected, selectedImages.length, selectedVideos.length])
 
-  
-  // Generate time slots based on posts per day - memoized
-  const timeSlots = useMemo(() => {
-    const generateTimeSlots = (postsCount: number) => {
-      const baseSlots = ['9:28 AM', '12:30 PM', '3:15 PM', '5:26 PM', '7:45 PM', '9:20 PM', '11:00 AM', '2:10 PM', '6:35 PM', '8:50 PM']
-      return baseSlots.slice(0, Math.min(postsCount, baseSlots.length))
+  // ✅ NOUVEAU: Fonction utilitaire pour convertir le format 12h en minutes depuis minuit
+  const timeToMinutes = useCallback((timeStr: string) => {
+    const [time, period] = timeStr.split(' ')
+    const [hours, minutes] = time.split(':').map(Number)
+    
+    let adjustedHours = hours
+    if (period === 'PM' && hours !== 12) {
+      adjustedHours += 12
+    } else if (period === 'AM' && hours === 12) {
+      adjustedHours = 0
     }
-    return generateTimeSlots(user.postsPerDay || 3)
-  }, [user.postsPerDay])
-  
-  const maxSlotsPerDay = user.postsPerDay || 3 // Use user preference or default to 3
+    
+    return adjustedHours * 60 + minutes
+  }, [])
 
   const upcomingDays = useMemo(() => {
     const days = []
@@ -340,6 +416,25 @@ function Schedule({ schedulings }: ScheduleProps) {
 
     return days
   }, [groupedSchedulings])
+
+  // ✅ NOUVEAU: Calculer les posts visibles dans la semaine vs le total
+  const weeklyStats = useMemo(() => {
+    const visiblePosts = upcomingDays.reduce((total, day) => total + day.scheduledPosts.length, 0)
+    const remainingPosts = sortedSchedulings.filter(post => {
+      const postDate = new Date(post.scheduleTime)
+      const weekEndDate = new Date()
+      weekEndDate.setDate(weekEndDate.getDate() + 7) // 7 jours à partir d'aujourd'hui
+      weekEndDate.setHours(23, 59, 59, 999) // Fin de la journée
+      
+      return postDate > weekEndDate
+    })
+    
+    return {
+      total: sortedSchedulings.length,
+      visible: visiblePosts,
+      remaining: remainingPosts
+    }
+  }, [upcomingDays, sortedSchedulings])
 
   // Optimiser les fonctions avec useCallback pour éviter les re-renders
   const deleteSchedule = useCallback(async (schedule_id: number) => {
@@ -380,6 +475,12 @@ function Schedule({ schedulings }: ScheduleProps) {
   const saveEdit = useCallback(async () => {
     if (!editingSchedule) return
 
+    // ✅ NOUVEAU: Validation de la date dans le passé
+    if (isDateInPast(localDateTime)) {
+      alert('Cannot schedule a post in the past. Please select a future date and time.')
+      return
+    }
+
     const localDate = new Date(localDateTime)
 
     const payload = {
@@ -390,7 +491,7 @@ function Schedule({ schedulings }: ScheduleProps) {
 
     await router.put('/schedule/edit', payload)
     setEditingSchedule(null)
-  }, [editingSchedule, localDateTime])
+  }, [editingSchedule, localDateTime, isDateInPast])
 
   // Function to insert hashtags into the message
   const insertHashtags = useCallback((hashtags: string[]) => {
@@ -551,6 +652,12 @@ function Schedule({ schedulings }: ScheduleProps) {
       finalDateTime = new Date(addDateTime).toISOString()
     }
 
+    // ✅ NOUVEAU: Validation de la date dans le passé
+    if (isDateInPast(finalDateTime)) {
+      alert('Cannot schedule a post in the past. Please select a future date and time.')
+      return
+    }
+
     // ✅ NOUVEAU: Envoyer tous les comptes sélectionnés en une seule requête
     const formData = new FormData()
     formData.append('message', addMessage)
@@ -612,7 +719,7 @@ function Schedule({ schedulings }: ScheduleProps) {
     setContentWarnings([])
     setExplicitLinks([]) // ✅ NOUVEAU: Reset des liens explicites
     setShowAddModal(false)
-  }, [addMessage, selectedAccountIds, addDateTime, selectedDate, selectedTimeSlot, selectedImages, selectedVideos, imageAltTexts, videoAltTexts, contentWarnings, explicitLinks, accounts])
+  }, [addMessage, selectedAccountIds, addDateTime, selectedDate, selectedTimeSlot, selectedImages, selectedVideos, imageAltTexts, videoAltTexts, contentWarnings, explicitLinks, accounts, isDateInPast])
 
   const startEdit = useCallback((schedule: Scheduling) => {
     setEditingSchedule({ ...schedule })
@@ -621,21 +728,120 @@ function Schedule({ schedulings }: ScheduleProps) {
     setLocalDateTime(localISOString)
   }, [])
 
-  const savePostsPerDay = useCallback(async () => {
-    try {
-      await router.put('/schedule/editPostPerDay', { postsPerDay: tempPostsPerDay })
-      setShowSettingsModal(false)
-      // Backend redirect handles reload
-    } catch (error) {
-      console.error('Error saving posts per day:', error)
-    }
-  }, [tempPostsPerDay])
-
   const handleSlotClick = useCallback((date: string, timeSlot: string) => {
+    // ✅ NOUVEAU: Vérifier si la date/heure sélectionnée est dans le passé
+    const [time, period] = timeSlot.split(' ')
+    const [hours, minutes] = time.split(':').map(Number)
+    let adjustedHours = hours
+    
+    if (period === 'PM' && hours !== 12) {
+      adjustedHours += 12
+    } else if (period === 'AM' && hours === 12) {
+      adjustedHours = 0
+    }
+
+    const scheduleDate = new Date(date)
+    scheduleDate.setHours(adjustedHours, minutes, 0, 0)
+    
+    if (scheduleDate <= new Date()) {
+      alert('Cannot schedule a post in the past. Please select a future time slot.')
+      return
+    }
+
     setSelectedDate(date)
     setSelectedTimeSlot(timeSlot)
     setShowAddModal(true)
   }, [])
+
+  // ✅ NOUVEAU: Obtenir les créneaux actifs pour un jour donné
+  const getActiveSlotsForDay = useCallback((date: string) => {
+    const dayOfWeek = new Date(date).getDay()
+    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
+    const dayName = dayNames[dayOfWeek]
+    
+    return customTimes.filter(time => scheduledSlots[time]?.[dayName]).sort((a, b) => {
+      // ✅ MODIFIÉ: Utiliser une fonction de tri plus robuste
+      return timeToMinutes(a) - timeToMinutes(b)
+    })
+  }, [customTimes, scheduledSlots, timeToMinutes])
+
+  const addCustomTime = useCallback(() => {
+    if (!newCustomTime.trim()) return
+    
+    // Validation du format de l'heure
+    const timeRegex = /^(1[0-2]|0?[1-9]):([0-5][0-9])\s?(AM|PM)$/i
+    if (!timeRegex.test(newCustomTime.trim())) {
+      alert('Please enter time in format: HH:MM AM/PM (e.g., 9:30 AM)')
+      return
+    }
+    
+    const formattedTime = newCustomTime.trim().toUpperCase()
+    if (!customTimes.includes(formattedTime)) {
+      setCustomTimes(prev => [...prev, formattedTime].sort((a, b) => {
+        // ✅ MODIFIÉ: Utiliser la même fonction de tri robuste
+        return timeToMinutes(a) - timeToMinutes(b)
+      }))
+      
+      // ✅ NOUVEAU: Initialiser le nouveau créneau avec tous les jours activés
+      setScheduledSlots(prev => ({
+        ...prev,
+        [formattedTime]: {
+          monday: true,
+          tuesday: true,
+          wednesday: true,
+          thursday: true,
+          friday: true,
+          saturday: true,
+          sunday: true
+        }
+      }))
+    }
+    setNewCustomTime('')
+  }, [newCustomTime, customTimes, timeToMinutes])
+
+  const removeCustomTime = useCallback((timeToRemove: string) => {
+    setCustomTimes(prev => prev.filter(time => time !== timeToRemove))
+    setScheduledSlots(prev => {
+      const newSlots = { ...prev }
+      delete newSlots[timeToRemove]
+      return newSlots
+    })
+  }, [])
+
+  const toggleDay = useCallback((timeSlot: string, day: string) => {
+    setScheduledSlots(prev => ({
+      ...prev,
+      [timeSlot]: {
+        ...prev[timeSlot],
+        [day]: !prev[timeSlot]?.[day]
+      }
+    }))
+  }, [])
+
+  const saveCustomTimes = useCallback(async () => {
+    try {
+      const response = await fetch('/api/schedule-slots', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          scheduleSlots: scheduledSlots
+        })
+      })
+      
+      if (response.ok) {
+        console.log('Schedule slots saved successfully')
+        setShowCustomTimesModal(false)
+      } else {
+        console.error('Failed to save schedule slots')
+        // TODO: Ajouter une notification d'erreur
+      }
+    } catch (error) {
+      console.error('Error saving schedule slots:', error)
+      // TODO: Ajouter une notification d'erreur
+    }
+  }, [scheduledSlots])
 
   // Optimized functions for media handling (images and videos)
   const handleMediaSelect = useCallback(async (files: FileList | null) => {
@@ -850,14 +1056,9 @@ function Schedule({ schedulings }: ScheduleProps) {
               <h1 className="text-2xl font-bold">Schedule Queue</h1>
               <div className="flex items-center gap-4 mt-1">
                 <p className="text-muted-foreground">
-                  {sortedSchedulings.length > 0
-                    ? `${sortedSchedulings.length} post${sortedSchedulings.length > 1 ? 's' : ''} in queue`
+                  {weeklyStats.total > 0
+                    ? `${weeklyStats.total} post${weeklyStats.total > 1 ? 's' : ''} in queue${weeklyStats.remaining.length > 0 ? ` (${weeklyStats.visible} this week)` : ''}`
                     : 'No posts scheduled'} 
-                  {user.postsPerDay && (
-                    <span className="text-xs ml-2 px-2 py-1 bg-blue-100 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300 rounded">
-                      {user.postsPerDay} posts/day max
-                    </span>
-                  )}
                 </p>
                 
                 {/* Streak Display */}
@@ -876,18 +1077,19 @@ function Schedule({ schedulings }: ScheduleProps) {
               {isFreeLimitReached && (
                 <div className="flex items-center gap-2 text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 rounded-lg text-sm font-medium">
                   <Lock className="h-4 w-4" />
-                  Free limit reached ({sortedSchedulings.length}/7)
+                  Free limit reached ({weeklyStats.total}/7)
                 </div>
               )}
 
-              {/* Settings Button */}
+              {/* Custom Times Button */}
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setShowSettingsModal(true)}
+                onClick={() => setShowCustomTimesModal(true)}
                 className="h-8 px-3"
+                title="Custom posting times"
               >
-                <Settings className="h-4 w-4" />
+                <Calendar className="h-4 w-4" />
               </Button>
 
               <Button
@@ -925,6 +1127,13 @@ function Schedule({ schedulings }: ScheduleProps) {
 
                   {/* Afficher les créneaux prédéfinis disponibles si on n'a pas atteint la limite */}
                   {useMemo(() => {
+                    // ✅ MODIFIÉ: Utiliser les créneaux spécifiques au jour
+                    const activeSlotsForDay = getActiveSlotsForDay(day.date)
+                    
+                    if (activeSlotsForDay.length === 0) {
+                      return null // Aucun créneau actif pour ce jour
+                    }
+
                     const usedSlots = day.scheduledPosts.map((post) => {
                       return new Date(post.scheduleTime).toLocaleTimeString('en-US', {
                         hour: 'numeric',
@@ -933,11 +1142,28 @@ function Schedule({ schedulings }: ScheduleProps) {
                       })
                     })
 
-                    const availableSlots = timeSlots.filter((slot) => !usedSlots.includes(slot))
-                    const remainingSlots = Math.max(0, maxSlotsPerDay - day.scheduledPosts.length)
-                    const slotsToShow = availableSlots.slice(0, remainingSlots)
+                    const availableSlots = activeSlotsForDay.filter((slot) => {
+                      // Filter out used slots
+                      if (usedSlots.includes(slot)) return false
+                      
+                      // ✅ NOUVEAU: Filter out slots in the past
+                      const [time, period] = slot.split(' ')
+                      const [hours, minutes] = time.split(':').map(Number)
+                      let adjustedHours = hours
+                      
+                      if (period === 'PM' && hours !== 12) {
+                        adjustedHours += 12
+                      } else if (period === 'AM' && hours === 12) {
+                        adjustedHours = 0
+                      }
 
-                    return slotsToShow.map((timeSlot) => (
+                      const scheduleDate = new Date(day.date)
+                      scheduleDate.setHours(adjustedHours, minutes, 0, 0)
+                      
+                      return scheduleDate > new Date() // Only show future slots
+                    })
+
+                    return availableSlots.map((timeSlot) => (
                       <EmptyTimeSlot
                         key={`empty-${timeSlot}`}
                         timeSlot={timeSlot}
@@ -946,10 +1172,31 @@ function Schedule({ schedulings }: ScheduleProps) {
                         onSlotClick={handleSlotClick}
                       />
                     ))
-                  }, [day.scheduledPosts, day.date, timeSlots, maxSlotsPerDay, isFreeLimitReached, handleSlotClick])}
+                  }, [day.scheduledPosts, day.date, isFreeLimitReached, handleSlotClick, getActiveSlotsForDay])}
                 </div>
               </div>
             ))}
+
+            {/* ✅ NOUVEAU: Posts restants après la semaine */}
+            {weeklyStats.remaining.length > 0 && (
+              <div className="space-y-3">
+                <div className="border-b border-gray-200 dark:border-gray-700 pb-2">
+                  <h2 className="text-lg font-semibold text-foreground">Later ({weeklyStats.remaining.length} posts)</h2>
+                  <p className="text-sm text-muted-foreground">Posts scheduled beyond this week</p>
+                </div>
+
+                <div className="grid gap-3">
+                  {weeklyStats.remaining.map((schedule) => (
+                    <ScheduledPostItem
+                      key={schedule.id}
+                      post={schedule}
+                      onEdit={setEditingSchedule}
+                      onDelete={deleteSchedule}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Global Add Button */}
             <Card
@@ -1003,6 +1250,7 @@ function Schedule({ schedulings }: ScheduleProps) {
                       type="datetime-local"
                       value={localDateTime}
                       onChange={(e) => setLocalDateTime(e.target.value)}
+                      min={getCurrentDateTime()}
                       className="mt-1"
                     />
                   </div>
@@ -1451,6 +1699,7 @@ function Schedule({ schedulings }: ScheduleProps) {
                         type="datetime-local"
                         value={addDateTime}
                         onChange={(e) => setAddDateTime(e.target.value)}
+                        min={getCurrentDateTime()}
                         className="mt-1"
                       />
                     )}
@@ -1485,54 +1734,6 @@ function Schedule({ schedulings }: ScheduleProps) {
                         setOversizedImages([]) // ✅ NOUVEAU: Reset des images oversized
                         setShowCompressionModal(false) // ✅ NOUVEAU: Fermer le modal de compression
                         setVideoValidationError('')
-                      }}
-                      className="flex-1"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          {/* Settings Modal */}
-          {showSettingsModal && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-              <Card className="w-full max-w-lg mx-4">
-                <CardHeader>
-                  <CardTitle>Schedule Settings</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="postsPerDay" className="text-sm font-medium">
-                      Posts per day
-                    </Label>
-                    <div className="mt-1">
-                      <Input
-                        id="postsPerDay"
-                        type="number"
-                        min="1"
-                        max="10"
-                        value={tempPostsPerDay}
-                        onChange={(e) => setTempPostsPerDay(parseInt(e.target.value) || 1)}
-                        className="w-full"
-                      />
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Choose how many posts you want to schedule per day (1-10)
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex gap-3 pt-2">
-                    <Button onClick={savePostsPerDay} className="flex-1 bg-blue-500">
-                      Save Settings
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setShowSettingsModal(false)
-                        setTempPostsPerDay(user.postsPerDay || 3)
                       }}
                       className="flex-1"
                     >
@@ -1609,6 +1810,159 @@ function Schedule({ schedulings }: ScheduleProps) {
                         setOversizedImages([])
                       }}
                       disabled={isCompressing}
+                      className="flex-1"
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* ✅ NOUVEAU: Custom Times Modal */}
+          {showCustomTimesModal && (
+            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+              <Card className="w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5" />
+                    Custom Posting Schedule
+                  </CardTitle>
+                  <p className="text-sm text-muted-foreground">
+                    Configure your personalized posting times for each day of the week
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-6">
+                  
+                  {/* Time Zone Display */}
+                  <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                          Organization time zone
+                        </p>
+                        <p className="text-sm text-blue-700 dark:text-blue-300">
+                          Current time: {new Date().toLocaleString('en-US', {
+                            weekday: 'short',
+                            month: 'short', 
+                            day: 'numeric',
+                            year: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit',
+                            hour12: true,
+                            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
+                          })}
+                        </p>
+                      </div>
+                      <div className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                        {Intl.DateTimeFormat().resolvedOptions().timeZone}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Weekly Schedule Grid */}
+                  <div>
+                    <h3 className="text-lg font-semibold mb-4">Weekly posting times</h3>
+                    
+                    {/* Days Header */}
+                    <div className="grid grid-cols-8 gap-2 mb-4">
+                      <div className="text-sm font-medium text-muted-foreground p-3">Time</div>
+                      {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
+                        <div key={day} className="text-center">
+                          <div className="text-sm font-medium text-muted-foreground p-3">{day}</div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    {/* Time Slots Grid */}
+                    <div className="space-y-2">
+                      {customTimes
+                        .sort((a, b) => {
+                          // ✅ MODIFIÉ: Utiliser la fonction de tri robuste
+                          return timeToMinutes(a) - timeToMinutes(b)
+                        })
+                        .map((time, timeIndex) => (
+                        <div key={timeIndex} className="grid grid-cols-8 gap-2 items-center">
+                          {/* Time Column */}
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-blue-600 dark:text-blue-400 min-w-[70px]">
+                              {time}
+                            </span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => removeCustomTime(time)}
+                              className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </div>
+                          
+                          {/* Day Checkboxes */}
+                          {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
+                            <div key={day} className="flex justify-center">
+                              <button
+                                onClick={() => toggleDay(time, day)}
+                                className={`w-8 h-8 rounded-full border-2 transition-all ${
+                                  scheduledSlots[time]?.[day]
+                                    ? 'bg-blue-600 border-blue-600 text-white'
+                                    : 'border-gray-300 dark:border-gray-600 hover:border-blue-400'
+                                }`}
+                              >
+                                {scheduledSlots[time]?.[day] && (
+                                  <svg className="w-4 h-4 mx-auto" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                                  </svg>
+                                )}
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Add New Time */}
+                    <div className="mt-6 p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
+                      <div className="flex items-center gap-3">
+                        <Plus className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                        <Input
+                          type="text"
+                          placeholder="Add time (e.g., 9:30 AM)"
+                          value={newCustomTime}
+                          onChange={(e) => setNewCustomTime(e.target.value)}
+                          className="flex-1"
+                          onKeyPress={(e) => {
+                            if (e.key === 'Enter') {
+                              addCustomTime()
+                            }
+                          }}
+                        />
+                        <Button
+                          onClick={addCustomTime}
+                          size="sm"
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
+                          Add
+                        </Button>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Enter time in 12-hour format (e.g., 9:30 AM, 2:15 PM)
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3 pt-4">
+                    <Button
+                      onClick={saveCustomTimes}
+                      className="flex-1 bg-blue-600 text-white hover:bg-blue-700"
+                    >
+                      Save changes
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowCustomTimesModal(false)}
                       className="flex-1"
                     >
                       Cancel

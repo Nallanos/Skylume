@@ -10,6 +10,7 @@ import type { HasMany } from '@adonisjs/lucid/types/relations'
 import Scheduling from './scheduling.js'
 import FollowersHistory from './followers_history.js'
 import HashtagGroup from './hashtag_group.js'
+import ScheduleSlot from './schedule_slot.js'
 const AuthFinder = withAuthFinder(() => hash.use('scrypt'), {
   uids: ['id'],
   passwordColumnName: 'password',
@@ -81,6 +82,9 @@ export default class User extends compose(BaseModel, AuthFinder) {
 
   @hasMany(() => HashtagGroup)
   declare hashtagGroups: HasMany<typeof HashtagGroup>
+
+  @hasMany(() => ScheduleSlot)
+  declare scheduleSlots: HasMany<typeof ScheduleSlot>
 
   @column()
   declare token_app_password: string | null

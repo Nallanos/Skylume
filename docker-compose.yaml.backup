@@ -1,0 +1,101 @@
+version: '3.8'
+
+services:
+
+  # app:
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    # env_file:
+    #   - .env
+    # environment:
+    #   - TZ=${TZ:-UTC}
+    #   - PORT=${PORT:-8081}
+    #   - HOST=${HOST:-0.0.0.0}
+    #   - LOG_LEVEL=${LOG_LEVEL:-debug}
+    #   - APP_KEY=${APP_KEY}
+    #   - NODE_ENV=${NODE_ENV:-production}
+    #   - SESSION_DRIVER=${SESSION_DRIVER:-cookie}
+    #   - DB_HOST=postgresql
+    #   - DB_PORT=${DB_PORT:-5432}
+    #   - DB_USER=${DB_USER}
+    #   - DB_PASSWORD=${DB_PASSWORD}
+    #   - DB_DATABASE=${DB_DATABASE}
+    #   - QUEUE_REDIS_HOST=redis
+    #   - QUEUE_REDIS_PORT=${REDIS_PORT:-6379}
+    #   - QUEUE_REDIS_PASSWORD=${REDIS_PASSWORD}
+    #   - REDIS_HOST=redis
+    #   - REDIS_PORT=${REDIS_PORT:-6379}
+    #   - REDIS_PASSWORD=${REDIS_PASSWORD}
+    #   - STRIPE_PUBLIC_KEY=${STRIPE_PUBLIC_KEY}
+    #   - STRIPE_SECRET_KEY=${STRIPE_SECRET_KEY}
+    #   - STRIPE_PRICE_ID=${STRIPE_PRICE_ID}
+    #   - STRIPE_WEBHOOK_SECRET=${STRIPE_WEBHOOK_SECRET}
+    # depends_on:
+    #   - postgresql
+    #   - redis
+    # labels:
+    #   - traefik.enable=true
+    #   - traefik.http.routers.app.rule=Host(`bluesky-bot.com`)
+    #   - traefik.http.services.app.loadbalancer.server.port=8081
+    #   - traefik.http.routers.app.entrypoints=websecure
+    #   - traefik.http.routers.app.tls.certresolver=myresolver
+    # networks:
+    #   - bluesky-copilot_default
+
+  postgresql:
+    image: postgres:16.4
+    restart: always
+    environment:
+      POSTGRES_USER: blueskybluesky
+      POSTGRES_PASSWORD: blueskybluesky
+      POSTGRES_DB: blueskybluesky
+    ports:
+      - 5432:5432
+    volumes:
+      - ./psqlrc:/root/.psqlrc
+      - postgresql_data:/var/lib/postgresql/data
+    networks:
+      - bluesky-copilot_default
+
+  redis:
+    image: redis:7.4.1-alpine
+    ports:
+      - 6379:6379
+    volumes:
+      - ./redis.conf:/usr/local/etc/redis/redis.conf
+    command: ['redis-server', '/usr/local/etc/redis/redis.conf']
+    networks:
+      - bluesky-copilot_default
+
+  reverse-proxy:
+    image: traefik:v3.3
+    command:
+      - '--api.insecure=false'
+      - '--providers.docker=true'
+      - '--providers.docker.exposedbydefault=false'
+      - '--entryPoints.web.address=:80'
+      - '--entryPoints.websecure.address=:443'
+      - '--certificatesresolvers.myresolver.acme.httpchallenge=true'
+      - '--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web'
+      #- "--certificatesresolvers.myresolver.acme.caserver=https://acme-staging-v02.api.letsencrypt.org/directory"
+      - '--certificatesresolvers.myresolver.acme.email=benameurallan06@gmail.com'
+      - '--certificatesresolvers.myresolver.acme.storage=/letsencrypt/acme.json'
+    ports:
+      - '80:80'
+      - '443:443'
+      - '8080:8080'
+    labels:
+      - traefik.enable=true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - './letsencrypt:/letsencrypt'
+    networks:
+      - bluesky-copilot_default
+
+volumes:
+  postgresql_data:
+
+networks:
+  bluesky-copilot_default:
+    driver: bridge

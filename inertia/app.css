@@ -238,3 +238,21 @@
 .dark .github-cell-level-4 {
   background-color: #39d353; /* Dark green level 4 */
 }
+
+/* Custom toggle switch styles */
+.toggle-checkbox:checked {
+  transform: translateX(100%);
+  border-color: #3B82F6;
+}
+
+.toggle-checkbox:checked + .toggle-label {
+  background-color: #3B82F6;
+}
+
+.toggle-label {
+  transition: background-color 0.2s ease;
+}
+
+.toggle-checkbox {
+  transition: transform 0.2s ease;
+}
