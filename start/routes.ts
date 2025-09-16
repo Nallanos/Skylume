@@ -29,6 +29,26 @@ router.on('/password/reset').renderInertia('contact-us')
 
 /*
 |--------------------------------------------------------------------------
+| SEO & ROBOTS
+|--------------------------------------------------------------------------
+| Routes pour les fichiers SEO (robots.txt, sitemap.xml)
+|
+*/
+
+// Route pour robots.txt
+router.get('/robots.txt', async ({ response }) => {
+  response.header('Content-Type', 'text/plain')
+  return response.download('public/robots.txt')
+})
+
+// Route pour sitemap.xml
+router.get('/sitemap.xml', async ({ response }) => {
+  response.header('Content-Type', 'application/xml')
+  return response.download('public/sitemap.xml')
+})
+
+/*
+|--------------------------------------------------------------------------
 | AUTHENTICATED PAGES
 |--------------------------------------------------------------------------
 | Routes pour les pages nécessitant une authentification

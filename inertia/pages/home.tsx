@@ -312,7 +312,7 @@ const HeroSection = ({ businessPlanCounter }: { businessPlanCounter?: BusinessPl
 
         <UserProfileCarousel 
           userHandles={businessPlanCounter?.userHandles || []} 
-          totalUsers={businessPlanCounter?.totalUsers || 15}
+          totalUsers={businessPlanCounter?.totalUsers || 10}
         />
       <div className="flex flex-col sm:flex-row justify-center gap-3 sm:gap-4 mb-3 sm:mb-4 px-4">
         <Button 
