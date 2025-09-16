@@ -113,20 +113,14 @@ export default class DmCampaignAnalysisController {
 
             console.log(`🎯 Starting campaign execution with target count: ${finalTargetCount}`)
             
-            // ✅ FIX: Log current shouldPause state for debugging
-            if (campaign.shouldPause) {
-                console.log(`⚠️ Campaign ${campaignId} had shouldPause=true before execution start. Resetting to false.`)
-            }
-
-            // Initialiser l'état d'exécution
-            campaign.executionStartedAt = DateTime.now()
-            campaign.executionStatus = 'running'
-            campaign.shouldStop = false
-            campaign.shouldPause = false // ✅ FIX: Reset shouldPause to prevent automatic pause
+            // ✅ FIX: Use new state management system instead of dual flags
+            await campaign.transitionToRunning()
             campaign.executionProgress = 0
             campaign.executionTargetCount = finalTargetCount
             campaign.executionCompletedAt = null
             await campaign.save()
+
+            console.log(`✅ Campaign ${campaignId} started with state: ${campaign.executionState}`)
 
             // Initialiser le contexte de campagne pour l'exécution
             await this.initializeCampaignContext(campaignId.toString())
@@ -172,10 +166,8 @@ export default class DmCampaignAnalysisController {
                 })
             }
 
-            // Marquer pour arrêt
-            campaign.shouldStop = true
-            campaign.executionStatus = 'stopping'
-            await campaign.save()
+            // Use new state management system
+            await campaign.transitionToStopped()
 
             console.log(`🛑 Campaign execution stop requested for campaign ${campaignId}`)
 
@@ -209,10 +201,8 @@ export default class DmCampaignAnalysisController {
                 })
             }
 
-            // Marquer pour pause
-            campaign.shouldPause = true
-            campaign.executionStatus = 'paused'
-            await campaign.save()
+            // Use new state management system
+            await campaign.transitionToPaused()
 
             console.log(`⏸️ Campaign execution pause requested for campaign ${campaignId}`)
 
@@ -246,10 +236,8 @@ export default class DmCampaignAnalysisController {
                 })
             }
 
-            // Retirer la pause et relancer
-            campaign.shouldPause = false
-            campaign.executionStatus = 'running'
-            await campaign.save()
+            // Use new state management system
+            await campaign.transitionToRunning()
 
             console.log(`▶️ Campaign execution resume requested for campaign ${campaignId}`)
 
@@ -282,9 +270,11 @@ export default class DmCampaignAnalysisController {
 
             return response.json({
                 executionStatus: campaign.executionStatus,
+                executionState: campaign.executionState, // ✅ NEW: Return unified state
                 executionProgress: campaign.executionProgress || 0,
                 executionTargetCount: campaign.executionTargetCount || 0,
-                shouldStop: campaign.shouldStop || false,
+                shouldStop: campaign.shouldStop || false, // Keep for backward compatibility
+                shouldPause: campaign.shouldPause || false, // Keep for backward compatibility
                 executionStartedAt: campaign.executionStartedAt,
                 executionCompletedAt: campaign.executionCompletedAt
             })
@@ -304,16 +294,19 @@ export default class DmCampaignAnalysisController {
 
             // Mettre à jour les statistiques de la campagne
             campaign.number_of_message_sent += messagesSent
-            campaign.executionStatus = campaign.shouldStop ? 'stopped' : 'completed'
-            campaign.executionCompletedAt = DateTime.now()
-            await campaign.save()
-
-            console.log(`Campaign execution completed: ${messagesSent} messages sent`)
+            
+            // ✅ FIX: Use new state management to determine final state
+            if (campaign.isStopped()) {
+                // Campaign was already stopped during execution
+                console.log(`Campaign execution stopped: ${messagesSent} messages sent`)
+            } else {
+                // Campaign completed normally
+                await campaign.transitionToCompleted()
+                console.log(`Campaign execution completed: ${messagesSent} messages sent`)
+            }
         } catch (error) {
             console.error('❌ Error in executeByGroupsAsync:', error)
-            campaign.executionStatus = 'failed'
-            campaign.executionCompletedAt = DateTime.now()
-            await campaign.save()
+            await campaign.transitionToFailed()
             throw error
         }
     }
@@ -441,18 +434,16 @@ export default class DmCampaignAnalysisController {
                 
                 // Envoyer des messages aux followers du groupe
                 for (const followerCampaign of groupFollowers) {
-                    // Vérifier si l'arrêt a été demandé
+                    // ✅ FIX: Use new state management - single source of truth
                     await campaign.refresh()
-                    if (campaign.shouldStop) {
-                        console.log(`🛑 Execution stop requested, stopping at ${totalMessagesSent} messages sent`)
+                    
+                    if (campaign.isStopped()) {
+                        console.log(`🛑 Execution stopped, stopping at ${totalMessagesSent} messages sent`)
                         return totalMessagesSent
                     }
 
-                    // Vérifier si la pause a été demandée
-                    if (campaign.shouldPause) {
-                        console.log(`⏸️ Execution pause requested, pausing at ${totalMessagesSent} messages sent`)
-                        campaign.executionStatus = 'paused'
-                        await campaign.save()
+                    if (campaign.isPaused()) {
+                        console.log(`⏸️ Execution paused, pausing at ${totalMessagesSent} messages sent`)
                         return totalMessagesSent
                     }
 

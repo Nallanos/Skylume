@@ -78,12 +78,14 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
   const [isExecuting, setIsExecuting] = useState(false)
   const [executionStatus, setExecutionStatus] = useState<{
     status: string | null,
+    state: string | null, // NEW: unified execution state
     progress: number,
     targetCount: number,
-    shouldStop: boolean,
-    shouldPause: boolean
+    shouldStop: boolean, // Keep for backward compatibility during migration
+    shouldPause: boolean // Keep for backward compatibility during migration
   }>({
     status: null,
+    state: null, // NEW: unified execution state
     progress: 0,
     targetCount: 0,
     shouldStop: false,
@@ -294,14 +296,16 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
           const data = await response.json()
           setExecutionStatus({
             status: data.executionStatus,
+            state: data.executionState || data.executionStatus, // NEW: prefer unified state
             progress: data.executionProgress || 0,
             targetCount: data.executionTargetCount || 0,
             shouldStop: data.shouldStop || false,
             shouldPause: data.shouldPause || false
           })
 
-          // Start polling if execution is running
-          if (data.executionStatus === 'running') {
+          // Start polling if execution is running (check both old and new state)
+          const currentState = data.executionState || data.executionStatus
+          if (currentState === 'running') {
             startExecutionPolling()
           }
         }
@@ -348,9 +352,11 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
 
         if (response.ok) {
           const data = await response.json()
-          if (data.executionStatus && ['running', 'stopping', 'paused'].includes(data.executionStatus)) {
+          if ((data.executionState && ['running', 'stopping', 'paused'].includes(data.executionState)) ||
+              (data.executionStatus && ['running', 'stopping', 'paused'].includes(data.executionStatus))) {
             setExecutionStatus({
               status: data.executionStatus,
+              state: data.executionState || data.executionStatus, // NEW: prefer unified state
               progress: data.executionProgress || 0,
               targetCount: data.executionTargetCount || 0,
               shouldStop: data.shouldStop || false,
@@ -450,6 +456,7 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
           setLocalCampaign((prev) => ({ ...prev, executionStatus: 'running' }))
           setExecutionStatus({
             status: 'running',
+            state: 'running', // NEW: set unified state
             progress: 0,
             targetCount: totalTargetCount,
             shouldStop: false,
@@ -491,6 +498,7 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
           setExecutionStatus(prev => ({
             ...prev,
             status: 'stopping',
+            state: 'stopped', // NEW: use unified state
             shouldStop: true
           }))
           alert('Campaign execution stop requested!')
@@ -525,6 +533,7 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
           setExecutionStatus(prev => ({
             ...prev,
             status: 'paused',
+            state: 'paused', // NEW: use unified state
             shouldPause: true
           }))
           alert('Campaign execution paused!')
@@ -555,6 +564,7 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
           setExecutionStatus(prev => ({
             ...prev,
             status: 'running',
+            state: 'running', // NEW: use unified state
             shouldPause: false
           }))
           alert('Campaign execution resumed!')
@@ -584,14 +594,16 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
         const data = await response.json()
         setExecutionStatus({
           status: data.executionStatus,
+          state: data.executionState || data.executionStatus, // NEW: prefer unified state
           progress: data.executionProgress || 0,
           targetCount: data.executionTargetCount || 0,
           shouldStop: data.shouldStop || false,
           shouldPause: data.shouldPause || false
         })
 
-        // Mettre à jour les stats générales aussi
-        if (data.executionStatus && ['completed', 'stopped', 'failed'].includes(data.executionStatus)) {
+        // Mettre à jour les stats générales aussi - check both old and new state
+        const currentState = data.executionState || data.executionStatus
+        if (currentState && ['completed', 'stopped', 'failed'].includes(currentState)) {
           pollAnalysisStatus() // Refresh main stats
           return false // Stop polling
         }
@@ -1125,7 +1137,8 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
                   ></div>
                 </div>
                 <div className="flex justify-center gap-2">
-                  {executionStatus.status === 'running' && (
+                  {/* Use new state preferentially, fallback to old status during migration */}
+                  {(executionStatus.state === 'running' || (!executionStatus.state && executionStatus.status === 'running')) && (
                     <>
                       <Button
                         onClick={handlePauseExecution}
@@ -1146,7 +1159,7 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
                     </>
                   )}
                   
-                  {executionStatus.status === 'paused' && (
+                  {(executionStatus.state === 'paused' || (!executionStatus.state && executionStatus.status === 'paused')) && (
                     <>
                       <Button
                         onClick={handleResumeExecution}
@@ -1167,7 +1180,7 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
                     </>
                   )}
                   
-                  {executionStatus.status === 'stopping' && (
+                  {(executionStatus.state === 'stopping' || (!executionStatus.state && executionStatus.status === 'stopping')) && (
                     <Button
                       disabled
                       variant="destructive"
@@ -1208,24 +1221,26 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
             </CardContent>
           </Card>
 
-          {/* Execution Status */}
-          {executionStatus.status && (
+          {/* Execution Status - Use new state preferentially */}
+          {(executionStatus.state || executionStatus.status) && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <Send className="h-5 w-5" />
                     Execution Status
-                    {executionStatus.status === 'running' && (
+                    {(executionStatus.state === 'running' || (!executionStatus.state && executionStatus.status === 'running')) && (
                       <div className="ml-2 flex items-center gap-1">
                         <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                         <span className="text-xs text-muted-foreground">Live</span>
                       </div>
                     )}
                   </div>
-                  {(executionStatus.status === 'running' || executionStatus.status === 'paused') && (
+                  {/* Use new state preferentially for control buttons */}
+                  {((executionStatus.state && ['running', 'paused'].includes(executionStatus.state)) || 
+                    (!executionStatus.state && executionStatus.status && ['running', 'paused'].includes(executionStatus.status))) && (
                     <div className="flex items-center gap-2">
-                      {executionStatus.status === 'running' && (
+                      {(executionStatus.state === 'running' || (!executionStatus.state && executionStatus.status === 'running')) && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -1236,7 +1251,7 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
                           Pause
                         </Button>
                       )}
-                      {executionStatus.status === 'paused' && (
+                      {(executionStatus.state === 'paused' || (!executionStatus.state && executionStatus.status === 'paused')) && (
                         <Button
                           variant="default"
                           size="sm"
@@ -1264,10 +1279,10 @@ function CampaignDashboard({ user, campaign, stats }: CampaignDashboardProps) {
                 <div className="space-y-3">
                   <div className="flex items-center gap-3">
                     <div
-                      className={`w-3 h-3 rounded-full ${getStatusColor(executionStatus.status || '')}`}
+                      className={`w-3 h-3 rounded-full ${getStatusColor(executionStatus.state || executionStatus.status || '')}`}
                     ></div>
-                    <span className="font-medium">{getStatusText(executionStatus.status || '')}</span>
-                    {executionStatus.status === 'running' && (
+                    <span className="font-medium">{getStatusText(executionStatus.state || executionStatus.status || '')}</span>
+                    {(executionStatus.state === 'running' || (!executionStatus.state && executionStatus.status === 'running')) && (
                       <Loader className="h-4 w-4 animate-spin text-green-500" />
                     )}
                   </div>
