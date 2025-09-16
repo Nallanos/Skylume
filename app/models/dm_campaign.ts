@@ -11,6 +11,7 @@ import CampaignGroupMessage from './campaign_group_message.js'
 import type { ManyToMany, BelongsTo, HasMany } from '@adonisjs/lucid/types/relations'
 
 type AnalysisStatus = 'pending' | 'in_progress' | 'completed' | 'failed'
+type ExecutionState = 'stopped' | 'running' | 'paused' | 'stopping' | 'completed' | 'failed'
 
 export default class DmCampaign extends BaseModel {
   @column({ isPrimary: true })
@@ -117,6 +118,10 @@ export default class DmCampaign extends BaseModel {
   @column()
   declare executionStatus: string | null // 'running', 'paused', 'stopping', 'stopped', 'completed', 'failed'
 
+  // New unified execution state (replaces shouldStop and shouldPause)
+  @column()
+  declare executionState: ExecutionState
+
   // Flag pour arrêter l'exécution
   @column()
   declare shouldStop: boolean
@@ -182,6 +187,87 @@ export default class DmCampaign extends BaseModel {
       .count('* as total')
     
     this.alreadyContactedCount = Number(alreadyContactedQuery[0].$extras.total)
+    await this.save()
+  }
+
+  /**
+   * Helper methods for execution state management
+   */
+  public isRunning(): boolean {
+    return this.executionState === 'running'
+  }
+
+  public isPaused(): boolean {
+    return this.executionState === 'paused'
+  }
+
+  public isStopped(): boolean {
+    return ['stopped', 'completed', 'failed'].includes(this.executionState)
+  }
+
+  public canStart(): boolean {
+    return ['stopped', 'paused', 'failed', 'completed'].includes(this.executionState)
+  }
+
+  public canPause(): boolean {
+    return this.executionState === 'running'
+  }
+
+  public canStop(): boolean {
+    return ['running', 'paused'].includes(this.executionState)
+  }
+
+  public canResume(): boolean {
+    return this.executionState === 'paused'
+  }
+
+  /**
+   * Atomic state transition methods
+   */
+  public async transitionToRunning(): Promise<void> {
+    if (!this.canStart()) {
+      throw new Error(`Cannot start campaign in state: ${this.executionState}`)
+    }
+    this.executionState = 'running'
+    this.executionStatus = 'running' // Keep sync with old field during migration
+    this.shouldStop = false
+    this.shouldPause = false
+    this.executionStartedAt = DateTime.now()
+    await this.save()
+  }
+
+  public async transitionToPaused(): Promise<void> {
+    if (!this.canPause()) {
+      throw new Error(`Cannot pause campaign in state: ${this.executionState}`)
+    }
+    this.executionState = 'paused'
+    this.executionStatus = 'paused' // Keep sync with old field during migration
+    this.shouldPause = true // Keep sync with old field during migration
+    await this.save()
+  }
+
+  public async transitionToStopped(): Promise<void> {
+    if (!this.canStop()) {
+      throw new Error(`Cannot stop campaign in state: ${this.executionState}`)
+    }
+    this.executionState = 'stopped'
+    this.executionStatus = 'stopped' // Keep sync with old field during migration  
+    this.shouldStop = true // Keep sync with old field during migration
+    this.executionCompletedAt = DateTime.now()
+    await this.save()
+  }
+
+  public async transitionToCompleted(): Promise<void> {
+    this.executionState = 'completed'
+    this.executionStatus = 'completed' // Keep sync with old field during migration
+    this.executionCompletedAt = DateTime.now()
+    await this.save()
+  }
+
+  public async transitionToFailed(): Promise<void> {
+    this.executionState = 'failed'
+    this.executionStatus = 'failed' // Keep sync with old field during migration
+    this.executionCompletedAt = DateTime.now()
     await this.save()
   }
 }
