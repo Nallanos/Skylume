@@ -10,7 +10,12 @@ import env from '#start/env'
 const corsConfig = defineConfig({
   enabled: true,
   origin: env.get('NODE_ENV') === 'production' 
-    ? ['https://bluesky-bot.com', 'https://www.bluesky-bot.com']
+    ? [
+        'https://skylume.app', 
+        'https://www.skylume.app',
+        'https://bluesky-bot.com', 
+        'https://www.bluesky-bot.com'
+      ]
     : true, // En développement, tout autoriser
   methods: ['GET', 'HEAD', 'POST', 'PUT', 'DELETE'],
   headers: true,

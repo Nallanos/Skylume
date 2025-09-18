@@ -1236,7 +1236,7 @@ function Home({ businessPlanCounter }: Props) {
         {/* Open Graph */}
         <meta property="og:title" content="Skynalytic - The Best Bluesky Scheduling Tool for Creators" />
         <meta property="og:description" content="Create consistently, grow authentically. The scheduling tool built specifically for Bluesky creators, artists, and writers." />
-        <meta property="og:url" content="https://bluesky-bot.com" />
+        <meta property="og:url" content="https://skylume.app" />
         <meta property="og:type" content="website" />
         <meta property="og:site_name" content="Skynalytic" />
         
@@ -1251,7 +1251,7 @@ function Home({ businessPlanCounter }: Props) {
         <meta name="robots" content="index, follow" />
         <meta name="language" content="en" />
         <meta name="revisit-after" content="7 days" />
-        <link rel="canonical" href="https://bluesky-bot.com" />
+        <link rel="canonical" href="https://skylume.app" />
         
         {/* Schema Markup - SoftwareApplication */}
         <script type="application/ld+json">
@@ -1261,7 +1261,7 @@ function Home({ businessPlanCounter }: Props) {
               "@type": "SoftwareApplication",
               "name": "Skynalytic",
               "description": "The best scheduling and audience intelligence tool for Bluesky creators, artists, and writers. Create consistently and grow authentically.",
-              "url": "https://bluesky-bot.com",
+              "url": "https://skylume.app",
               "applicationCategory": "BusinessApplication",
               "operatingSystem": "Web",
               "offers": {
@@ -1273,7 +1273,7 @@ function Home({ businessPlanCounter }: Props) {
               "creator": {
                 "@type": "Organization",
                 "name": "Skynalytic",
-                "url": "https://bluesky-bot.com"
+                "url": "https://skylume.app"
               },
               "featureList": [
                 "Smart Scheduling",

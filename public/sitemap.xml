@@ -2,28 +2,28 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:news="http://www.google.com/schemas/sitemap-news/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml" xmlns:mobile="http://www.google.com/schemas/sitemap-mobile/1.0" xmlns:image="http://www.google.com/schemas/sitemap-image/1.1" xmlns:video="http://www.google.com/schemas/sitemap-video/1.1">
   <!-- Main Pages -->
   <url>
-    <loc>https://bluesky-bot.com/</loc>
+    <loc>https://skylume.app/</loc>
     <lastmod>2025-01-15</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
   
   <url>
-    <loc>https://bluesky-bot.com/dashboard</loc>
+    <loc>https://skylume.app/dashboard</loc>
     <lastmod>2025-01-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
   
   <url>
-    <loc>https://bluesky-bot.com/pricing</loc>
+    <loc>https://skylume.app/pricing</loc>
     <lastmod>2025-01-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   
   <url>
-    <loc>https://bluesky-bot.com/features</loc>
+    <loc>https://skylume.app/features</loc>
     <lastmod>2025-01-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -31,14 +31,14 @@
 
   <!-- Blog & Guides -->
   <url>
-    <loc>https://bluesky-bot.com/blog</loc>
+    <loc>https://skylume.app/blog</loc>
     <lastmod>2025-01-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.9</priority>
   </url>
   
   <url>
-    <loc>https://bluesky-bot.com/guides</loc>
+    <loc>https://skylume.app/guides</loc>
     <lastmod>2025-01-15</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
@@ -46,133 +46,133 @@
 
   <!-- Blog Articles -->
   <url>
-    <loc>https://bluesky-bot.com/blog/grow-bluesky-audience-creators-2025</loc>
+    <loc>https://skylume.app/blog/grow-bluesky-audience-creators-2025</loc>
     <lastmod>2025-01-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
   
   <url>
-    <loc>https://bluesky-bot.com/blog/best-bluesky-automation-tools</loc>
+    <loc>https://skylume.app/blog/best-bluesky-automation-tools</loc>
     <lastmod>2025-01-18</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.9</priority>
   </url>
   
   <url>
-    <loc>https://bluesky-bot.com/blog/effective-bluesky-growth-strategies</loc>
+    <loc>https://skylume.app/blog/effective-bluesky-growth-strategies</loc>
     <lastmod>2025-01-10</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   
   <url>
-    <loc>https://bluesky-bot.com/blog/increase-bluesky-engagement-free</loc>
+    <loc>https://skylume.app/blog/increase-bluesky-engagement-free</loc>
     <lastmod>2025-01-08</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   
   <url>
-    <loc>https://bluesky-bot.com/blog/bluesky-growth-hacks-2025</loc>
+    <loc>https://skylume.app/blog/bluesky-growth-hacks-2025</loc>
     <lastmod>2025-01-12</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   
   <url>
-    <loc>https://bluesky-bot.com/blog/build-personal-brand-bluesky</loc>
+    <loc>https://skylume.app/blog/build-personal-brand-bluesky</loc>
     <lastmod>2025-01-05</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   
   <url>
-    <loc>https://bluesky-bot.com/blog/schedule-bluesky-posts-efficiently</loc>
+    <loc>https://skylume.app/blog/schedule-bluesky-posts-efficiently</loc>
     <lastmod>2025-01-14</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   
   <url>
-    <loc>https://bluesky-bot.com/blog/bluesky-automation-boost-followers</loc>
+    <loc>https://skylume.app/blog/bluesky-automation-boost-followers</loc>
     <lastmod>2025-01-11</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   
   <url>
-    <loc>https://bluesky-bot.com/blog/track-bluesky-analytics-pro</loc>
+    <loc>https://skylume.app/blog/track-bluesky-analytics-pro</loc>
     <lastmod>2025-01-16</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   
   <url>
-    <loc>https://bluesky-bot.com/blog/best-performing-bluesky-content-types</loc>
+    <loc>https://skylume.app/blog/best-performing-bluesky-content-types</loc>
     <lastmod>2025-01-20</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   
   <url>
-    <loc>https://bluesky-bot.com/blog/first-1000-bluesky-followers</loc>
+    <loc>https://skylume.app/blog/first-1000-bluesky-followers</loc>
     <lastmod>2025-01-22</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   
   <url>
-    <loc>https://bluesky-bot.com/blog/make-bluesky-posts-viral</loc>
+    <loc>https://skylume.app/blog/make-bluesky-posts-viral</loc>
     <lastmod>2025-01-17</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   
   <url>
-    <loc>https://bluesky-bot.com/blog/bluesky-posting-frequency-growth</loc>
+    <loc>https://skylume.app/blog/bluesky-posting-frequency-growth</loc>
     <lastmod>2025-01-13</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   
   <url>
-    <loc>https://bluesky-bot.com/blog/find-target-audience-bluesky</loc>
+    <loc>https://skylume.app/blog/find-target-audience-bluesky</loc>
     <lastmod>2025-01-25</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   
   <url>
-    <loc>https://bluesky-bot.com/blog/bluesky-marketing-small-businesses</loc>
+    <loc>https://skylume.app/blog/bluesky-marketing-small-businesses</loc>
     <lastmod>2025-01-19</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   
   <url>
-    <loc>https://bluesky-bot.com/blog/stand-out-crowded-bluesky-niche</loc>
+    <loc>https://skylume.app/blog/stand-out-crowded-bluesky-niche</loc>
     <lastmod>2025-01-21</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   
   <url>
-    <loc>https://bluesky-bot.com/blog/monetize-bluesky-account-2025</loc>
+    <loc>https://skylume.app/blog/monetize-bluesky-account-2025</loc>
     <lastmod>2025-01-28</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   
   <url>
-    <loc>https://bluesky-bot.com/blog/bluesky-business-lead-generation</loc>
+    <loc>https://skylume.app/blog/bluesky-business-lead-generation</loc>
     <lastmod>2025-01-24</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   
   <url>
-    <loc>https://bluesky-bot.com/blog/bluesky-marketing-opportunities-brands</loc>
+    <loc>https://skylume.app/blog/bluesky-marketing-opportunities-brands</loc>
     <lastmod>2025-01-26</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
@@ -180,21 +180,21 @@
 
   <!-- Feature Pages -->
   <url>
-    <loc>https://bluesky-bot.com/features/scheduler</loc>
+    <loc>https://skylume.app/features/scheduler</loc>
     <lastmod>2025-01-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   
   <url>
-    <loc>https://bluesky-bot.com/features/analytics</loc>
+    <loc>https://skylume.app/features/analytics</loc>
     <lastmod>2025-01-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
   
   <url>
-    <loc>https://bluesky-bot.com/features/automation</loc>
+    <loc>https://skylume.app/features/automation</loc>
     <lastmod>2025-01-15</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -202,14 +202,14 @@
 
   <!-- Legal Pages -->
   <url>
-    <loc>https://bluesky-bot.com/terms</loc>
+    <loc>https://skylume.app/terms</loc>
     <lastmod>2025-01-01</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   
   <url>
-    <loc>https://bluesky-bot.com/privacy</loc>
+    <loc>https://skylume.app/privacy</loc>
     <lastmod>2025-01-01</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
