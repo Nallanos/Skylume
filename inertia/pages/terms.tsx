@@ -92,8 +92,8 @@ function Terms() {
                 <h2 className="text-xl font-semibold mb-4">9. Contact Information</h2>
                 <p className="text-muted-foreground mb-4">
                   If you have any questions about these Terms of Service, please contact us at{' '}
-                  <a href="mailto:support@blueskybot.com" className="text-blue-600 hover:underline">
-                    support@blueskybot.com
+                  <a href="mailto:support@skylume.app" className="text-blue-600 hover:underline">
+                    support@skylume.app
                   </a>
                 </p>
               </section>
