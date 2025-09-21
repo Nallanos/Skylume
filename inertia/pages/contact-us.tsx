@@ -35,67 +35,6 @@ function ContactUs() {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            {/* Contact Info */}
-            <div className="lg:col-span-1 space-y-6">
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <Mail className="h-5 w-5 text-blue-500" />
-                    <h3 className="font-semibold">Contact Us</h3>
-                  </div>
-                  <p className="text-muted-foreground text-sm mb-2">
-                    Get help with your account, technical issues, or general inquiries
-                  </p>
-                  <a
-<<<<<<< HEAD
-                    href="mailto:contact@bluesky-bot.com"
-                    className="text-blue-600 hover:underline text-sm"
-                  >
-                    contact@bluesky-bot.com
-=======
-                    href="mailto:support@skylume.app"
-                    className="text-blue-600 hover:underline text-sm"
-                  >
-                    support@skylume.app
-                  </a>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <MessageCircle className="h-5 w-5 text-green-500" />
-                    <h3 className="font-semibold">Sales Inquiries</h3>
-                  </div>
-                  <p className="text-muted-foreground text-sm mb-2">
-                    Questions about pricing or enterprise features
-                  </p>
-                  <a
-                    href="mailto:sales@skylume.app"
-                    className="text-blue-600 hover:underline text-sm"
-                  >
-                    sales@skylume.app
->>>>>>> origin/copilot/fix-39c5d0d7-5aef-4be5-ad57-67605464ae66
-                  </a>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <Clock className="h-5 w-5 text-purple-500" />
-                    <h3 className="font-semibold">Response Time</h3>
-                  </div>
-                  <div className="text-sm text-muted-foreground space-y-1">
-                    <p>• Support: Within 24 hours</p>
-                    <p>• Sales: Within 4 hours</p>
-                    <p>• Urgent: Within 2 hours</p>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Contact Form */}
             <div className="lg:col-span-2">
               <Card>
                 <CardHeader>
