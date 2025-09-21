@@ -1244,7 +1244,7 @@ function Home({ businessPlanCounter }: Props) {
         <meta name="twitter:card" content="summary_large_image" />
         <meta name="twitter:title" content="Skylume - Best Bluesky Scheduling Tool for Creators" />
         <meta name="twitter:description" content="The scheduling tool that understands creators. Built specifically for Bluesky artists, writers, and content creators." />
-        <meta name="twitter:site" content="@skynalytic" />
+        <meta name="twitter:site" content="@skylume" />
         
         {/* Additional SEO Meta */}
         <meta name="author" content="Skylume" />

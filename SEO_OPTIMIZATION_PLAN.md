@@ -148,28 +148,28 @@
 <!-- Open Graph pour réseaux sociaux -->
 <meta property="og:title" content="Skylume - AI Bluesky Marketing Automation">
 <meta property="og:description" content="Grow your Bluesky audience with AI-powered marketing automation">
-<meta property="og:image" content="https://skynalytic.com/images/og-image.jpg">
-<meta property="og:url" content="https://skynalytic.com">
+<meta property="og:image" content="https://skylume.app/images/og-image.jpg">
+<meta property="og:url" content="https://skylume.app">
 <meta property="og:type" content="website">
 
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Skylume - AI Bluesky Marketing Tool">
 <meta name="twitter:description" content="Automate your Bluesky growth with AI-driven tools">
-<meta name="twitter:image" content="https://skynalytic.com/images/twitter-card.jpg">
+<meta name="twitter:image" content="https://skylume.app/images/twitter-card.jpg">
 ```
 
 ### 2. Structure d'URL SEO-Friendly
 
 ```
 ✅ BIEN:
-https://skynalytic.com/guides/grow-bluesky-audience
-https://skynalytic.com/features/scheduler
-https://skynalytic.com/use-cases/content-creators
+https://skylume.app/guides/grow-bluesky-audience
+https://skylume.app/features/scheduler
+https://skylume.app/use-cases/content-creators
 
 ❌ ÉVITER:
-https://skynalytic.com/page?id=123
-https://skynalytic.com/features_scheduler_tool
+https://skylume.app/page?id=123
+https://skylume.app/features_scheduler_tool
 ```
 
 ### 3. Schema Markup (Données Structurées)
@@ -181,7 +181,7 @@ https://skynalytic.com/features_scheduler_tool
   "@type": "SoftwareApplication",
   "name": "Skylume",
   "description": "AI-powered marketing automation tool for Bluesky social media platform",
-  "url": "https://skynalytic.com",
+  "url": "https://skylume.app",
   "applicationCategory": "BusinessApplication",
   "operatingSystem": "Web",
   "offers": {
