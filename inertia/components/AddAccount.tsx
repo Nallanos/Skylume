@@ -143,7 +143,7 @@ function AddAccount() {
               </div>
               <div className="flex items-start gap-2">
                 <span className="flex-shrink-0 w-5 h-5 bg-blue-100 text-blue-800 rounded-full flex items-center justify-center text-xs font-semibold">4</span>
-                <span>Create a new app password for "Skynalytic"</span>
+                <span>Create a new app password for "Skylume"</span>
               </div>
               <div className="flex items-start gap-2">
                 <span className="flex-shrink-0 w-5 h-5 bg-blue-100 text-blue-800 rounded-full flex items-center justify-center text-xs font-semibold">5</span>

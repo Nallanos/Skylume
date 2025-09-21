@@ -29,7 +29,7 @@ function ContactUs() {
               Get in Touch
             </h1>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
-              Have questions about Skynalytic? We're here to help. Reach out to our team and we'll
+              Have questions about Skylume? We're here to help. Reach out to our team and we'll
               get back to you as soon as possible.
             </p>
           </div>
@@ -41,34 +41,16 @@ function ContactUs() {
                 <CardContent className="p-6">
                   <div className="flex items-center gap-3 mb-4">
                     <Mail className="h-5 w-5 text-blue-500" />
-                    <h3 className="font-semibold">Email Support</h3>
+                    <h3 className="font-semibold">Contact Us</h3>
                   </div>
                   <p className="text-muted-foreground text-sm mb-2">
-                    Get help with your account or technical issues
+                    Get help with your account, technical issues, or general inquiries
                   </p>
                   <a
-                    href="mailto:support@skylume.app"
+                    href="mailto:contact@bluesky-bot.com"
                     className="text-blue-600 hover:underline text-sm"
                   >
-                    support@skylume.app
-                  </a>
-                </CardContent>
-              </Card>
-
-              <Card>
-                <CardContent className="p-6">
-                  <div className="flex items-center gap-3 mb-4">
-                    <MessageCircle className="h-5 w-5 text-green-500" />
-                    <h3 className="font-semibold">Sales Inquiries</h3>
-                  </div>
-                  <p className="text-muted-foreground text-sm mb-2">
-                    Questions about pricing or enterprise features
-                  </p>
-                  <a
-                    href="mailto:sales@skylume.app"
-                    className="text-blue-600 hover:underline text-sm"
-                  >
-                    sales@skylume.app
+                    contact@bluesky-bot.com
                   </a>
                 </CardContent>
               </Card>

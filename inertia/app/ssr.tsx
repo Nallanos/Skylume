@@ -10,7 +10,7 @@ export default async function render(page: any) {
   return createInertiaApp({
     page,
     render: renderToString,
-    title: (title: string) => `${title} - Skynalytic`,
+    title: (title: string) => `${title} - Skylume`,
     resolve: (name: string) => {
       return resolvePageComponent(
         `../pages/${name}.tsx`,
