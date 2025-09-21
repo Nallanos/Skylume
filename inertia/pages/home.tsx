@@ -224,7 +224,7 @@ const Navigation = ({ darkMode, toggleTheme }: { darkMode: boolean; toggleTheme:
           <div className="w-6 sm:w-8 h-6 sm:h-8 bg-blue-600 rounded-lg flex items-center justify-center">
             <span className="text-white font-bold text-xs sm:text-sm">SK</span>
           </div>
-          <span className="font-bold text-lg sm:text-xl text-gray-900 dark:text-white">Skynalytic</span>
+          <span className="font-bold text-lg sm:text-xl text-gray-900 dark:text-white">Skylume</span>
         </div>
       </div>
 
@@ -382,7 +382,7 @@ const UniqueValueSection = () => (
           <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/30 rounded-lg flex items-center justify-center">
             <span className="text-lg">✅</span>
           </div>
-          <span className="text-sm sm:text-base font-medium text-gray-900 dark:text-white">Skynalytic: Bluesky-native features</span>
+          <span className="text-sm sm:text-base font-medium text-gray-900 dark:text-white">Skylume: Bluesky-native features</span>
         </div>
       </div>
     </div>
@@ -435,7 +435,7 @@ const ProblemSolutionSection = () => (
       <div className="mt-16 max-w-4xl mx-auto">
         <div className="text-center mb-8">
           <h3 className="text-2xl md:text-3xl font-bold mb-4 text-gray-900 dark:text-white">
-            Why Creators Choose Skynalytic
+            Why Creators Choose Skylume
           </h3>
         </div>
         <div className="grid md:grid-cols-3 gap-6">
@@ -450,7 +450,7 @@ const ProblemSolutionSection = () => (
             <p className="text-xs text-red-500 mt-2">❌ No understanding of creative workflow</p>
           </div>
           <div className="p-6 bg-gradient-to-br from-blue-50 to-blue-100 dark:from-blue-900/20 dark:to-blue-800/20 rounded-xl text-center border-2 border-blue-200 dark:border-blue-800">
-            <h4 className="font-semibold text-blue-700 dark:text-blue-300 mb-3">Skynalytic</h4>
+            <h4 className="font-semibold text-blue-700 dark:text-blue-300 mb-3">Skylume</h4>
             <p className="text-sm text-blue-600 dark:text-blue-400">Made by creators, for creators</p>
             <p className="text-xs text-green-600 dark:text-green-400 mt-2">✅ Built for creative consistency</p>
           </div>
@@ -1047,14 +1047,14 @@ const TestimonialsSection = () => (
           avatar="/images/bafkreihdgxviv4vxx7dv4zfwhjylkmbharti2s7jhlndmu4nswpwhk677e.jpg"
           handle="@alexisbouchez.com"
           title="Founder"
-          quote="Making use of Skynalytic is a great way to grow and engage with your audience on Bluesky."
+          quote="Making use of Skylume is a great way to grow and engage with your audience on Bluesky."
           link="https://bsky.app/profile/alexisbouchez.com"
         />
         <TestimonialCard
           avatar="/images/pdpDemon.jpg"
           handle="@dem...ny.bsky.social"
           title="Content creator"
-          quote="I started using the Skynalytic to help grow my platform, and honestly, it's been a game changer."
+          quote="I started using the Skylume to help grow my platform, and honestly, it's been a game changer."
         />
         <TestimonialCard
           avatar="/images/nallanos.jpg"
@@ -1185,7 +1185,7 @@ function Home({ businessPlanCounter }: Props) {
           // Check if gtag is available (Google Analytics)
           if (typeof window !== 'undefined' && (window as any).gtag) {
             (window as any).gtag('config', 'GA_MEASUREMENT_ID', {
-              page_title: 'Home - Skynalytic',
+              page_title: 'Home - Skylume',
               page_location: window.location.href
             })
           }
@@ -1196,7 +1196,7 @@ function Home({ businessPlanCounter }: Props) {
           //   headers: { 'Content-Type': 'application/json' },
           //   body: JSON.stringify({
           //     page: '/',
-          //     title: 'Home - Skynalytic',
+          //     title: 'Home - Skylume',
           //     url: window.location.href,
           //     timestamp: new Date().toISOString()
           //   })
@@ -1205,7 +1205,7 @@ function Home({ businessPlanCounter }: Props) {
           // Console log for development tracking
           console.log('📊 Page View Tracked:', {
             page: '/',
-            title: 'Home - Skynalytic',
+            title: 'Home - Skylume',
             url: window.location.href,
             timestamp: new Date().toISOString(),
             userAgent: navigator.userAgent
@@ -1227,31 +1227,31 @@ function Home({ businessPlanCounter }: Props) {
 
   return (
     <>
-      <Head title="Skynalytic - The Best Bluesky Scheduling Tool for Creators | Artists & Writers">
+      <Head title="Skylume - The Best Bluesky Scheduling Tool for Creators | Artists & Writers">
         <meta name="description" content="The best scheduling tool for Bluesky creators, artists, and writers. Create consistently, grow authentically, and build your creative presence with smart scheduling and audience insights." />
         <meta name="keywords" content="bluesky scheduling, bluesky creators, bluesky artists, bluesky writers, content creators, bluesky tool, social media scheduling, creative consistency" />
         
         {/* Google Search Console Verification - REMPLACEZ PAR VOTRE CODE */}
         
         {/* Open Graph */}
-        <meta property="og:title" content="Skynalytic - The Best Bluesky Scheduling Tool for Creators" />
+        <meta property="og:title" content="Skylume - The Best Bluesky Scheduling Tool for Creators" />
         <meta property="og:description" content="Create consistently, grow authentically. The scheduling tool built specifically for Bluesky creators, artists, and writers." />
-        <meta property="og:url" content="https://bluesky-bot.com" />
+        <meta property="og:url" content="https://skylume.app" />
         <meta property="og:type" content="website" />
-        <meta property="og:site_name" content="Skynalytic" />
+        <meta property="og:site_name" content="Skylume" />
         
         {/* Twitter Card */}
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="Skynalytic - Best Bluesky Scheduling Tool for Creators" />
+        <meta name="twitter:title" content="Skylume - Best Bluesky Scheduling Tool for Creators" />
         <meta name="twitter:description" content="The scheduling tool that understands creators. Built specifically for Bluesky artists, writers, and content creators." />
-        <meta name="twitter:site" content="@skynalytic" />
+        <meta name="twitter:site" content="@skylume" />
         
         {/* Additional SEO Meta */}
-        <meta name="author" content="Skynalytic" />
+        <meta name="author" content="Skylume" />
         <meta name="robots" content="index, follow" />
         <meta name="language" content="en" />
         <meta name="revisit-after" content="7 days" />
-        <link rel="canonical" href="https://bluesky-bot.com" />
+        <link rel="canonical" href="https://skylume.app" />
         
         {/* Schema Markup - SoftwareApplication */}
         <script type="application/ld+json">
@@ -1259,9 +1259,9 @@ function Home({ businessPlanCounter }: Props) {
             {
               "@context": "https://schema.org",
               "@type": "SoftwareApplication",
-              "name": "Skynalytic",
+              "name": "Skylume",
               "description": "The best scheduling and audience intelligence tool for Bluesky creators, artists, and writers. Create consistently and grow authentically.",
-              "url": "https://bluesky-bot.com",
+              "url": "https://skylume.app",
               "applicationCategory": "BusinessApplication",
               "operatingSystem": "Web",
               "offers": {
@@ -1272,8 +1272,8 @@ function Home({ businessPlanCounter }: Props) {
               },
               "creator": {
                 "@type": "Organization",
-                "name": "Skynalytic",
-                "url": "https://bluesky-bot.com"
+                "name": "Skylume",
+                "url": "https://skylume.app"
               },
               "featureList": [
                 "Smart Scheduling",

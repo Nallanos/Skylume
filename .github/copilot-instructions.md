@@ -1,4 +1,4 @@
-# Skynalytic Development Guide
+# Skylume Development Guide
 
 ## Architecture Overview
 

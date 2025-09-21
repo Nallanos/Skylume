@@ -17,7 +17,7 @@ function Terms() {
               <section className="mb-8">
                 <h2 className="text-xl font-semibold mb-4">1. Acceptance of Terms</h2>
                 <p className="text-muted-foreground mb-4">
-                  By accessing and using Skynalytic, you accept and agree to be bound by the terms
+                  By accessing and using Skylume, you accept and agree to be bound by the terms
                   and provision of this agreement. If you do not agree to abide by the above, please
                   do not use this service.
                 </p>
@@ -26,7 +26,7 @@ function Terms() {
               <section className="mb-8">
                 <h2 className="text-xl font-semibold mb-4">2. Service Description</h2>
                 <p className="text-muted-foreground mb-4">
-                  Skynalytic provides social media management tools for the Bluesky platform,
+                  Skylume provides social media management tools for the Bluesky platform,
                   including post scheduling, analytics, and account management features.
                 </p>
               </section>
@@ -64,7 +64,7 @@ function Terms() {
               <section className="mb-8">
                 <h2 className="text-xl font-semibold mb-4">6. Limitation of Liability</h2>
                 <p className="text-muted-foreground mb-4">
-                  In no event shall Skynalytic be liable for any indirect, incidental, special,
+                  In no event shall Skylume be liable for any indirect, incidental, special,
                   consequential, or punitive damages, including without limitation, loss of profits,
                   data, use, goodwill, or other intangible losses.
                 </p>
@@ -92,8 +92,8 @@ function Terms() {
                 <h2 className="text-xl font-semibold mb-4">9. Contact Information</h2>
                 <p className="text-muted-foreground mb-4">
                   If you have any questions about these Terms of Service, please contact us at{' '}
-                  <a href="mailto:support@blueskybot.com" className="text-blue-600 hover:underline">
-                    support@blueskybot.com
+                  <a href="mailto:contact@bluesky-bot.com" className="text-blue-600 hover:underline">
+                    contact@bluesky-bot.com
                   </a>
                 </p>
               </section>

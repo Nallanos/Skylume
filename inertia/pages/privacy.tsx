@@ -131,8 +131,8 @@ function Privacy() {
                 <h2 className="text-xl font-semibold mb-4">11. Contact Us</h2>
                 <p className="text-muted-foreground mb-4">
                   If you have any questions about this Privacy Policy, please contact us at{' '}
-                  <a href="mailto:privacy@blueskybot.com" className="text-blue-600 hover:underline">
-                    privacy@blueskybot.com
+                  <a href="mailto:contact@bluesky-bot.com" className="text-blue-600 hover:underline">
+                    contact@bluesky-bot.com
                   </a>
                 </p>
               </section>

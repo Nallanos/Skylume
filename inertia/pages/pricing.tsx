@@ -36,7 +36,7 @@ const Navigation = ({ darkMode, toggleTheme }: { darkMode: boolean; toggleTheme:
             <span className="text-white font-bold text-sm">SK</span>
           </div>
           <a href="/" className="font-bold text-xl text-gray-900 dark:text-white hover:text-blue-600 dark:hover:text-blue-400 transition-colors">
-            Skynalytic
+            Skylume
           </a>
         </div>
       </div>
@@ -186,7 +186,7 @@ function Pricing({ user, businessPlanCounter }: Props) {
 
   return (
     <>
-      <Head title="Pricing - Skynalytic">
+      <Head title="Pricing - Skylume">
         <script
           dangerouslySetInnerHTML={{
             __html: `

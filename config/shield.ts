@@ -40,6 +40,8 @@ const shieldConfig = defineConfig({
         'https://api.stripe.com',
         'wss://bsky.social',
         'https://bsky.social',
+        'wss://skylume.app:24678',
+        'ws://skylume.app:24678',
         'wss://bluesky-bot.com:24678',
         'ws://bluesky-bot.com:24678',
         'wss://localhost:24678',
