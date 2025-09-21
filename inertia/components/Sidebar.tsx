@@ -86,7 +86,7 @@ function Sidebar({ user, account }: SidebarProps) {
             <div className="w-9 h-9 rounded-full bg-blue-600 dark:bg-blue-500 flex items-center justify-center text-white font-bold text-lg shadow-sm">
               B
             </div>
-            <span className="text-xl font-bold text-blue-600 dark:text-blue-400">Skynalytic</span>
+            <span className="text-xl font-bold text-blue-600 dark:text-blue-400">Skylume</span>
           </Link>
         </div>
 

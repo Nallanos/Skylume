@@ -1,11 +1,11 @@
-Here's a README template for "Skynalytic" based on best practices:
+Here's a README template for "Skylume" based on best practices:
 
 ---
 
-# Skynalytic 🌌  
+# Skylume 🌌  
 *Your Marketing Companion for Bluesky — Automate, Engage, and Grow*
 
-Skynalytic provides essential marketing tools tailored for the Bluesky platform. Currently featuring a bot for seamless engagement, Skynalytic empowers users to manage their presence effortlessly. Future updates will introduce scheduling capabilities to keep your content consistent and your audience engaged.
+Skylume provides essential marketing tools tailored for the Bluesky platform. Currently featuring a bot for seamless engagement, Skylume empowers users to manage their presence effortlessly. Future updates will introduce scheduling capabilities to keep your content consistent and your audience engaged.
 
 ---
 
@@ -28,11 +28,11 @@ Skynalytic provides essential marketing tools tailored for the Bluesky platform.
 ## 🔧 Installation
 1. **Clone the Repo**  
    ```bash
-   git clone https://github.com/Nallanos/skynalytic.git
+   git clone https://github.com/Nallanos/Bluesky-copilot.git
    ```
 2. **Install Dependencies**  
    ```bash
-   cd skynalytic
+   cd Bluesky-copilot
    npm install
    ```
 3. **Setup Configuration**  
@@ -53,4 +53,4 @@ Skynalytic provides essential marketing tools tailored for the Bluesky platform.
 
 *Examples of commands and additional usage instructions will be provided here as features are added.*
 
-*Stay tuned for more features, and thank you for choosing Skynalytic to manage your Bluesky marketing!*
+*Stay tuned for more features, and thank you for choosing Skylume to manage your Bluesky marketing!*

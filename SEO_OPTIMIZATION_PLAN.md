@@ -1,8 +1,8 @@
-# Plan d'Optimisation SEO pour Skynalytic 🚀
+# Plan d'Optimisation SEO pour Skylume 🚀
 
 ## 📊 Analyse du Produit
 
-**Skynalytic** est une plateforme de marketing automation pour Bluesky qui offre :
+**Skylume** est une plateforme de marketing automation pour Bluesky qui offre :
 - Analyse d'audience IA avec clustering sémantique
 - Programmation et crossposting de contenu
 - Engagement automatisé et ciblage de précision
@@ -54,16 +54,16 @@
 ### 1. Pages Piliers (High-Authority Content)
 
 #### A. **Page Principale** `/`
-- **Title**: "Skynalytic - AI-Powered Bluesky Marketing Automation Tool | Grow Your Audience"
+- **Title**: "Skylume - AI-Powered Bluesky Marketing Automation Tool | Grow Your Audience"
 - **Meta Description**: "Automate your Bluesky growth with AI-driven audience analysis, post scheduling, and engagement tools. Track followers, schedule content, and boost engagement effortlessly."
 - **Mots-clés**: bluesky marketing tool, bluesky automation, bluesky growth
 
 #### B. **Page Features** `/features`
-- **Title**: "Bluesky Marketing Features - Analytics, Scheduling & Automation | Skynalytic"
+- **Title**: "Bluesky Marketing Features - Analytics, Scheduling & Automation | Skylume"
 - **Meta Description**: "Discover powerful Bluesky marketing features: AI audience analysis, smart scheduling, follower tracking, and automated engagement tools."
 
 #### C. **Page Pricing** `/pricing`
-- **Title**: "Bluesky Marketing Tool Pricing - Free Plan Available | Skynalytic"
+- **Title**: "Bluesky Marketing Tool Pricing - Free Plan Available | Skylume"
 - **Meta Description**: "Transparent pricing for Bluesky marketing automation. Start free, upgrade as you grow. No hidden fees."
 
 ### 2. Pages de Contenu Informatif (SEO Traffic)
@@ -78,7 +78,7 @@
 ##### Guide 2: "Les Meilleurs Outils de Marketing Bluesky"
 - **URL**: `/guides/best-bluesky-marketing-tools`
 - **Mots-clés**: best bluesky marketing tools, bluesky tools comparison
-- **Contenu**: Comparaison incluant Skynalytic
+- **Contenu**: Comparaison incluant Skylume
 
 ##### Guide 3: "Automatiser son Engagement sur Bluesky"
 - **URL**: `/guides/bluesky-automation-guide`
@@ -107,17 +107,17 @@
 ### 3. Pages Produit Spécifiques
 
 #### A. **Scheduler** `/features/scheduler`
-- **Title**: "Bluesky Post Scheduler - Free Automated Posting Tool | Skynalytic"
+- **Title**: "Bluesky Post Scheduler - Free Automated Posting Tool | Skylume"
 - **Meta Description**: "Schedule your Bluesky posts with AI-powered timing optimization. Free post scheduler with crossposting and analytics."
 - **Mots-clés**: bluesky scheduler, bluesky post scheduler free
 
 #### B. **Analytics** `/features/analytics`
-- **Title**: "Bluesky Analytics Dashboard - Track Growth & Engagement | Skynalytic"
+- **Title**: "Bluesky Analytics Dashboard - Track Growth & Engagement | Skylume"
 - **Meta Description**: "Comprehensive Bluesky analytics: follower growth, engagement metrics, and audience insights with AI-powered analysis."
 - **Mots-clés**: bluesky analytics, bluesky engagement tracking
 
 #### C. **Automation** `/features/automation`
-- **Title**: "Bluesky Automation Tools - AI-Powered Engagement | Skynalytic"
+- **Title**: "Bluesky Automation Tools - AI-Powered Engagement | Skylume"
 - **Meta Description**: "Automate your Bluesky engagement with AI targeting, smart DM campaigns, and follower management tools."
 - **Mots-clés**: bluesky automation, bluesky bot, bluesky engagement tool
 
@@ -137,7 +137,7 @@
 #### Métadonnées Essentielles
 ```html
 <!-- Title optimisé (50-60 caractères) -->
-<title>Skynalytic - AI Bluesky Marketing Tool | Grow Your Audience</title>
+<title>Skylume - AI Bluesky Marketing Tool | Grow Your Audience</title>
 
 <!-- Meta description (150-160 caractères) -->
 <meta name="description" content="Automate Bluesky growth with AI audience analysis, post scheduling & engagement tools. Free plan available. Start growing today.">
@@ -146,7 +146,7 @@
 <meta name="keywords" content="bluesky marketing, bluesky automation, bluesky scheduler, bluesky analytics, bluesky growth tool">
 
 <!-- Open Graph pour réseaux sociaux -->
-<meta property="og:title" content="Skynalytic - AI Bluesky Marketing Automation">
+<meta property="og:title" content="Skylume - AI Bluesky Marketing Automation">
 <meta property="og:description" content="Grow your Bluesky audience with AI-powered marketing automation">
 <meta property="og:image" content="https://skynalytic.com/images/og-image.jpg">
 <meta property="og:url" content="https://skynalytic.com">
@@ -154,7 +154,7 @@
 
 <!-- Twitter Card -->
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Skynalytic - AI Bluesky Marketing Tool">
+<meta name="twitter:title" content="Skylume - AI Bluesky Marketing Tool">
 <meta name="twitter:description" content="Automate your Bluesky growth with AI-driven tools">
 <meta name="twitter:image" content="https://skynalytic.com/images/twitter-card.jpg">
 ```
@@ -179,7 +179,7 @@ https://skynalytic.com/features_scheduler_tool
 {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
-  "name": "Skynalytic",
+  "name": "Skylume",
   "description": "AI-powered marketing automation tool for Bluesky social media platform",
   "url": "https://skynalytic.com",
   "applicationCategory": "BusinessApplication",
@@ -206,7 +206,7 @@ https://skynalytic.com/features_scheduler_tool
   "headline": "How to Grow Your Bluesky Audience in 2025",
   "author": {
     "@type": "Organization",
-    "name": "Skynalytic"
+    "name": "Skylume"
   },
   "datePublished": "2025-01-01",
   "image": "article-image.jpg"
@@ -301,7 +301,7 @@ https://skynalytic.com/features_scheduler_tool
 
 ### Cette Semaine
 1. **Optimiser la page d'accueil**
-   - Modifier le title: "Skynalytic - AI Bluesky Marketing Automation Tool | Grow Your Audience"
+   - Modifier le title: "Skylume - AI Bluesky Marketing Automation Tool | Grow Your Audience"
    - Ajouter meta description optimisée
    - Restructurer les H1/H2 avec mots-clés
 
@@ -342,4 +342,4 @@ https://skynalytic.com/features_scheduler_tool
 
 ---
 
-Ce plan SEO positionne Skynalytic comme la solution de référence pour le marketing sur Bluesky, en capitalisant sur la croissance de la plateforme et le manque de concurrence dans cette niche spécifique.
+Ce plan SEO positionne Skylume comme la solution de référence pour le marketing sur Bluesky, en capitalisant sur la croissance de la plateforme et le manque de concurrence dans cette niche spécifique.

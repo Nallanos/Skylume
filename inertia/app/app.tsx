@@ -41,7 +41,7 @@ router.on('navigate', () => {
   document.documentElement.className = currentTheme
 })
 
-const appName = import.meta.env.VITE_APP_NAME || 'Skynalytic'
+const appName = import.meta.env.VITE_APP_NAME || 'Skylume'
 
 createInertiaApp({
   progress: { color: '#5468FF' },
