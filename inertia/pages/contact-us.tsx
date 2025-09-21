@@ -47,10 +47,10 @@ function ContactUs() {
                     Get help with your account or technical issues
                   </p>
                   <a
-                    href="mailto:support@blueskybot.com"
+                    href="mailto:support@skylume.app"
                     className="text-blue-600 hover:underline text-sm"
                   >
-                    support@blueskybot.com
+                    support@skylume.app
                   </a>
                 </CardContent>
               </Card>
@@ -65,10 +65,10 @@ function ContactUs() {
                     Questions about pricing or enterprise features
                   </p>
                   <a
-                    href="mailto:sales@blueskybot.com"
+                    href="mailto:sales@skylume.app"
                     className="text-blue-600 hover:underline text-sm"
                   >
-                    sales@blueskybot.com
+                    sales@skylume.app
                   </a>
                 </CardContent>
               </Card>
