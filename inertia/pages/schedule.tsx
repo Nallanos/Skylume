@@ -1,397 +1,68 @@
-import { useState, useMemo, useCallback, memo, useRef, useEffect } from 'react'
-import { Head, usePage, router } from '@inertiajs/react'
+import { useState, useMemo, memo, useCallback, useEffect } from 'react'
+import { Head, usePage } from '@inertiajs/react'
 import Layout from '../components/Layout'
-import StreakDisplay from '../components/StreakDisplay'
-import HashtagGroupSelector from '../components/HashtagGroupSelector'
-import ContentWarningModal from '../components/ContentWarningModal'
-import RichTextHighlightTextarea from '../components/RichTextHighlightTextarea'
-import GmailStyleLinkManager from '../components/GmailStyleLinkManager'
-import LinkHighlightTextarea from '../components/LinkHighlightTextarea'
-import CustomSelect, { type Option } from '../components/ui/CustomSelect'
-import { Button } from '../components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '../components/ui/card'
-import { Plus, Trash, Lock, Edit, User, FileText, X, Shield, Video, Twitter, Calendar } from 'lucide-react'
-import { Input } from '../components/ui/input'
-import { Label } from '../components/ui/label'
-import BlueskyAvatar from '../components/BlueskyAvatar'
+import { Card, CardContent } from '../components/ui/card'
+import { Plus } from 'lucide-react'
 
-interface Scheduling {
-  id: number
-  account_id: number
-  message: string
-  scheduleTime: string
-  status: string
-  images?: string[]
-  altTexts?: string[]
-  contentWarnings?: string[]
-  // Platform-specific account references
-  twitterAccountId?: number
-  account?: {
-    handle: string
-    displayName: string
-    avatar?: string
-    did?: string
-  }
-}
-
-interface User {
-  id: number
-  email: string
-  plan?: string
-  isScheduledLimitReached?: boolean
-  currentStreak?: number
-  longestStreak?: number
-  isStreakActive?: boolean
-  streakStatus?: 'active' | 'at-risk' | 'broken'
-  lastPostDate?: string | null
-  account?: Account[]
-}
-
-// Unified account interface for all platforms
-interface Account {
-  id: string | number
-  handle: string
-  displayName: string
-  platform: 'bluesky' | 'twitter'
-  username?: string // For Twitter (different from handle)
-  profileImageUrl?: string
-  avatar?: string
-}
-
-interface ScheduleProps {
-  schedulings: Scheduling[]
-}
-
-  // Memoized component for existing posts
-const ScheduledPostItem = memo(({ 
-  post, 
-  onEdit, 
-  onDelete 
-}: { 
-  post: Scheduling
-  onEdit: (post: Scheduling) => void
-  onDelete: (id: number) => void
-}) => {
-  const postTime = useMemo(() => 
-    new Date(post.scheduleTime).toLocaleTimeString('en-US', {
-      hour: 'numeric',
-      minute: '2-digit',
-      hour12: true,
-    }), [post.scheduleTime]
-  )
-
-  const truncatedMessage = useMemo(() => 
-    post.message.length > 60
-      ? `${post.message.substring(0, 60)}...`
-      : post.message
-  , [post.message])
-
-  const handleEdit = useCallback(() => onEdit(post), [onEdit, post])
-  const handleDelete = useCallback(() => onDelete(post.id), [onDelete, post.id])
-
-  return (
-    <div className="flex items-center gap-4 p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50 hover:border-gray-300 dark:hover:border-gray-600 transition-colors">
-      {/* Time */}
-      <div className="text-sm font-medium text-gray-600 dark:text-gray-400 min-w-[80px]">
-        {postTime}
-      </div>
-
-      {/* Existing Post */}
-      <div className="flex items-center gap-3 flex-1 min-w-0">
-        <BlueskyAvatar
-          handle={post.account?.handle || ''}
-          displayName={post.account?.displayName}
-          size="sm"
-        />
-
-        <div className="flex-1 min-w-0">
-          <p className="text-sm text-gray-900 dark:text-gray-100 truncate">
-            {truncatedMessage}
-          </p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            @{post.account?.handle || 'unknown'}
-          </p>
-        </div>
-      </div>
-
-      {/* Actions for existing post */}
-      <div className="flex items-center gap-1">
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleEdit}
-          className="h-8 w-8 p-0 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-        >
-          <Edit className="h-3 w-3" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="sm"
-          onClick={handleDelete}
-          className="h-8 w-8 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
-        >
-          <Trash className="h-3 w-3" />
-        </Button>
-      </div>
-    </div>
-  )
-})
-
-  // Memoized component for empty time slots
-const EmptyTimeSlot = memo(({ 
-  timeSlot, 
-  date, 
-  isFreeLimitReached, 
-  onSlotClick 
-}: { 
-  timeSlot: string
-  date: string
-  isFreeLimitReached: boolean
-  onSlotClick: (date: string, timeSlot: string) => void
-}) => {
-  const handleClick = useCallback(() => {
-    if (!isFreeLimitReached) {
-      onSlotClick(date, timeSlot)
-    }
-  }, [onSlotClick, date, timeSlot, isFreeLimitReached])
-
-  return (
-    <div
-      className="flex items-center gap-4 p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50 hover:border-blue-400 dark:hover:border-blue-500 cursor-pointer transition-colors"
-      onClick={handleClick}
-    >
-      {/* Time */}
-      <div className="text-sm font-medium text-gray-600 dark:text-gray-400 min-w-[80px]">
-        {timeSlot}
-      </div>
-
-      {/* Empty Slot - Entire row is clickable */}
-      <div className="flex-1 flex items-center gap-2">
-        <Plus className="h-4 w-4 text-blue-600 dark:text-blue-400" />
-        <span className="text-sm font-medium text-blue-600 dark:text-blue-400">
-          {isFreeLimitReached ? 'Free limit reached' : 'New'}
-        </span>
-      </div>
-    </div>
-  )
-})
+import type { ScheduleProps, User, Scheduling, UpcomingDay, WeeklyStats } from '../types/schedule'
+import { 
+  useScheduleSlots, 
+  useScheduleForm, 
+  useMediaUpload, 
+  useImageCompression,
+  useAccountSelection,
+  useScheduleOperations 
+} from '../hooks/schedule'
+import {
+  ScheduledPostItem,
+  EmptyTimeSlot,
+  EditScheduleModal,
+  CreateScheduleModal,
+  ImageCompressionModal,
+  CustomTimesModal,
+  ScheduleHeader
+} from '../components/schedule'
 
 function Schedule({ schedulings }: ScheduleProps) {
   const { props } = usePage()
   const user = props.user as User
   const accounts = user.account || []
 
-  // ✅ NOUVEAU: Fonction pour obtenir la date/heure actuelle au format datetime-local
-  const getCurrentDateTime = useCallback(() => {
-    const now = new Date()
-    // Ajouter 5 minutes pour éviter les problèmes de timing
-    now.setMinutes(now.getMinutes() + 5)
-    return now.toISOString().slice(0, 16)
-  }, [])
-
-  // ✅ NOUVEAU: Validation des dates dans le passé
-  const isDateInPast = useCallback((dateTimeString: string) => {
-    const selectedDate = new Date(dateTimeString)
-    const now = new Date()
-    return selectedDate <= now
-  }, [])
+  const scheduleSlots = useScheduleSlots()
+  const scheduleForm = useScheduleForm(accounts)
+  const accountSelection = useAccountSelection(accounts)
+  const mediaUpload = useMediaUpload(accountSelection.isTwitterSelected)
+  const imageCompression = useImageCompression()
+  const scheduleOps = useScheduleOperations()
 
   const [editingSchedule, setEditingSchedule] = useState<Scheduling | null>(null)
-  const [localDateTime, setLocalDateTime] = useState('')
-  const [showAddModal, setShowAddModal] = useState(false)
 
-    // Add modal state
-  const [addMessage, setAddMessage] = useState('')
-  const [addDateTime, setAddDateTime] = useState('')
-  const [selectedAccountIds, setSelectedAccountIds] = useState<string[]>([])
-  const [selectedTimeSlot, setSelectedTimeSlot] = useState<string>('')
-  const [selectedDate, setSelectedDate] = useState<string>('')
-  const [currentSelectValue, setCurrentSelectValue] = useState<string>('') // ✅ NOUVEAU: Contrôler la valeur du select
-  
-  // ✅ NOUVEAU: États pour les horaires personnalisés
-  const [showCustomTimesModal, setShowCustomTimesModal] = useState(false)
-  const [customTimes, setCustomTimes] = useState<string[]>(['9:00 AM', '12:00 PM', '3:00 PM', '6:00 PM', '8:00 PM'])
-  // ✅ MODIFIÉ: Structure pour gérer les horaires par jour individuellement
-  const [scheduledSlots, setScheduledSlots] = useState<{[timeSlot: string]: {[day: string]: boolean}}>({
-    '9:00 AM': { monday: true, tuesday: true, wednesday: true, thursday: true, friday: true, saturday: false, sunday: false },
-    '12:00 PM': { monday: true, tuesday: true, wednesday: true, thursday: true, friday: true, saturday: true, sunday: true },
-    '3:00 PM': { monday: true, tuesday: true, wednesday: true, thursday: true, friday: true, saturday: true, sunday: true },
-    '6:00 PM': { monday: true, tuesday: true, wednesday: true, thursday: true, friday: true, saturday: false, sunday: false },
-    '8:00 PM': { monday: false, tuesday: false, wednesday: false, thursday: false, friday: false, saturday: true, sunday: true }
-  })
-  const [newCustomTime, setNewCustomTime] = useState('')
-  
-  // ✅ NOUVEAU: Charger les créneaux depuis la base de données
-  useEffect(() => {
-    const loadScheduleSlots = async () => {
-      try {
-        const response = await fetch('/api/schedule-slots', {
-          method: 'GET',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-        })
-        
-        if (response.ok) {
-          const data = await response.json()
-          
-          if (data.scheduleSlots && data.scheduleSlots.length > 0) {
-            // Convertir les données de la base de données vers notre format frontend
-            const newCustomTimes: string[] = []
-            const newScheduledSlots: {[timeSlot: string]: {[day: string]: boolean}} = {}
-            
-            data.scheduleSlots.forEach((slot: any) => {
-              const timeSlot = slot.timeSlot
-              if (!newCustomTimes.includes(timeSlot)) {
-                newCustomTimes.push(timeSlot)
-              }
-              
-              newScheduledSlots[timeSlot] = {
-                monday: slot.monday,
-                tuesday: slot.tuesday,
-                wednesday: slot.wednesday,
-                thursday: slot.thursday,
-                friday: slot.friday,
-                saturday: slot.saturday,
-                sunday: slot.sunday
-              }
-            })
-            
-            setCustomTimes(newCustomTimes)
-            setScheduledSlots(newScheduledSlots)
-          }
-        }
-      } catch (error) {
-        console.error('Error loading schedule slots:', error)
-      }
-    }
-    
-    loadScheduleSlots()
-  }, [])
-  
-  // Media state (images and videos)
-  const [selectedImages, setSelectedImages] = useState<File[]>([])
-  const [imagePreviews, setImagePreviews] = useState<string[]>([])
-  const [imageAltTexts, setImageAltTexts] = useState<string[]>([])
-  const [selectedVideos, setSelectedVideos] = useState<File[]>([])
-  const [videoAltTexts, setVideoAltTexts] = useState<string[]>([])
-  const [contentWarnings, setContentWarnings] = useState<string[]>([])
-  const [showContentWarningModal, setShowContentWarningModal] = useState(false)
-  const [videoValidationError, setVideoValidationError] = useState<string>('')
-  
-  // ✅ NOUVEAU: État pour les liens explicites rich text
-  const [explicitLinks, setExplicitLinks] = useState<{text: string, url: string}[]>([])
-  
-  // ✅ NOUVEAU: État pour la compression d'images
-  const [oversizedImages, setOversizedImages] = useState<{file: File, index: number}[]>([])
-  const [showCompressionModal, setShowCompressionModal] = useState(false)
-  const [isCompressing, setIsCompressing] = useState(false)
-  
-  const fileInputRef = useRef<HTMLInputElement>(null)
-  // ✅ NOUVEAU: Référence au textarea pour l'insertion de liens
-  const messageTextareaRef = useRef<HTMLTextAreaElement>(null)
+  const isFreeLimitReached = Boolean(user.plan === 'free' && user.isScheduledLimitReached)
 
-  // ✅ NOUVEAU: Détecter si Twitter est sélectionné pour désactiver les médias
-  const isTwitterSelected = useMemo(() => {
-    return selectedAccountIds.some(accountId => accountId.startsWith('twitter:'))
-  }, [selectedAccountIds])
-
-  // ✅ NOUVEAU: Détecter si SEUL Bluesky est sélectionné pour permettre les médias
-  const isOnlyBlueskySelected = useMemo(() => {
-    return selectedAccountIds.length > 0 && selectedAccountIds.every(accountId => accountId.startsWith('bluesky:'))
-  }, [selectedAccountIds])
-
-  // ✅ NOUVEAU: Récupérer le premier compte sélectionné pour la preview
-  const previewAccount = useMemo(() => {
-    if (selectedAccountIds.length === 0) return null
-    
-    const firstAccountId = selectedAccountIds[0]
-    const [platform, id] = firstAccountId.split(':')
-    const account = accounts.find(acc => 
-      acc.platform === platform && acc.id.toString() === id
-    )
-    
-    return account || null
-  }, [selectedAccountIds, accounts])
-
-  // Convert accounts to CustomSelect options with proper platform handling
-  const accountOptions = useMemo((): Option[] => {
-    return accounts.map((account) => {
-      // Create a unique identifier that includes platform info
-      const accountKey = `${account.platform}:${account.id}`
-      
-      // Use appropriate handle/username based on platform
-      const displayHandle = account.platform === 'twitter' 
-        ? account.username || account.handle 
-        : account.handle
-      
-      return {
-        value: accountKey, // Platform-prefixed ID
-        label: account.displayName,
-        sublabel: `@${displayHandle} (${account.platform})`
-      }
-    })
-  }, [accounts])
-
-  const isFreeLimitReached = user.plan === 'free' && user.isScheduledLimitReached
-
-  // Sort posts by date (closest first)
   const sortedSchedulings = useMemo(() => {
     return [...schedulings]
       .filter((schedule) => schedule.status === 'pending')
       .sort((a, b) => new Date(a.scheduleTime).getTime() - new Date(b.scheduleTime).getTime())
   }, [schedulings])
 
-  // Group posts by day
   const groupedSchedulings = useMemo(() => {
     const groups: { [key: string]: Scheduling[] } = {}
-
     sortedSchedulings.forEach((schedule) => {
       const date = new Date(schedule.scheduleTime)
-      const dateKey = date.toISOString().split('T')[0] // YYYY-MM-DD format
-
+      const dateKey = date.toISOString().split('T')[0]
       if (!groups[dateKey]) {
         groups[dateKey] = []
       }
       groups[dateKey].push(schedule)
     })
-
     return groups
   }, [sortedSchedulings])
 
-  // ✅ NOUVEAU: Nettoyer automatiquement les médias quand Twitter est sélectionné
-  useEffect(() => {
-    if (isTwitterSelected && (selectedImages.length > 0 || selectedVideos.length > 0)) {
-      console.log('[SCHEDULE] Twitter selected, clearing media files')
-      setSelectedImages([])
-      setSelectedVideos([])
-      setImageAltTexts([])
-      setVideoAltTexts([])
-      setVideoValidationError('')
-    }
-  }, [isTwitterSelected, selectedImages.length, selectedVideos.length])
-
-  // ✅ NOUVEAU: Fonction utilitaire pour convertir le format 12h en minutes depuis minuit
-  const timeToMinutes = useCallback((timeStr: string) => {
-    const [time, period] = timeStr.split(' ')
-    const [hours, minutes] = time.split(':').map(Number)
-    
-    let adjustedHours = hours
-    if (period === 'PM' && hours !== 12) {
-      adjustedHours += 12
-    } else if (period === 'AM' && hours === 12) {
-      adjustedHours = 0
-    }
-    
-    return adjustedHours * 60 + minutes
-  }, [])
-
-  const upcomingDays = useMemo(() => {
+  const upcomingDays: UpcomingDay[] = useMemo(() => {
     const days = []
     const today = new Date()
 
     for (let i = 0; i <= 7; i++) {
-      // Today + Next 7 days (8 days total)
       const date = new Date(today)
       date.setDate(today.getDate() + i)
 
@@ -417,18 +88,16 @@ function Schedule({ schedulings }: ScheduleProps) {
     return days
   }, [groupedSchedulings])
 
-  // ✅ NOUVEAU: Calculer les posts visibles dans la semaine vs le total
-  const weeklyStats = useMemo(() => {
+  const weeklyStats: WeeklyStats = useMemo(() => {
     const visiblePosts = upcomingDays.reduce((total, day) => total + day.scheduledPosts.length, 0)
     const remainingPosts = sortedSchedulings.filter(post => {
       const postDate = new Date(post.scheduleTime)
       const weekEndDate = new Date()
-      weekEndDate.setDate(weekEndDate.getDate() + 7) // 7 jours à partir d'aujourd'hui
-      weekEndDate.setHours(23, 59, 59, 999) // Fin de la journée
-      
+      weekEndDate.setDate(weekEndDate.getDate() + 7)
+      weekEndDate.setHours(23, 59, 59, 999)
       return postDate > weekEndDate
     })
-    
+
     return {
       total: sortedSchedulings.length,
       visible: visiblePosts,
@@ -436,304 +105,11 @@ function Schedule({ schedulings }: ScheduleProps) {
     }
   }, [upcomingDays, sortedSchedulings])
 
-  // Optimiser les fonctions avec useCallback pour éviter les re-renders
-  const deleteSchedule = useCallback(async (schedule_id: number) => {
-    if (!confirm('Are you sure you want to delete this scheduled post?')) return
-    await router.put('/schedule/delete', { scheduleId: schedule_id })
-  }, [])
-
-  // ✅ NOUVEAU: Fonction pour insérer un lien dans le textarea (style Gmail)
-  const handleLinkInsert = useCallback((text: string, url: string) => {
-    const textarea = messageTextareaRef.current
-    if (!textarea) return
-
-    const start = textarea.selectionStart
-    const end = textarea.selectionEnd
-    const currentMessage = addMessage
-    
-    // Insérer le texte du lien à la position du curseur
-    const newMessage = 
-      currentMessage.substring(0, start) +
-      text +
-      currentMessage.substring(end)
-    
-    // Mettre à jour le message
-    setAddMessage(newMessage)
-    
-    // Ajouter le lien à la liste des liens explicites
-    const newLink = { text, url }
-    const updatedLinks = [...explicitLinks, newLink]
-    setExplicitLinks(updatedLinks)
-    
-    // Remettre le focus et placer le curseur après le texte inséré
-    setTimeout(() => {
-      textarea.focus()
-      textarea.setSelectionRange(start + text.length, start + text.length)
-    }, 0)
-  }, [addMessage, explicitLinks])
-
-  const saveEdit = useCallback(async () => {
-    if (!editingSchedule) return
-
-    // ✅ NOUVEAU: Validation de la date dans le passé
-    if (isDateInPast(localDateTime)) {
-      alert('Cannot schedule a post in the past. Please select a future date and time.')
-      return
-    }
-
-    const localDate = new Date(localDateTime)
-
-    const payload = {
-      scheduleId: editingSchedule.id,
-      message: editingSchedule.message,
-      schedule_time: localDate.toISOString(),
-    }
-
-    await router.put('/schedule/edit', payload)
-    setEditingSchedule(null)
-  }, [editingSchedule, localDateTime, isDateInPast])
-
-  // Function to insert hashtags into the message
-  const insertHashtags = useCallback((hashtags: string[]) => {
-    const hashtagText = hashtags.map((tag) => `#${tag}`).join(' ')
-    setAddMessage((prev) => {
-      const trimmed = prev.trim()
-      return trimmed ? `${trimmed} ${hashtagText}` : hashtagText
-    })
-  }, [])
-
-  // ✅ NOUVEAU: Fonction de compression d'image
-  const compressImage = useCallback(async (file: File, maxSizeKB: number = 976): Promise<File> => {
-    return new Promise((resolve, reject) => {
-      const canvas = document.createElement('canvas')
-      const ctx = canvas.getContext('2d')
-      const img = new Image()
-      
-      img.onload = () => {
-        // Calculer les nouvelles dimensions pour rester sous la limite
-        let { width, height } = img
-        const maxDimension = 1920 // Limite raisonnable
-        
-        if (width > maxDimension || height > maxDimension) {
-          if (width > height) {
-            height = (height * maxDimension) / width
-            width = maxDimension
-          } else {
-            width = (width * maxDimension) / height
-            height = maxDimension
-          }
-        }
-        
-        canvas.width = width
-        canvas.height = height
-        
-        // Dessiner l'image redimensionnée
-        ctx?.drawImage(img, 0, 0, width, height)
-        
-        // Convertir en blob avec compression progressive
-        let quality = 0.9
-        const tryCompress = () => {
-          canvas.toBlob((blob) => {
-            if (!blob) {
-              reject(new Error('Failed to compress image'))
-              return
-            }
-            
-            if (blob.size <= maxSizeKB * 1024 || quality <= 0.1) {
-              // Créer un nouveau File object
-              const compressedFile = new File([blob], file.name, {
-                type: 'image/jpeg',
-                lastModified: Date.now()
-              })
-              resolve(compressedFile)
-            } else {
-              quality -= 0.1
-              tryCompress()
-            }
-          }, 'image/jpeg', quality)
-        }
-        
-        tryCompress()
-      }
-      
-      img.onerror = () => reject(new Error('Failed to load image'))
-      img.src = URL.createObjectURL(file)
-    })
-  }, [])
-
-  // ✅ NOUVEAU: Compresser toutes les images oversized
-  const handleCompressOversizedImages = useCallback(async () => {
-    setIsCompressing(true)
-    
-    try {
-      const compressedFiles: File[] = []
-      const compressedPreviews: string[] = []
-      
-      for (const { file } of oversizedImages) {
-        const compressedFile = await compressImage(file)
-        compressedFiles.push(compressedFile)
-        
-        // Créer preview pour l'image compressée
-        const preview = URL.createObjectURL(compressedFile)
-        compressedPreviews.push(preview)
-      }
-      
-      // Ajouter les images compressées
-      setSelectedImages((prev) => [...prev, ...compressedFiles])
-      setImagePreviews((prev) => [...prev, ...compressedPreviews])
-      setImageAltTexts((prev) => [...prev, ...new Array(compressedFiles.length).fill('')])
-      
-      // Reset l'état
-      setOversizedImages([])
-      setShowCompressionModal(false)
-      
-    } catch (error) {
-      console.error('Compression failed:', error)
-      alert('Failed to compress some images. Please try again or manually reduce file sizes.')
-    } finally {
-      setIsCompressing(false)
-    }
-  }, [oversizedImages, compressImage])
-
-  // Validation function for videos
-  const validateVideoFile = useCallback(async (file: File): Promise<string | null> => {
-    return new Promise((resolve) => {
-      const video = document.createElement('video')
-      video.preload = 'metadata'
-      
-      video.onloadedmetadata = () => {
-        const duration = video.duration
-        const { videoWidth, videoHeight } = video
-        
-        // Check duration (max 60 seconds)
-        if (duration > 60) {
-          resolve('Video duration must be 60 seconds or less')
-          return
-        }
-        
-        // Check resolution (max 1920x1080)
-        if (videoWidth > 1920 || videoHeight > 1080) {
-          resolve('Video resolution must be 1920x1080 or lower')
-          return
-        }
-        
-        resolve(null) // No error
-      }
-      
-      video.onerror = () => {
-        resolve('Invalid video file')
-      }
-      
-      video.src = URL.createObjectURL(file)
-    })
-  }, [])
-
-  const saveAdd = useCallback(async () => {
-    if (!addMessage.trim() || (!addDateTime && !selectedTimeSlot) || selectedAccountIds.length === 0) return
-
-    // Determine the final schedule time
-    let finalDateTime: string
-    if (selectedDate && selectedTimeSlot) {
-      // Parse the time slot (e.g., "9:28 AM")
-      const [time, period] = selectedTimeSlot.split(' ')
-      const [hours, minutes] = time.split(':').map(Number)
-      let adjustedHours = hours
-      
-      if (period === 'PM' && hours !== 12) {
-        adjustedHours += 12
-      } else if (period === 'AM' && hours === 12) {
-        adjustedHours = 0
-      }
-
-      const scheduleDate = new Date(selectedDate)
-      scheduleDate.setHours(adjustedHours, minutes, 0, 0)
-      finalDateTime = scheduleDate.toISOString()
-    } else {
-      finalDateTime = new Date(addDateTime).toISOString()
-    }
-
-    // ✅ NOUVEAU: Validation de la date dans le passé
-    if (isDateInPast(finalDateTime)) {
-      alert('Cannot schedule a post in the past. Please select a future date and time.')
-      return
-    }
-
-    // ✅ NOUVEAU: Envoyer tous les comptes sélectionnés en une seule requête
-    const formData = new FormData()
-    formData.append('message', addMessage)
-    formData.append('schedule_time', finalDateTime)
-    
-    // ✅ Envoyer les IDs de comptes sélectionnés au format JSON
-    formData.append('selected_accounts', JSON.stringify(selectedAccountIds))
-
-    // Add images with proper array format
-    selectedImages.forEach((image) => {
-      formData.append('images[]', image)
-    })
-
-    // Add image alt texts as JSON string
-    if (imageAltTexts.length > 0) {
-      formData.append('image_alt_texts', JSON.stringify(imageAltTexts))
-    }
-
-    // Add videos with proper array format
-    selectedVideos.forEach((video) => {
-      formData.append('videos[]', video)
-    })
-
-    // Add video alt texts as JSON string
-    if (videoAltTexts.length > 0) {
-      formData.append('video_alt_texts', JSON.stringify(videoAltTexts))
-    }
-
-    // Add content warnings as JSON string
-    if (contentWarnings.length > 0) {
-      formData.append('content_warnings', JSON.stringify(contentWarnings))
-    }
-
-    // ✅ NOUVEAU: Ajouter les liens explicites pour rich text
-    if (explicitLinks.length > 0) {
-      formData.append('explicit_links', JSON.stringify(explicitLinks))
-    }
-
-    // ✅ Une seule requête pour tous les comptes sélectionnés
-    try {
-      await router.post('/schedule/create', formData)
-      console.log(`Successfully scheduled crosspost for ${selectedAccountIds.length} accounts`)
-    } catch (error) {
-      console.error('Failed to schedule crosspost:', error)
-      // The error will be handled by the backend and shown via flash messages
-    }
-
-    // Reset form
-    setAddMessage('')
-    setSelectedAccountIds([])
-    setAddDateTime('')
-    setSelectedTimeSlot('')
-    setSelectedDate('')
-    setSelectedImages([])
-    setSelectedVideos([])
-    setImagePreviews([])
-    setImageAltTexts([])
-    setVideoAltTexts([])
-    setContentWarnings([])
-    setExplicitLinks([]) // ✅ NOUVEAU: Reset des liens explicites
-    setShowAddModal(false)
-  }, [addMessage, selectedAccountIds, addDateTime, selectedDate, selectedTimeSlot, selectedImages, selectedVideos, imageAltTexts, videoAltTexts, contentWarnings, explicitLinks, accounts, isDateInPast])
-
-  const startEdit = useCallback((schedule: Scheduling) => {
-    setEditingSchedule({ ...schedule })
-    const date = new Date(schedule.scheduleTime)
-    const localISOString = date.toISOString().slice(0, 16)
-    setLocalDateTime(localISOString)
-  }, [])
-
   const handleSlotClick = useCallback((date: string, timeSlot: string) => {
-    // ✅ NOUVEAU: Vérifier si la date/heure sélectionnée est dans le passé
     const [time, period] = timeSlot.split(' ')
     const [hours, minutes] = time.split(':').map(Number)
     let adjustedHours = hours
-    
+
     if (period === 'PM' && hours !== 12) {
       adjustedHours += 12
     } else if (period === 'AM' && hours === 12) {
@@ -742,277 +118,77 @@ function Schedule({ schedulings }: ScheduleProps) {
 
     const scheduleDate = new Date(date)
     scheduleDate.setHours(adjustedHours, minutes, 0, 0)
-    
+
     if (scheduleDate <= new Date()) {
       alert('Cannot schedule a post in the past. Please select a future time slot.')
       return
     }
 
-    setSelectedDate(date)
-    setSelectedTimeSlot(timeSlot)
-    setShowAddModal(true)
-  }, [])
+    scheduleForm.setSelectedDate(date)
+    scheduleForm.setSelectedTimeSlot(timeSlot)
+    scheduleForm.openModal()
+  }, [scheduleForm])
 
-  // ✅ NOUVEAU: Obtenir les créneaux actifs pour un jour donné
-  const getActiveSlotsForDay = useCallback((date: string) => {
-    const dayOfWeek = new Date(date).getDay()
-    const dayNames = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
-    const dayName = dayNames[dayOfWeek]
-    
-    return customTimes.filter(time => scheduledSlots[time]?.[dayName]).sort((a, b) => {
-      // ✅ MODIFIÉ: Utiliser une fonction de tri plus robuste
-      return timeToMinutes(a) - timeToMinutes(b)
-    })
-  }, [customTimes, scheduledSlots, timeToMinutes])
+  const handleCreatePost = async () => {
+    let finalDateTime: string
+    if (scheduleForm.selectedDate && scheduleForm.selectedTimeSlot) {
+      const [time, period] = scheduleForm.selectedTimeSlot.split(' ')
+      const [hours, minutes] = time.split(':').map(Number)
+      let adjustedHours = hours
 
-  const addCustomTime = useCallback(() => {
-    if (!newCustomTime.trim()) return
-    
-    // Validation du format de l'heure
-    const timeRegex = /^(1[0-2]|0?[1-9]):([0-5][0-9])\s?(AM|PM)$/i
-    if (!timeRegex.test(newCustomTime.trim())) {
-      alert('Please enter time in format: HH:MM AM/PM (e.g., 9:30 AM)')
-      return
-    }
-    
-    const formattedTime = newCustomTime.trim().toUpperCase()
-    if (!customTimes.includes(formattedTime)) {
-      setCustomTimes(prev => [...prev, formattedTime].sort((a, b) => {
-        // ✅ MODIFIÉ: Utiliser la même fonction de tri robuste
-        return timeToMinutes(a) - timeToMinutes(b)
-      }))
-      
-      // ✅ NOUVEAU: Initialiser le nouveau créneau avec tous les jours activés
-      setScheduledSlots(prev => ({
-        ...prev,
-        [formattedTime]: {
-          monday: true,
-          tuesday: true,
-          wednesday: true,
-          thursday: true,
-          friday: true,
-          saturday: true,
-          sunday: true
-        }
-      }))
-    }
-    setNewCustomTime('')
-  }, [newCustomTime, customTimes, timeToMinutes])
-
-  const removeCustomTime = useCallback((timeToRemove: string) => {
-    setCustomTimes(prev => prev.filter(time => time !== timeToRemove))
-    setScheduledSlots(prev => {
-      const newSlots = { ...prev }
-      delete newSlots[timeToRemove]
-      return newSlots
-    })
-  }, [])
-
-  const toggleDay = useCallback((timeSlot: string, day: string) => {
-    setScheduledSlots(prev => ({
-      ...prev,
-      [timeSlot]: {
-        ...prev[timeSlot],
-        [day]: !prev[timeSlot]?.[day]
+      if (period === 'PM' && hours !== 12) {
+        adjustedHours += 12
+      } else if (period === 'AM' && hours === 12) {
+        adjustedHours = 0
       }
-    }))
-  }, [])
 
-  const saveCustomTimes = useCallback(async () => {
-    try {
-      const response = await fetch('/api/schedule-slots', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          scheduleSlots: scheduledSlots
-        })
-      })
-      
-      if (response.ok) {
-        console.log('Schedule slots saved successfully')
-        setShowCustomTimesModal(false)
-      } else {
-        console.error('Failed to save schedule slots')
-        // TODO: Ajouter une notification d'erreur
-      }
-    } catch (error) {
-      console.error('Error saving schedule slots:', error)
-      // TODO: Ajouter une notification d'erreur
-    }
-  }, [scheduledSlots])
-
-  // Optimized functions for media handling (images and videos)
-  const handleMediaSelect = useCallback(async (files: FileList | null) => {
-    if (!files) return
-
-    const imageFiles: File[] = []
-    const videoFiles: File[] = []
-
-    for (let i = 0; i < files.length; i++) {
-      const file = files[i]
-      if (file.type.startsWith('image/')) {
-        imageFiles.push(file)
-      } else if (file.type.startsWith('video/')) {
-        videoFiles.push(file)
-      }
+      const scheduleDate = new Date(scheduleForm.selectedDate)
+      scheduleDate.setHours(adjustedHours, minutes, 0, 0)
+      finalDateTime = scheduleDate.toISOString()
+    } else {
+      finalDateTime = new Date(scheduleForm.addDateTime).toISOString()
     }
 
-    // Validate constraints
-    if (selectedImages.length + imageFiles.length > 4) {
-      alert('You can only upload up to 4 images total')
-      return
-    }
-
-    if (selectedVideos.length + videoFiles.length > 1) {
-      alert('You can only upload 1 video')
-      return
-    }
-
-    if ((selectedImages.length > 0 || imageFiles.length > 0) && (selectedVideos.length > 0 || videoFiles.length > 0)) {
-      alert('You cannot mix images and videos in the same post')
-      return
-    }
-
-    // ✅ NOUVEAU: Séparer les images par taille (limite Bluesky = 976KB)
-    const maxImageSize = 976 * 1024 // 976KB en bytes
-    const validImages: File[] = []
-    const oversized: {file: File, index: number}[] = []
-    
-    imageFiles.forEach((imageFile, index) => {
-      if (imageFile.size > maxImageSize) {
-        oversized.push({ file: imageFile, index })
-      } else {
-        validImages.push(imageFile)
-      }
+    const success = await scheduleOps.saveAdd({
+      message: scheduleForm.addMessage,
+      scheduleTime: finalDateTime,
+      selectedAccountIds: accountSelection.selectedAccountIds,
+      images: mediaUpload.selectedImages,
+      videos: mediaUpload.selectedVideos,
+      imageAltTexts: mediaUpload.imageAltTexts,
+      videoAltTexts: mediaUpload.videoAltTexts,
+      contentWarnings: mediaUpload.contentWarnings,
+      explicitLinks: scheduleForm.explicitLinks,
     })
 
-    // Si des images sont trop lourdes, montrer le modal de compression
-    if (oversized.length > 0) {
-      setOversizedImages(oversized)
-      setShowCompressionModal(true)
-      // Ne pas traiter les images oversized maintenant, attendre la compression
+    if (success) {
+      scheduleForm.resetForm()
+      accountSelection.clearAllAccounts()
+      mediaUpload.resetMedia()
+      scheduleForm.closeModal()
     }
+  }
 
-    // Traiter les images valides normalement
-    if (validImages.length > 0) {
-      const newPreviews: string[] = []
-      const newAltTexts: string[] = []
-
-      validImages.forEach((file) => {
-        const reader = new FileReader()
-        reader.onload = (e) => {
-          newPreviews.push(e.target?.result as string)
-          if (newPreviews.length === validImages.length) {
-            setImagePreviews((prev) => [...prev, ...newPreviews])
-          }
-        }
-        reader.readAsDataURL(file)
-        newAltTexts.push('')
-      })
-
-      setSelectedImages((prev) => [...prev, ...validImages])
-      setImageAltTexts((prev) => [...prev, ...newAltTexts])
-    }
-
-    // Validate video files
-    for (const videoFile of videoFiles) {
-      const error = await validateVideoFile(videoFile)
-      if (error) {
-        setVideoValidationError(error)
-        return
+  const handleCompressImages = async () => {
+    await imageCompression.handleCompressOversizedImages(
+      mediaUpload.oversizedImages,
+      (compressedFiles, compressedPreviews) => {
+        mediaUpload.setSelectedImages(prev => [...prev, ...compressedFiles])
+        mediaUpload.setImagePreviews(prev => [...prev, ...compressedPreviews])
+        mediaUpload.setImageAltTexts(prev => [...prev, ...new Array(compressedFiles.length).fill('')])
+        mediaUpload.setOversizedImages([])
       }
-    }
+    )
+  }
 
-    // Clear any previous validation errors
-    setVideoValidationError('')
-
-    // Process image files
-    if (imageFiles.length > 0) {
-      const newPreviews: string[] = []
-      const newAltTexts: string[] = []
-
-      imageFiles.forEach((file) => {
-        const reader = new FileReader()
-        reader.onload = (e) => {
-          newPreviews.push(e.target?.result as string)
-          if (newPreviews.length === imageFiles.length) {
-            setImagePreviews((prev) => [...prev, ...newPreviews])
-          }
-        }
-        reader.readAsDataURL(file)
-        newAltTexts.push('')
-      })
-
-      setSelectedImages((prev) => [...prev, ...imageFiles])
-      setImageAltTexts((prev) => [...prev, ...newAltTexts])
-    }
-
-    // Process video files
-    if (videoFiles.length > 0) {
-      const newVideoAltTexts: string[] = videoFiles.map(() => '')
-      setSelectedVideos((prev) => [...prev, ...videoFiles])
-      setVideoAltTexts((prev) => [...prev, ...newVideoAltTexts])
-    }
-  }, [selectedImages.length, selectedVideos.length, validateVideoFile])
-
-  const removeImage = useCallback((index: number) => {
-    setSelectedImages((prev) => prev.filter((_, i) => i !== index))
-    setImagePreviews((prev) => prev.filter((_, i) => i !== index))
-    setImageAltTexts((prev) => prev.filter((_, i) => i !== index))
-  }, [])
-
-  const removeVideo = useCallback((index: number) => {
-    setSelectedVideos((prev) => prev.filter((_, i) => i !== index))
-    setVideoAltTexts((prev) => prev.filter((_, i) => i !== index))
-  }, [])
-
-  const clearImages = useCallback(() => {
-    setSelectedImages([])
-    setImagePreviews([])
-    setImageAltTexts([])
-  }, [])
-
-  const clearVideos = useCallback(() => {
-    setSelectedVideos([])
-    setVideoAltTexts([])
-  }, [])
-
-  const clearAllMedia = useCallback(() => {
-    clearImages()
-    clearVideos()
-  }, [clearImages, clearVideos])
-
-  const updateAltText = useCallback((index: number, altText: string) => {
-    setImageAltTexts((prev) => {
-      const newAltTexts = [...prev]
-      newAltTexts[index] = altText
-      return newAltTexts
-    })
-  }, [])
-
-  const updateVideoAltText = useCallback((index: number, altText: string) => {
-    setVideoAltTexts((prev) => {
-      const newAltTexts = [...prev]
-      newAltTexts[index] = altText
-      return newAltTexts
-    })
-  }, [])
-
-  // Auto-clear l'erreur de validation après 5 secondes
   useEffect(() => {
-    if (videoValidationError) {
-      const timer = setTimeout(() => {
-        setVideoValidationError('')
-      }, 5000)
-      return () => clearTimeout(timer)
+    if (mediaUpload.oversizedImages.length > 0) {
+      imageCompression.setShowCompressionModal(true)
     }
-  }, [videoValidationError])
+  }, [mediaUpload.oversizedImages])
 
-  // Handle paste event for images
   useEffect(() => {
-    if (!showAddModal) return
+    if (!scheduleForm.showAddModal) return
 
     const handlePaste = async (e: ClipboardEvent) => {
       const items = e.clipboardData?.items
@@ -1027,112 +203,51 @@ function Schedule({ schedulings }: ScheduleProps) {
         }
       }
 
-      if (imageFiles.length > 0 && selectedImages.length < 4) {
+      if (imageFiles.length > 0 && mediaUpload.selectedImages.length < 4) {
         const fileList = new DataTransfer()
         imageFiles.forEach((file) => fileList.items.add(file))
-        await handleMediaSelect(fileList.files)
+        await mediaUpload.handleMediaSelect(fileList.files)
       }
     }
 
     document.addEventListener('paste', handlePaste)
     return () => document.removeEventListener('paste', handlePaste)
-  }, [showAddModal, selectedImages.length, handleMediaSelect])
-
-  // ✅ NOUVEAU: Reset select value when all accounts are cleared
-  useEffect(() => {
-    if (selectedAccountIds.length === 0) {
-      setCurrentSelectValue('')
-    }
-  }, [selectedAccountIds])
+  }, [scheduleForm.showAddModal, mediaUpload.selectedImages.length, mediaUpload.handleMediaSelect])
 
   return (
     <>
       <Head title="Schedule Queue" />
       <Layout user={user}>
         <div className="space-y-6">
-          {/* Header */}
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-            <div>
-              <h1 className="text-2xl font-bold">Schedule Queue</h1>
-              <div className="flex items-center gap-4 mt-1">
-                <p className="text-muted-foreground">
-                  {weeklyStats.total > 0
-                    ? `${weeklyStats.total} post${weeklyStats.total > 1 ? 's' : ''} in queue${weeklyStats.remaining.length > 0 ? ` (${weeklyStats.visible} this week)` : ''}`
-                    : 'No posts scheduled'} 
-                </p>
-                
-                {/* Streak Display */}
-                {user.currentStreak !== undefined && user.longestStreak !== undefined && user.streakStatus && (
-                  <StreakDisplay
-                    currentStreak={user.currentStreak}
-                    longestStreak={user.longestStreak}
-                    streakStatus={user.streakStatus}
-                    className="ml-2"
-                  />
-                )}
-              </div>
-            </div>
+          <ScheduleHeader
+            weeklyStats={weeklyStats}
+            user={user}
+            isFreeLimitReached={isFreeLimitReached}
+            onSchedulePost={scheduleForm.openModal}
+            onCustomTimes={() => scheduleSlots.setShowCustomTimesModal(true)}
+          />
 
-            <div className="flex items-center gap-3">
-              {isFreeLimitReached && (
-                <div className="flex items-center gap-2 text-amber-600 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 rounded-lg text-sm font-medium">
-                  <Lock className="h-4 w-4" />
-                  Free limit reached ({weeklyStats.total}/7)
-                </div>
-              )}
-
-              {/* Custom Times Button */}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowCustomTimesModal(true)}
-                className="h-8 px-3"
-                title="Custom posting times"
-              >
-                <Calendar className="h-4 w-4" />
-              </Button>
-
-              <Button
-                size="default"
-                className="bg-blue-600 hover:bg-blue-700 text-white font-medium transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-                disabled={isFreeLimitReached}
-                onClick={() => setShowAddModal(true)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Schedule Post
-              </Button>
-            </div>
-          </div>
-
-          {/* Queue */}
           <div className="space-y-6">
             {upcomingDays.map((day) => (
               <div key={day.date} className="space-y-3">
-                {/* Day Header */}
                 <div className="border-b border-gray-200 dark:border-gray-700 pb-2">
                   <h2 className="text-lg font-semibold text-foreground">{day.displayName}</h2>
                 </div>
 
-                {/* Time slots for this day */}
                 <div className="space-y-2">
-                  {/* Afficher tous les posts existants pour ce jour */}
                   {day.scheduledPosts.map((post) => (
                     <ScheduledPostItem
                       key={`post-${post.id}`}
                       post={post}
-                      onEdit={startEdit}
-                      onDelete={deleteSchedule}
+                      onEdit={setEditingSchedule}
+                      onDelete={scheduleOps.deleteSchedule}
                     />
                   ))}
 
-                  {/* Afficher les créneaux prédéfinis disponibles si on n'a pas atteint la limite */}
                   {useMemo(() => {
-                    // ✅ MODIFIÉ: Utiliser les créneaux spécifiques au jour
-                    const activeSlotsForDay = getActiveSlotsForDay(day.date)
-                    
-                    if (activeSlotsForDay.length === 0) {
-                      return null // Aucun créneau actif pour ce jour
-                    }
+                    const activeSlotsForDay = scheduleSlots.getActiveSlotsForDay(day.date)
+
+                    if (activeSlotsForDay.length === 0) return null
 
                     const usedSlots = day.scheduledPosts.map((post) => {
                       return new Date(post.scheduleTime).toLocaleTimeString('en-US', {
@@ -1143,14 +258,12 @@ function Schedule({ schedulings }: ScheduleProps) {
                     })
 
                     const availableSlots = activeSlotsForDay.filter((slot) => {
-                      // Filter out used slots
                       if (usedSlots.includes(slot)) return false
-                      
-                      // ✅ NOUVEAU: Filter out slots in the past
+
                       const [time, period] = slot.split(' ')
                       const [hours, minutes] = time.split(':').map(Number)
                       let adjustedHours = hours
-                      
+
                       if (period === 'PM' && hours !== 12) {
                         adjustedHours += 12
                       } else if (period === 'AM' && hours === 12) {
@@ -1159,8 +272,8 @@ function Schedule({ schedulings }: ScheduleProps) {
 
                       const scheduleDate = new Date(day.date)
                       scheduleDate.setHours(adjustedHours, minutes, 0, 0)
-                      
-                      return scheduleDate > new Date() // Only show future slots
+
+                      return scheduleDate > new Date()
                     })
 
                     return availableSlots.map((timeSlot) => (
@@ -1168,16 +281,15 @@ function Schedule({ schedulings }: ScheduleProps) {
                         key={`empty-${timeSlot}`}
                         timeSlot={timeSlot}
                         date={day.date}
-                        isFreeLimitReached={isFreeLimitReached || false}
+                        isFreeLimitReached={isFreeLimitReached}
                         onSlotClick={handleSlotClick}
                       />
                     ))
-                  }, [day.scheduledPosts, day.date, isFreeLimitReached, handleSlotClick, getActiveSlotsForDay])}
+                  }, [day.scheduledPosts, day.date, isFreeLimitReached, handleSlotClick, scheduleSlots.getActiveSlotsForDay])}
                 </div>
               </div>
             ))}
 
-            {/* ✅ NOUVEAU: Posts restants après la semaine */}
             {weeklyStats.remaining.length > 0 && (
               <div className="space-y-3">
                 <div className="border-b border-gray-200 dark:border-gray-700 pb-2">
@@ -1191,17 +303,16 @@ function Schedule({ schedulings }: ScheduleProps) {
                       key={schedule.id}
                       post={schedule}
                       onEdit={setEditingSchedule}
-                      onDelete={deleteSchedule}
+                      onDelete={scheduleOps.deleteSchedule}
                     />
                   ))}
                 </div>
               </div>
             )}
 
-            {/* Global Add Button */}
             <Card
               className="border-dashed border-2 border-blue-300 dark:border-blue-600 hover:border-blue-500 dark:hover:border-blue-400 transition-colors cursor-pointer group"
-              onClick={() => !isFreeLimitReached && setShowAddModal(true)}
+              onClick={() => !isFreeLimitReached && scheduleForm.openModal()}
             >
               <CardContent className="flex items-center justify-center py-6">
                 <div className="flex items-center gap-3 text-blue-600 dark:text-blue-400 group-hover:text-blue-700 dark:group-hover:text-blue-300">
@@ -1214,764 +325,91 @@ function Schedule({ schedulings }: ScheduleProps) {
             </Card>
           </div>
 
-          {/* Edit Modal */}
-          {editingSchedule && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-              <Card className="w-full max-w-lg mx-4">
-                <CardHeader>
-                  <CardTitle>Edit Scheduled Post</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label htmlFor="message" className="text-sm font-medium">
-                      Message
-                    </Label>
-                    <RichTextHighlightTextarea
-                      value={editingSchedule.message}
-                      onChange={(newMessage) =>
-                        setEditingSchedule({
-                          ...editingSchedule,
-                          message: newMessage,
-                        })
-                      }
-                      placeholder="What's on your mind?"
-                      rows={6}
-                      className="mt-1 min-h-[150px] w-full px-3 py-2 text-sm bg-background border border-input rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      showPreview={true}
-                    />
-                  </div>
-
-                  <div>
-                    <Label htmlFor="datetime" className="text-sm font-medium">
-                      Schedule Time
-                    </Label>
-                    <Input
-                      id="datetime"
-                      type="datetime-local"
-                      value={localDateTime}
-                      onChange={(e) => setLocalDateTime(e.target.value)}
-                      min={getCurrentDateTime()}
-                      className="mt-1"
-                    />
-                  </div>
-
-                  <div className="flex gap-3 pt-2">
-                    <Button onClick={saveEdit} className="flex-1 bg-blue-500">
-                      Save Changes
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => setEditingSchedule(null)}
-                      className="flex-1"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          {/* Add Schedule Modal - Using original beautiful design */}
-          {showAddModal && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-              <Card className="w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
-                <CardHeader>
-                  <CardTitle>Schedule New Post</CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div>
-                    <Label className="text-sm font-medium">
-                      Accounts ({selectedAccountIds.length} selected)
-                    </Label>
-                    <div className="mt-2 space-y-2">
-                      {/* Show selected accounts */}
-                      {selectedAccountIds.length > 0 && (
-                        <div className="flex flex-wrap gap-2 p-2 bg-blue-50 dark:bg-blue-950/20 rounded-md border border-blue-200 dark:border-blue-800">
-                          {selectedAccountIds.map((accountId) => {
-                            // ✅ NOUVEAU: Parser l'ID avec format platform:id
-                            const [platform, id] = accountId.split(':')
-                            const account = accounts.find(acc => 
-                              acc.platform === platform && acc.id.toString() === id
-                            )
-                            if (!account) return null
-                            
-                            // Utiliser le bon handle selon la plateforme
-                            const displayHandle = account.platform === 'twitter' 
-                              ? account.username || account.handle 
-                              : account.handle
-                            
-                            return (
-                              <div
-                                key={accountId}
-                                className="flex items-center gap-2 bg-white dark:bg-gray-800 px-3 py-2 rounded-full border border-blue-300 dark:border-blue-600 text-sm"
-                              >
-                                {/* ✅ NOUVEAU: Icône de plateforme */}
-                                {account.platform === 'twitter' ? (
-                                  <Twitter className="h-4 w-4 text-blue-400" />
-                                ) : (
-                                  <div className="w-4 h-4 bg-blue-500 rounded-full flex items-center justify-center">
-                                    <span className="text-white text-xs font-bold">B</span>
-                                  </div>
-                                )}
-                                
-                                <div className="flex flex-col">
-                                  <span className="font-medium text-gray-900 dark:text-gray-100">
-                                    {account.displayName}
-                                  </span>
-                                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                                    @{displayHandle}
-                                  </span>
-                                </div>
-                                
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    setSelectedAccountIds(prev => prev.filter(id => id !== accountId))
-                                  }}
-                                  className="text-red-500 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 ml-2"
-                                >
-                                  <X className="h-4 w-4" />
-                                </button>
-                              </div>
-                            )
-                          })}
-                        </div>
-                      )}
-                      
-                      {/* Account selector */}
-                      <CustomSelect
-                        value={currentSelectValue}
-                        onChange={(accountId) => {
-                          if (accountId && !selectedAccountIds.includes(accountId)) {
-                            setSelectedAccountIds(prev => [...prev, accountId])
-                            setCurrentSelectValue('') // ✅ NOUVEAU: Remettre à vide après sélection
-                          }
-                        }}
-                        options={accountOptions.filter(option => !selectedAccountIds.includes(option.value))}
-                        placeholder={selectedAccountIds.length === 0 ? "Choose accounts" : "Add another account"}
-                        className="w-full"
-                      />
-                      
-                      {/* Quick actions */}
-                      {accounts.length > 1 && (
-                        <div className="flex gap-2">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSelectedAccountIds(accounts.map(acc => acc.id.toString()))}
-                            className="text-xs h-6 px-2"
-                            disabled={selectedAccountIds.length === accounts.length}
-                          >
-                            Select All
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => setSelectedAccountIds([])}
-                            className="text-xs h-6 px-2"
-                            disabled={selectedAccountIds.length === 0}
-                          >
-                            Clear All
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                    {selectedAccountIds.length === 0 && (
-                      <p className="text-xs text-red-500 mt-1">Please select at least one account</p>
-                    )}
-                  </div>
-
-                  <div>
-                    <Label htmlFor="addMessage" className="text-sm font-medium">
-                      Message
-                    </Label>
-                    <LinkHighlightTextarea
-                      ref={messageTextareaRef}
-                      value={addMessage}
-                      onChange={setAddMessage}
-                      links={explicitLinks}
-                      placeholder="What's on your mind?"
-                      rows={6}
-                      className="mt-1 min-h-[150px] w-full px-3 py-2 text-sm bg-background border border-input rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                      showPreview={true}
-                      previewAccount={previewAccount}
-                    />
-                    
-                    {/* Actions sous le textarea */}
-                    <div className="flex justify-between items-center text-xs text-muted-foreground mt-1">
-                      <div className="flex items-center gap-2">
-                        <HashtagGroupSelector 
-                          onInsert={insertHashtags}
-                          className="w-auto"
-                        />
-                        {/* ✅ NOUVEAU: Smart Links Manager pour Bluesky uniquement */}
-                        {isOnlyBlueskySelected && (
-                          <GmailStyleLinkManager
-                            onLinkInsert={handleLinkInsert}
-                            disabled={false}
-                          />
-                        )}
-                      </div>
-                      <span>{addMessage.length}/300 characters</span>
-                    </div>
-
-                    {/* ✅ NOUVEAU: Affichage des liens configurés */}
-                    {explicitLinks.length > 0 && (
-                      <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
-                        <Label className="text-sm font-medium mb-2 block">Configured Links ({explicitLinks.length})</Label>
-                        <div className="space-y-2">
-                          {explicitLinks.map((link, index) => (
-                            <div key={index} className="flex items-center justify-between p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2">
-                                  <span className="font-medium text-sm">
-                                    &quot;{link.text}&quot;
-                                  </span>
-                                  <span className="text-xs text-muted-foreground">→</span>
-                                  <span className="text-xs text-blue-600 dark:text-blue-400 truncate">
-                                    {link.url}
-                                  </span>
-                                </div>
-                              </div>
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => {
-                                  const updatedLinks = explicitLinks.filter((_, i) => i !== index)
-                                  setExplicitLinks(updatedLinks)
-                                }}
-                                className="ml-2 flex-shrink-0"
-                              >
-                                <X className="h-4 w-4" />
-                              </Button>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Media Section */}
-                  <div>
-                    <Label className="text-sm font-medium">Media</Label>
-                    <div className="mt-1 space-y-3">
-                      {/* ✅ NOUVEAU: Avertissement si Twitter est sélectionné */}
-                      {isTwitterSelected && (
-                        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-600 text-amber-800 dark:text-amber-300 px-4 py-3 rounded-lg">
-                          <div className="flex items-center gap-2">
-                            <Twitter className="h-4 w-4" />
-                            <div>
-                              <p className="font-medium text-sm">Media upload disabled for Twitter</p>
-                              <p className="text-xs mt-1">
-                                Due to Twitter API limitations, media uploads are not supported. 
-                                Select only Bluesky accounts to enable media uploads.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      )}
-                      
-                      {/* Media Upload Button */}
-                      <div className="flex items-center gap-2">
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={
-                            isTwitterSelected || 
-                            selectedImages.length >= 4 || 
-                            selectedVideos.length >= 1 ||
-                            selectedAccountIds.length === 0
-                          }
-                          className={`flex items-center gap-2 ${
-                            isTwitterSelected ? 'opacity-50 cursor-not-allowed' : ''
-                          }`}
-                        >
-                          <FileText className="h-4 w-4" />
-                          {isTwitterSelected 
-                            ? 'Media Disabled (Twitter selected)' 
-                            : `Add Media (${selectedImages.length + selectedVideos.length}/${selectedImages.length > 0 ? '4' : '1'})`
-                          }
-                        </Button>
-                        <input
-                          ref={fileInputRef}
-                          type="file"
-                          multiple
-                          accept="image/*,video/*"
-                          className="hidden"
-                          onChange={(e) => handleMediaSelect(e.target.files)}
-                          disabled={isTwitterSelected}
-                        />
-                        {(selectedImages.length > 0 || selectedVideos.length > 0) && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={clearAllMedia}
-                            className="text-red-500 hover:text-red-700"
-                          >
-                            Clear All
-                          </Button>
-                        )}
-                      </div>
-
-                      {/* Media Instructions */}
-                      <p className="text-xs text-muted-foreground">
-                        {isTwitterSelected 
-                          ? '⚠️ Media uploads are disabled when Twitter accounts are selected'
-                          : '💡 Upload up to 4 images OR 1 video (max 10MB for images, 50MB for videos)'
-                        }
-                      </p>
-
-                      {/* Video Validation Error */}
-                      {videoValidationError && (
-                        <div className="bg-red-100 dark:bg-red-900/20 border border-red-400 dark:border-red-600 text-red-700 dark:text-red-300 px-4 py-3 rounded relative">
-                          <div className="flex items-center gap-2">
-                            <strong className="font-bold">Video Error:</strong>
-                            <span className="block sm:inline">{videoValidationError}</span>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Image Previews */}
-                      {imagePreviews.length > 0 && (
-                        <div className="space-y-3">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-h-60 overflow-y-auto">
-                            {imagePreviews.map((preview, index) => (
-                              <div key={index} className="space-y-2">
-                                <div className="relative group">
-                                  <img
-                                    src={preview}
-                                    alt={imageAltTexts[index] || `Preview ${index + 1}`}
-                                    className="w-full h-20 object-cover rounded border"
-                                  />
-                                  <button
-                                    type="button"
-                                    onClick={() => removeImage(index)}
-                                    className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                                  >
-                                    <X className="h-3 w-3" />
-                                  </button>
-                                </div>
-                                <div className="space-y-1">
-                                  <Label 
-                                    htmlFor={`alt-text-modal-${index}`}
-                                    className="text-xs font-medium text-gray-600 dark:text-gray-400"
-                                  >
-                                    Alt text
-                                  </Label>
-                                  <Input
-                                    id={`alt-text-modal-${index}`}
-                                    type="text"
-                                    placeholder="Describe this image..."
-                                    value={imageAltTexts[index] || ''}
-                                    onChange={(e) => updateAltText(index, e.target.value)}
-                                    className="text-xs"
-                                    maxLength={1000}
-                                  />
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Video Previews */}
-                      {selectedVideos.length > 0 && (
-                        <div className="space-y-3">
-                          <div className="space-y-3">
-                            {selectedVideos.map((video, index) => (
-                              <div key={index} className="space-y-2">
-                                <div className="relative group p-3 border border-gray-300 dark:border-gray-600 rounded-lg bg-gray-50 dark:bg-gray-800">
-                                  <div className="flex items-center gap-3">
-                                    <Video className="h-8 w-8 text-blue-500" />
-                                    <div className="flex-1 min-w-0">
-                                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
-                                        {video.name}
-                                      </p>
-                                      <p className="text-xs text-gray-500 dark:text-gray-400">
-                                        {(video.size / (1024 * 1024)).toFixed(1)} MB • Video
-                                      </p>
-                                    </div>
-                                    <button
-                                      type="button"
-                                      onClick={() => removeVideo(index)}
-                                      className="p-1 text-red-500 hover:text-red-700 transition-colors"
-                                    >
-                                      <X className="h-4 w-4" />
-                                    </button>
-                                  </div>
-                                </div>
-                                <div className="space-y-1">
-                                  <Label 
-                                    htmlFor={`video-alt-text-modal-${index}`}
-                                    className="text-xs font-medium text-gray-600 dark:text-gray-400"
-                                  >
-                                    Alt text
-                                  </Label>
-                                  <Input
-                                    id={`video-alt-text-modal-${index}`}
-                                    type="text"
-                                    placeholder="Describe this video..."
-                                    value={videoAltTexts[index] || ''}
-                                    onChange={(e) => updateVideoAltText(index, e.target.value)}
-                                    className="text-xs"
-                                    maxLength={1000}
-                                  />
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Content Warnings */}
-                      {(selectedImages.length > 0 || selectedVideos.length > 0) && (
-                        <div className="space-y-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                          <div className="flex items-center justify-between">
-                            <Label className="text-sm font-medium flex items-center gap-2">
-                              <Shield className="h-4 w-4" />
-                              Content Warnings
-                            </Label>
-                            <Button
-                              type="button"
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setShowContentWarningModal(true)}
-                              className="text-xs"
-                            >
-                              Add Warning
-                            </Button>
-                          </div>
-                          
-                          {contentWarnings.length > 0 && (
-                            <div className="flex flex-wrap gap-2">
-                              {contentWarnings.map((warning) => (
-                                <span 
-                                  key={warning} 
-                                  className="px-2 py-1 bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-300 text-xs rounded-full"
-                                >
-                                  {warning.replace('-', ' ')}
-                                </span>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <div>
-                    <Label htmlFor="addDatetime" className="text-sm font-medium">
-                      Schedule Time
-                    </Label>
-                    {selectedDate && selectedTimeSlot ? (
-                      <div className="mt-1 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-800">
-                        <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                          Scheduled for:{' '}
-                          {new Date(selectedDate).toLocaleDateString('en-US', {
-                            weekday: 'long',
-                            day: 'numeric',
-                            month: 'long',
-                          })}{' '}
-                          at {selectedTimeSlot}
-                        </p>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => {
-                            setSelectedDate('')
-                            setSelectedTimeSlot('')
-                          }}
-                          className="mt-2 h-6 px-2 text-xs text-blue-700 dark:text-blue-300"
-                        >
-                          Change time
-                        </Button>
-                      </div>
-                    ) : (
-                      <Input
-                        id="addDatetime"
-                        type="datetime-local"
-                        value={addDateTime}
-                        onChange={(e) => setAddDateTime(e.target.value)}
-                        min={getCurrentDateTime()}
-                        className="mt-1"
-                      />
-                    )}
-                  </div>
-
-                  <div className="flex gap-3 pt-2">
-                    <Button
-                      onClick={saveAdd}
-                      className="flex-1 bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-300 disabled:text-white transition-colors"
-                      disabled={
-                        !addMessage.trim() || (!addDateTime && !selectedTimeSlot) || selectedAccountIds.length === 0
-                      }
-                    >
-                      Schedule Post
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setShowAddModal(false)
-                        setAddMessage('')
-                        setSelectedAccountIds([])
-                        setAddDateTime('')
-                        setSelectedTimeSlot('')
-                        setSelectedDate('')
-                        setSelectedImages([])
-                        setSelectedVideos([])
-                        setImagePreviews([])
-                        setImageAltTexts([])
-                        setVideoAltTexts([])
-                        setContentWarnings([])
-                        setExplicitLinks([]) // ✅ NOUVEAU: Reset des liens explicites
-                        setOversizedImages([]) // ✅ NOUVEAU: Reset des images oversized
-                        setShowCompressionModal(false) // ✅ NOUVEAU: Fermer le modal de compression
-                        setVideoValidationError('')
-                      }}
-                      className="flex-1"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          {/* Content Warning Modal */}
-          <ContentWarningModal
-            isOpen={showContentWarningModal}
-            onClose={() => setShowContentWarningModal(false)}
-            onSave={setContentWarnings}
-            initialWarnings={contentWarnings}
+          <EditScheduleModal
+            schedule={editingSchedule}
+            onClose={() => setEditingSchedule(null)}
+            onSave={scheduleOps.saveEdit}
           />
 
-          {/* ✅ NOUVEAU: Image Compression Modal */}
-          {showCompressionModal && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-              <Card className="w-full max-w-lg mx-4">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <svg className="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
-                    </svg>
-                    Images Too Large
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="text-sm text-muted-foreground">
-                    <p className="mb-3">
-                      The following images exceed Bluesky's maximum size limit of <strong>976KB</strong>:
-                    </p>
-                    <ul className="space-y-2">
-                      {oversizedImages.map(({ file }, index) => (
-                        <li key={index} className="flex items-center justify-between p-2 bg-orange-50 dark:bg-orange-950/20 rounded border border-orange-200 dark:border-orange-800">
-                          <span className="font-medium">{file.name}</span>
-                          <span className="text-orange-600 dark:text-orange-400 text-xs">
-                            {(file.size / (1024 * 1024)).toFixed(2)}MB
-                          </span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                  
-                  <div className="bg-blue-50 dark:bg-blue-950/20 p-3 rounded border border-blue-200 dark:border-blue-800">
-                    <p className="text-sm text-blue-900 dark:text-blue-100">
-                      <strong>We can automatically compress these images</strong> to meet Bluesky's requirements while maintaining good quality.
-                    </p>
-                  </div>
+          <CreateScheduleModal
+            isOpen={scheduleForm.showAddModal}
+            onClose={() => {
+              scheduleForm.closeModal()
+              scheduleForm.resetForm()
+              accountSelection.clearAllAccounts()
+              mediaUpload.resetMedia()
+            }}
+            accounts={accounts}
+            message={scheduleForm.addMessage}
+            setMessage={scheduleForm.setAddMessage}
+            messageTextareaRef={scheduleForm.messageTextareaRef}
+            selectedAccountIds={accountSelection.selectedAccountIds}
+            currentSelectValue={accountSelection.currentSelectValue}
+            setCurrentSelectValue={accountSelection.setCurrentSelectValue}
+            accountOptions={accountSelection.accountOptions}
+            onSelectAccount={accountSelection.selectAccount}
+            onDeselectAccount={accountSelection.deselectAccount}
+            onSelectAllAccounts={accountSelection.selectAllAccounts}
+            onClearAllAccounts={accountSelection.clearAllAccounts}
+            isTwitterSelected={accountSelection.isTwitterSelected}
+            isOnlyBlueskySelected={accountSelection.isOnlyBlueskySelected}
+            previewAccount={accountSelection.previewAccount}
+            selectedDate={scheduleForm.selectedDate}
+            selectedTimeSlot={scheduleForm.selectedTimeSlot}
+            addDateTime={scheduleForm.addDateTime}
+            setAddDateTime={scheduleForm.setAddDateTime}
+            getCurrentDateTime={scheduleForm.getCurrentDateTime}
+            explicitLinks={scheduleForm.explicitLinks}
+            setExplicitLinks={scheduleForm.setExplicitLinks}
+            onLinkInsert={scheduleForm.handleLinkInsert}
+            onInsertHashtags={scheduleForm.insertHashtags}
+            selectedImages={mediaUpload.selectedImages}
+            selectedVideos={mediaUpload.selectedVideos}
+            imagePreviews={mediaUpload.imagePreviews}
+            imageAltTexts={mediaUpload.imageAltTexts}
+            videoAltTexts={mediaUpload.videoAltTexts}
+            videoValidationError={mediaUpload.videoValidationError}
+            fileInputRef={mediaUpload.fileInputRef}
+            onMediaSelect={mediaUpload.handleMediaSelect}
+            onRemoveImage={mediaUpload.removeImage}
+            onRemoveVideo={mediaUpload.removeVideo}
+            onClearAllMedia={mediaUpload.clearAllMedia}
+            onUpdateImageAltText={mediaUpload.updateAltText}
+            onUpdateVideoAltText={mediaUpload.updateVideoAltText}
+            contentWarnings={mediaUpload.contentWarnings}
+            onContentWarningsChange={mediaUpload.setContentWarnings}
+            onSave={handleCreatePost}
+            isFormValid={scheduleForm.isFormValid}
+          />
 
-                  <div className="flex gap-3 pt-2">
-                    <Button
-                      onClick={handleCompressOversizedImages}
-                      disabled={isCompressing}
-                      className="flex-1 bg-blue-600 text-white hover:bg-blue-700 disabled:bg-blue-300 disabled:text-white transition-colors"
-                    >
-                      {isCompressing ? (
-                        <>
-                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                          Compressing...
-                        </>
-                      ) : (
-                        'Compress Images'
-                      )}
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => {
-                        setShowCompressionModal(false)
-                        setOversizedImages([])
-                      }}
-                      disabled={isCompressing}
-                      className="flex-1"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
+          <ImageCompressionModal
+            isOpen={imageCompression.showCompressionModal}
+            oversizedImages={mediaUpload.oversizedImages}
+            onCompress={handleCompressImages}
+            onCancel={() => {
+              imageCompression.setShowCompressionModal(false)
+              mediaUpload.setOversizedImages([])
+            }}
+            isCompressing={imageCompression.isCompressing}
+          />
 
-          {/* ✅ NOUVEAU: Custom Times Modal */}
-          {showCustomTimesModal && (
-            <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-              <Card className="w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Calendar className="h-5 w-5" />
-                    Custom Posting Schedule
-                  </CardTitle>
-                  <p className="text-sm text-muted-foreground">
-                    Configure your personalized posting times for each day of the week
-                  </p>
-                </CardHeader>
-                <CardContent className="space-y-6">
-                  
-                  {/* Time Zone Display */}
-                  <div className="bg-blue-50 dark:bg-blue-950/20 p-4 rounded-lg border border-blue-200 dark:border-blue-800">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                          Organization time zone
-                        </p>
-                        <p className="text-sm text-blue-700 dark:text-blue-300">
-                          Current time: {new Date().toLocaleString('en-US', {
-                            weekday: 'short',
-                            month: 'short', 
-                            day: 'numeric',
-                            year: 'numeric',
-                            hour: 'numeric',
-                            minute: '2-digit',
-                            hour12: true,
-                            timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone
-                          })}
-                        </p>
-                      </div>
-                      <div className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                        {Intl.DateTimeFormat().resolvedOptions().timeZone}
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Weekly Schedule Grid */}
-                  <div>
-                    <h3 className="text-lg font-semibold mb-4">Weekly posting times</h3>
-                    
-                    {/* Days Header */}
-                    <div className="grid grid-cols-8 gap-2 mb-4">
-                      <div className="text-sm font-medium text-muted-foreground p-3">Time</div>
-                      {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((day) => (
-                        <div key={day} className="text-center">
-                          <div className="text-sm font-medium text-muted-foreground p-3">{day}</div>
-                        </div>
-                      ))}
-                    </div>
-                    
-                    {/* Time Slots Grid */}
-                    <div className="space-y-2">
-                      {customTimes
-                        .sort((a, b) => {
-                          // ✅ MODIFIÉ: Utiliser la fonction de tri robuste
-                          return timeToMinutes(a) - timeToMinutes(b)
-                        })
-                        .map((time, timeIndex) => (
-                        <div key={timeIndex} className="grid grid-cols-8 gap-2 items-center">
-                          {/* Time Column */}
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-blue-600 dark:text-blue-400 min-w-[70px]">
-                              {time}
-                            </span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => removeCustomTime(time)}
-                              className="h-6 w-6 p-0 text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950"
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                          </div>
-                          
-                          {/* Day Checkboxes */}
-                          {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'].map((day) => (
-                            <div key={day} className="flex justify-center">
-                              <button
-                                onClick={() => toggleDay(time, day)}
-                                className={`w-8 h-8 rounded-full border-2 transition-all ${
-                                  scheduledSlots[time]?.[day]
-                                    ? 'bg-blue-600 border-blue-600 text-white'
-                                    : 'border-gray-300 dark:border-gray-600 hover:border-blue-400'
-                                }`}
-                              >
-                                {scheduledSlots[time]?.[day] && (
-                                  <svg className="w-4 h-4 mx-auto" fill="currentColor" viewBox="0 0 20 20">
-                                    <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                                  </svg>
-                                )}
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Add New Time */}
-                    <div className="mt-6 p-4 border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg">
-                      <div className="flex items-center gap-3">
-                        <Plus className="h-5 w-5 text-blue-600 dark:text-blue-400" />
-                        <Input
-                          type="text"
-                          placeholder="Add time (e.g., 9:30 AM)"
-                          value={newCustomTime}
-                          onChange={(e) => setNewCustomTime(e.target.value)}
-                          className="flex-1"
-                          onKeyPress={(e) => {
-                            if (e.key === 'Enter') {
-                              addCustomTime()
-                            }
-                          }}
-                        />
-                        <Button
-                          onClick={addCustomTime}
-                          size="sm"
-                          className="bg-blue-600 hover:bg-blue-700"
-                        >
-                          Add
-                        </Button>
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Enter time in 12-hour format (e.g., 9:30 AM, 2:15 PM)
-                      </p>
-                    </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex gap-3 pt-4">
-                    <Button
-                      onClick={saveCustomTimes}
-                      className="flex-1 bg-blue-600 text-white hover:bg-blue-700"
-                    >
-                      Save changes
-                    </Button>
-                    <Button
-                      variant="outline"
-                      onClick={() => setShowCustomTimesModal(false)}
-                      className="flex-1"
-                    >
-                      Cancel
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
+          <CustomTimesModal
+            isOpen={scheduleSlots.showCustomTimesModal}
+            customTimes={scheduleSlots.customTimes}
+            scheduledSlots={scheduleSlots.scheduledSlots}
+            newCustomTime={scheduleSlots.newCustomTime}
+            setNewCustomTime={scheduleSlots.setNewCustomTime}
+            onAddTime={scheduleSlots.addCustomTime}
+            onRemoveTime={scheduleSlots.removeCustomTime}
+            onToggleDay={scheduleSlots.toggleDay}
+            onSave={async () => {
+              const success = await scheduleSlots.saveCustomTimes()
+              if (success) {
+                scheduleSlots.setShowCustomTimesModal(false)
+              }
+            }}
+            onCancel={() => scheduleSlots.setShowCustomTimesModal(false)}
+          />
         </div>
       </Layout>
     </>

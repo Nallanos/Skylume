@@ -36,10 +36,27 @@ services:
   #     - redis
   #   labels:
   #     - traefik.enable=true
+      
+  #     # Router principal pour skylume.app (sert l'application)
   #     - traefik.http.routers.app.rule=Host(`skylume.app`)
-  #     - traefik.http.services.app.loadbalancer.server.port=8081
   #     - traefik.http.routers.app.entrypoints=websecure
   #     - traefik.http.routers.app.tls.certresolver=myresolver
+  #     - traefik.http.routers.app.service=app
+      
+  #     # Router de redirection pour bluesky-bot.com 
+  #     - traefik.http.routers.app-redirect.rule=Host(`bluesky-bot.com`)
+  #     - traefik.http.routers.app-redirect.entrypoints=websecure
+  #     - traefik.http.routers.app-redirect.tls.certresolver=myresolver
+  #     - traefik.http.routers.app-redirect.service=app
+  #     - traefik.http.routers.app-redirect.middlewares=redirect-to-skylume
+      
+  #     # Middleware de redirection 301
+  #     - traefik.http.middlewares.redirect-to-skylume.redirectregex.regex=^https://bluesky-bot\.com(.*)
+  #     - traefik.http.middlewares.redirect-to-skylume.redirectregex.replacement=https://skylume.app$${1}
+  #     - traefik.http.middlewares.redirect-to-skylume.redirectregex.permanent=true
+      
+  #     # Service configuration
+  #     - traefik.http.services.app.loadbalancer.server.port=8081
   #   networks:
   #     - bluesky-copilot_default
 

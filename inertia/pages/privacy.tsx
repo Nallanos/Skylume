@@ -131,8 +131,13 @@ function Privacy() {
                 <h2 className="text-xl font-semibold mb-4">11. Contact Us</h2>
                 <p className="text-muted-foreground mb-4">
                   If you have any questions about this Privacy Policy, please contact us at{' '}
+<<<<<<< HEAD
                   <a href="mailto:contact@bluesky-bot.com" className="text-blue-600 hover:underline">
                     contact@bluesky-bot.com
+=======
+                  <a href="mailto:privacy@skylume.app" className="text-blue-600 hover:underline">
+                    privacy@skylume.app
+>>>>>>> origin/copilot/fix-39c5d0d7-5aef-4be5-ad57-67605464ae66
                   </a>
                 </p>
               </section>
