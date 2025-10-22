@@ -530,23 +530,23 @@ export class AIService {
    */
   public async generateCombinedClusterTag(tags: string[]): Promise<string> {
     try {
-      console.log(`🔬 Analyzing ${tags.length} tags using WordNet semantic hierarchy...`)
+      console.log(` Analyzing ${tags.length} tags using WordNet semantic hierarchy...`)
 
       if (tags.length === 0) return 'Mixed Community'
       if (tags.length === 1) return tags[0]
 
       // Nettoyer et extraire les mots significatifs de tous les tags
       const allWords = this.extractSignificantWords(tags)
-      console.log(`📝 Extracted significant words: ${allWords.join(', ')}`)
+      console.log(` Extracted significant words: ${allWords.join(', ')}`)
 
       if (allWords.length === 0) return tags[0] // Fallback au premier tag
 
       // Filtrer les mots valides avant WordNet
       const validWords = allWords.filter(word => this.isValidWordForWordNet(word))
-      console.log(`🔍 Filtered to ${validWords.length} valid words for WordNet: ${validWords.join(', ')}`)
+      console.log(` Filtered to ${validWords.length} valid words for WordNet: ${validWords.join(', ')}`)
 
       if (validWords.length === 0) {
-        console.log(`⚠️ No valid words for WordNet analysis, using fallback`)
+        console.log(` No valid words for WordNet analysis, using fallback`)
         return tags.reduce((longest, current) =>
           current.length > longest.length ? current : longest
         )
@@ -559,7 +559,7 @@ export class AIService {
 
       // Filtrer les analyses valides
       const validAnalyses = wordAnalysis.filter(analysis => analysis.isValid)
-      console.log(`✅ Found ${validAnalyses.length} valid WordNet analyses`)
+      console.log(` Found ${validAnalyses.length} valid WordNet analyses`)
 
       if (validAnalyses.length === 0) {
         // Fallback : retourner le tag le plus long
@@ -570,7 +570,7 @@ export class AIService {
 
       // Trouver le meilleur terme basé sur la généralité et la fréquence
       const bestTerm = this.selectBestTermFromAnalysis(validAnalyses, tags)
-      console.log(`🎯 Selected best term: "${bestTerm}"`)
+      console.log(` Selected best term: "${bestTerm}"`)
 
       return bestTerm
 
@@ -606,20 +606,20 @@ export class AIService {
         }
       }
 
-      console.log(`📊 Got embeddings for ${tagEmbeddings.length}/${tags.length} tags`)
+      console.log(` Got embeddings for ${tagEmbeddings.length}/${tags.length} tags`)
 
       if (tagEmbeddings.length === 0) {
-        console.log('⚠️ No valid embeddings found, using fallback')
+        console.log(' No valid embeddings found, using fallback')
         return tags[0]
       }
 
       // 2. Calculer le centroïde (moyenne des embeddings)
       const centroid = this.averageVectors(tagEmbeddings)
-      console.log(`🎯 Calculated centroid with ${centroid.length} dimensions`)
+      console.log(` Calculated centroid with ${centroid.length} dimensions`)
 
       // 3. Définir le vocabulaire de recherche
       const searchWords = vocabulary && vocabulary.length > 0 ? vocabulary : this.getDefaultVocabulary().concat(validTags)
-      console.log(`🔍 Searching among ${searchWords.length} candidate words`)
+      console.log(` Searching among ${searchWords.length} candidate words`)
 
       // 4. Trouver le mot le plus proche du centroïde
       let bestWord = validTags[0]
@@ -636,7 +636,7 @@ export class AIService {
         }
       }
 
-      console.log(`🏆 Best match: "${bestWord}" (similarity: ${bestScore.toFixed(3)})`)
+      console.log(` Best match: "${bestWord}" (similarity: ${bestScore.toFixed(3)})`)
 
       // Capitaliser la première lettre du résultat
       return bestWord.charAt(0).toUpperCase() + bestWord.slice(1)
@@ -731,7 +731,7 @@ export class AIService {
 
       // Vérifier si c'est un mot problématique connu
       if (problematicWords.has(word.toLowerCase())) {
-        console.log(`⚠️ Skipping known problematic word: "${word}"`)
+        console.log(` Skipping known problematic word: "${word}"`)
         return false
       }
 
@@ -747,7 +747,7 @@ export class AIService {
 
       return true
     } catch (error) {
-      console.log(`❌ Error validating word "${word}": ${error}`)
+      console.log(` Error validating word "${word}": ${error}`)
       return false
     }
   }
@@ -770,13 +770,13 @@ export class AIService {
         WordNet.lookup(word, (err: any, definitions: any[]) => {
           try {
             if (err) {
-              console.log(`❌ WordNet error for "${word}": ${err.message || err}`)
+              console.log(` WordNet error for "${word}": ${err.message || err}`)
               resolve(analysis)
               return
             }
 
             if (!definitions || definitions.length === 0) {
-              console.log(`❌ No WordNet definitions found for "${word}"`)
+              console.log(` No WordNet definitions found for "${word}"`)
               resolve(analysis)
               return
             }
@@ -787,20 +787,20 @@ export class AIService {
             // Calculer le score de généralité basé sur les hypernymes
             this.calculateGeneralityScore(definitions, analysis)
               .then(() => {
-                console.log(`📊 "${word}": generality=${analysis.generalityScore.toFixed(2)}, synsets=${analysis.synsets.length}`)
+                console.log(` "${word}": generality=${analysis.generalityScore.toFixed(2)}, synsets=${analysis.synsets.length}`)
                 resolve(analysis)
               })
               .catch((calcError) => {
-                console.log(`❌ Error calculating generality for "${word}": ${calcError}`)
+                console.log(` Error calculating generality for "${word}": ${calcError}`)
                 resolve(analysis)
               })
           } catch (callbackError) {
-            console.log(`❌ WordNet callback error for "${word}": ${callbackError}`)
+            console.log(` WordNet callback error for "${word}": ${callbackError}`)
             resolve(analysis)
           }
         })
       } catch (error) {
-        console.log(`❌ WordNet lookup error for "${word}": ${error}`)
+        console.log(` WordNet lookup error for "${word}": ${error}`)
         resolve(analysis)
       }
     })
@@ -889,12 +889,157 @@ export class AIService {
     })
 
     const bestAnalysis = analyses[0]
-    console.log(`🏆 Best analysis: "${bestAnalysis.word}" (generality: ${bestAnalysis.generalityScore.toFixed(3)}, frequency: ${bestAnalysis.frequency})`)
+    console.log(` Best analysis: "${bestAnalysis.word}" (generality: ${bestAnalysis.generalityScore.toFixed(3)}, frequency: ${bestAnalysis.frequency})`)
 
     // Retourner le mot le mieux classé, en capitalisant la première lettre
     return bestAnalysis.word.charAt(0).toUpperCase() + bestAnalysis.word.slice(1)
   }
 
+  /**
+   * Score et trie une liste de profils basée sur des mots-clés
+   * Retourne les N profils les plus pertinents triés par score décroissant
+   * 
+   * @param profiles - Liste de profils avec username, bio et posts optionnels
+   * @param keywords - Mots-clés à matcher
+   * @param listSize - Nombre de profils à retourner (par défaut: tous)
+   * @returns Tableau de profils triés avec leurs scores (0-100)
+   */
+  public async scoreProfilesWithKeywords(
+    profiles: ProfileMatchInput[],
+    keywords: string[],
+    listSize?: number
+  ): Promise<ProfileMatchResult[]> {
+    try {
+      await AIService.modelPromise;
+      console.log(` Starting profile matching for ${profiles.length} profiles with keywords: ${keywords.join(', ')}`);
+
+      if (profiles.length === 0 || keywords.length === 0) {
+        return [];
+      }
+
+      // Préparer les embeddings des mots-clés
+      const keywordData = await this.prepareKeywords(keywords.map(k => k.toLowerCase().trim()));
+
+      // Calculer le score pour chaque profil
+      const scoredProfiles: ProfileMatchResult[] = await Promise.all(
+        profiles.map(async (profile) => {
+          let totalScore = 0;
+          let maxPossibleScore = 0;
+
+          // 1. Analyse de la bio (poids: 60%)
+          if (profile.bio && profile.bio.trim().length > 0) {
+            const bioWords = profile.bio.split(/\s+/);
+            const bioScore = await this.countMatches(bioWords, keywordData);
+            const normalizedBioScore = Math.min(bioScore / 5, 6);
+            totalScore += normalizedBioScore;
+            console.log(` Bio score for ${profile.username}: ${normalizedBioScore}/6 (raw: ${bioScore})`);
+          }
+          maxPossibleScore += 6;
+
+          // 2. Analyse du username (poids: 20%)
+          const usernameWords = profile.username.replace(/[^\w]/g, ' ').split(/\s+/);
+          const usernameScore = await this.countMatches(usernameWords, keywordData);
+          const normalizedUsernameScore = Math.min(usernameScore / 3, 2);
+          totalScore += normalizedUsernameScore;
+          maxPossibleScore += 2;
+          console.log(` Username score for ${profile.username}: ${normalizedUsernameScore}/2 (raw: ${usernameScore})`);
+
+          // 3. Analyse des posts (poids: 20%)
+          if (profile.posts && profile.posts.length > 0) {
+            const allPostWords = profile.posts
+              .join(' ')
+              .split(/\s+/)
+              .filter((w: string) => w.length > 2);
+            
+            if (allPostWords.length > 0) {
+              const postScore = await this.countMatches(allPostWords, keywordData);
+              const normalizedPostScore = Math.min(postScore / 10, 2);
+              totalScore += normalizedPostScore;
+              console.log(` Post score for ${profile.username}: ${normalizedPostScore}/2 (raw: ${postScore})`);
+            }
+          }
+          maxPossibleScore += 2;
+
+          // Convertir en pourcentage (0-100)
+          const finalScore = maxPossibleScore > 0 
+            ? Math.round((totalScore / maxPossibleScore) * 100) 
+            : 0;
+
+          console.log(` Final score for ${profile.username}: ${finalScore}% (${totalScore}/${maxPossibleScore})`);
+
+          return {
+            username: profile.username,
+            bio: profile.bio || '',
+            score: finalScore / 100, // Normaliser entre 0 et 1
+          };
+        })
+      );
+
+      // Trier par score décroissant
+      scoredProfiles.sort((a, b) => b.score - a.score);
+
+      // Limiter au nombre demandé si spécifié
+      const results = listSize ? scoredProfiles.slice(0, listSize) : scoredProfiles;
+
+      console.log(`Returning ${results.length} profiles. Top score: ${(results[0]?.score * 100 || 0).toFixed(1)}%`);
+
+      return results;
+
+    } catch (error) {
+      console.error('Error in scoreProfilesWithKeywords:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Simple cosine similarity scoring pour List Creator
+   * Compare uniquement la bio avec les keywords via embeddings
+   */
+  public async scoreProfilesBySimpleCosine(
+    profiles: ListProfileInput[],
+    keywords: string[]
+  ): Promise<ListProfileResult[]> {
+    try {
+      await AIService.modelPromise;
+      console.log(`Starting simple cosine similarity for ${profiles.length} profiles`);
+
+      if (profiles.length === 0 || keywords.length === 0) {
+        return [];
+      }
+
+      // Générer l'embedding des keywords
+      const keywordsText = keywords.join(' ').toLowerCase();
+      const keywordsEmbedding = await this.getEmbedding(keywordsText);
+
+      // Scorer chaque profil
+      const results: ListProfileResult[] = await Promise.all(
+        profiles.map(async (profile) => {
+          let score = 0;
+
+          if (profile.bio && profile.bio.trim().length > 0) {
+            const bioEmbedding = await this.getEmbedding(profile.bio.toLowerCase());
+            score = this.cosineSimilarity(keywordsEmbedding, bioEmbedding);
+          }
+
+          return {
+            username: profile.username,
+            bio: profile.bio || '',
+            displayName: profile.displayName,
+            avatar: profile.avatar,
+            followersCount: profile.followersCount,
+            score: Math.max(0, Math.min(1, score))
+          };
+        })
+      );
+
+      console.log(`Cosine similarity complete. Profiles scored: ${results.length}`);
+      return results;
+
+    } catch (error) {
+      console.error('Error in scoreProfilesBySimpleCosine:', error);
+      throw error;
+    }
+  }
 
 }
 
@@ -909,5 +1054,46 @@ type ProfileEmbeddings = {
   bio: number[],
   posts: number[][],
   followingBio: number[][],
+}
+
+/**
+ * Input type pour le matching de profils
+ */
+export type ProfileMatchInput = {
+  username: string;
+  bio?: string;
+  posts?: string[];
+}
+
+/**
+ * Output type avec score de pertinence
+ */
+export type ProfileMatchResult = {
+  username: string;
+  bio: string;
+  score: number; // Entre 0 et 1
+}
+
+/**
+ * Input type pour List Creator (simple)
+ */
+export type ListProfileInput = {
+  username: string;
+  bio?: string;
+  displayName?: string;
+  avatar?: string;
+  followersCount?: number;
+}
+
+/**
+ * Output type pour List Creator
+ */
+export type ListProfileResult = {
+  username: string;
+  bio: string;
+  displayName?: string;
+  avatar?: string;
+  followersCount?: number;
+  score: number; // Entre 0 et 1
 }
 

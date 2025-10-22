@@ -99,6 +99,7 @@ const campaign_messages_controller = () => import('#controllers/campaigns/campai
 const hashtag_groups_controller = () => import('#controllers/hashtag_groups_controller')
 const campaign_variables_controller = () => import('#controllers/campaigns/campaign_variables_controller')
 const campaign_groups_controller = () => import('#controllers/campaigns/campaign_groups_controller')
+const list_creator_controller = () => import('#controllers/list_creator_controller')
 
 /*
 |--------------------------------------------------------------------------
@@ -746,6 +747,50 @@ router
   ])
   .use(middleware.auth())
 router.get('/api/clusters', [follower_analysis_controller, 'getClusters'])
+
+/*
+|--------------------------------------------------------------------------
+| LIST CREATOR
+|--------------------------------------------------------------------------
+| Routes pour la création de listes basées sur des mots-clés
+|
+*/
+
+router
+  .get('/list-creator', [list_creator_controller, 'index'])
+  .use(middleware.auth())
+router
+  .get('/list-creator/blacklist', [list_creator_controller, 'blacklistPage'])
+  .use(middleware.auth())
+router
+  .post('/api/list-creator/search', [list_creator_controller, 'search'])
+  .use(middleware.auth())
+router
+  .post('/api/list-creator/save-list-stream', [list_creator_controller, 'saveListStream'])
+  .use(middleware.auth())
+router
+  .get('/api/list-creator/lists', [list_creator_controller, 'getLists'])
+  .use(middleware.auth())
+router
+  .get('/list-creator/lists/:id', [list_creator_controller, 'getListDetails'])
+  .use(middleware.auth())
+router
+  .post('/api/list-creator/lists/:id/follow-all', [list_creator_controller, 'followAll'])
+  .use(middleware.auth())
+router
+  .delete('/api/list-creator/lists/:id', [list_creator_controller, 'deleteList'])
+  .use(middleware.auth())
+
+// Blacklist routes
+router
+  .get('/api/list-creator/blacklist', [list_creator_controller, 'getBlacklist'])
+  .use(middleware.auth())
+router
+  .post('/api/list-creator/blacklist', [list_creator_controller, 'addToBlacklist'])
+  .use(middleware.auth())
+router
+  .delete('/api/list-creator/blacklist/:did', [list_creator_controller, 'removeFromBlacklist'])
+  .use(middleware.auth())
 
 /*
 |--------------------------------------------------------------------------
