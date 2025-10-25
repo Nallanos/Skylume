@@ -1,9 +1,28 @@
 {
   "name": "skylume",
-  "version": "0.0.0",
-  "private": true,
+  "version": "1.0.0",
+  "private": false,
   "type": "module",
-  "license": "UNLICENSED",
+  "license": "MIT",
+  "description": "Free, open-source marketing automation tools for Bluesky - a learning experience in market validation",
+  "author": "Ben Ameur Allan <benameurallan06@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Nallanos/Bluesky-copilot.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Nallanos/Bluesky-copilot/issues"
+  },
+  "homepage": "https://github.com/Nallanos/Bluesky-copilot#readme",
+  "keywords": [
+    "bluesky",
+    "automation",
+    "scheduling",
+    "social-media",
+    "marketing",
+    "analytics",
+    "open-source"
+  ],
   "scripts": {
     "start": "node bin/server.js",
     "build": "node ace build",
@@ -134,7 +153,6 @@
     "sharp": "^0.34.3",
     "sonner": "^2.0.5",
     "stopword": "^3.1.4",
-    "stripe": "^17.7.0",
     "tailwind-merge": "^2.6.0",
     "tailwind-variants": "^0.2.1",
     "tailwindcss": "^3.4.14",

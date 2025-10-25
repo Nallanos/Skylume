@@ -40,7 +40,7 @@ export default class CampaignExecutionService {
   ) {}
 
   /**
-   * Récupérer la configuration d'exécution d'une campagne
+   * Get campaign execution configuration
    */
   public async getExecutionConfig(campaignId: number): Promise<ExecutionSettings> {
     const messages = await this.campaignMessageService.getCampaignMessages(campaignId)
@@ -64,13 +64,13 @@ export default class CampaignExecutionService {
 
     return {
       categories,
-      delayBetweenMessages: 5000, // 5 secondes par défaut
+      delayBetweenMessages: 5000, // 5 seconds by default
       dailyLimit: 50
     }
   }
 
   /**
-   * Sauvegarder la configuration d'exécution
+   * Save execution configuration
    */
   public async saveExecutionConfig(
     campaignId: number, 

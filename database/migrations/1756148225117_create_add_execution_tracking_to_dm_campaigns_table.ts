@@ -6,7 +6,7 @@ export default class extends BaseSchema {
   async up() {
     this.schema.alterTable(this.tableName, (table) => {
       table.string('execution_status').nullable() // 'running', 'stopping', 'stopped', 'completed', 'failed'
-      table.boolean('should_stop').defaultTo(false) // Flag pour arrêter l'exécution
+      table.boolean('should_stop').defaultTo(false) // Flag to stop execution
       table.integer('execution_progress').defaultTo(0) // Nombre de messages envoyés pendant cette exécution
       table.integer('execution_target_count').defaultTo(0) // Objectif pour cette exécution
     })

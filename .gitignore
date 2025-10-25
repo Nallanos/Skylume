@@ -10,6 +10,11 @@ tmp
 .env.production.local
 .env.development.local
 
+# User data exports (NEVER COMMIT)
+*_export.csv
+accounts_export.csv
+user_export.csv
+
 # Frontend assets compiled code
 public/assets
 

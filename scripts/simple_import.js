@@ -4,12 +4,10 @@ async function importUsers() {
   console.log('🚀 Starting user import...')
   
   try {
-    // Import dynamic pour éviter les problèmes de modules
     const { Database } = await import('@adonisjs/lucid/database')
     const { DateTime } = await import('luxon')
     const { hash } = await import('@adonisjs/core/services/hash')
     
-    // Configuration de la base de données
     const db = new Database({
       connection: process.env.DB_CONNECTION || 'postgres',
       connections: {
@@ -26,7 +24,6 @@ async function importUsers() {
       },
     })
     
-    // Lire le CSV
     const csvPath = '/workspaces/Bluesky-copilot/data-1757015254569.csv'
     const csvContent = readFileSync(csvPath, 'utf-8')
     const lines = csvContent.split('\n')
@@ -40,7 +37,6 @@ async function importUsers() {
     for (let i = 1; i < lines.length; i++) {
       if (!lines[i].trim()) continue
       
-      // Parse CSV line en gérant les guillemets
       const values = []
       let inQuotes = false
       let current = ''
@@ -63,7 +59,6 @@ async function importUsers() {
       })
       
       try {
-        // Vérifier si l'utilisateur existe
         const existing = await db.from('users').where('id', record.id).first()
         if (existing) {
           console.log(`⚠️  User ${record.id} already exists, skipping...`)
@@ -71,11 +66,10 @@ async function importUsers() {
           continue
         }
         
-        // Préparer les données
         const userData = {
           id: record.id,
           email: record.email === 'NULL' ? null : record.email,
-          password: record.password, // Le mot de passe est déjà hashé
+          password: record.password,
           plan: record.plan || 'free',
           dms_sent: parseInt(record.dms_sent) || 0,
           is_dms_limit_reached: record.is_dms_limit_reached === 'True',

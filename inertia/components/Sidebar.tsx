@@ -12,7 +12,6 @@ import {
   Moon,
   Sun,
   Users,
-  Shield,
   Target,
 } from 'lucide-react'
 import {
@@ -41,7 +40,19 @@ function Sidebar({ user, account }: SidebarProps) {
   const currentPath = typeof window !== 'undefined' ? window.location.pathname : ''
 
   async function handleLogout() {
-    await router.put('/logout')
+    try {
+      router.put('/logout', {}, {
+        onSuccess: () => {
+          window.location.href = '/'
+        },
+        onError: () => {
+          window.location.href = '/'
+        }
+      })
+    } catch (error) {
+      console.error('Logout error:', error)
+      window.location.href = '/'
+    }
   }
 
   async function handleDeleteAccount() {
@@ -74,7 +85,7 @@ function Sidebar({ user, account }: SidebarProps) {
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        {/* Bouton de fermeture (visible sur mobile) */}
+        {/* Close button (visible on mobile) */}
         <button
           className="absolute top-4 right-4 md:hidden p-2 rounded-full hover:bg-background/80 transition-colors"
           onClick={() => setIsSidebarOpen(false)}
@@ -221,8 +232,8 @@ function Sidebar({ user, account }: SidebarProps) {
               <div className="text-sm font-semibold text-foreground truncate">
                 {user?.id?.split('@')[0] || 'User'}
               </div>
-              <div className="text-xs text-muted-foreground truncate">
-                {(user?.plan || 'free').charAt(0).toUpperCase() + (user?.plan || 'free').slice(1)} Plan
+              <div className="text-xs text-green-600 dark:text-green-400 truncate font-medium">
+                Free Forever ✨
               </div>
             </div>
 
@@ -265,13 +276,6 @@ function Sidebar({ user, account }: SidebarProps) {
                   <Link href="/profile" className="flex items-center">
                     <Settings className="h-4 w-4 mr-2" />
                     Profile Settings
-                  </Link>
-                </DropdownMenuItem>
-
-                <DropdownMenuItem asChild>
-                  <Link href="/pricing" className="flex items-center text-foreground hover:text-blue-600 dark:hover:text-blue-400">
-                    <Shield className="h-4 w-4 mr-2" />
-                    { 'Upgrade Plan'}
                   </Link>
                 </DropdownMenuItem>
 

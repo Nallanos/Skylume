@@ -45,9 +45,6 @@ export default await Env.create(new URL('../', import.meta.url), {
   REDIS_PORT: Env.schema.number(),
   REDIS_PASSWORD: Env.schema.string.optional(),
 
-  STRIPE_PUBLIC_KEY: Env.schema.string(),
-  STRIPE_PRICE_ID: Env.schema.string(),
-  STRIPE_SECRET_KEY: Env.schema.string(),
 
   /*
   |----------------------------------------------------------
@@ -56,21 +53,6 @@ export default await Env.create(new URL('../', import.meta.url), {
   */
   INTERNAL_API_KEY: Env.schema.string(),
 
-  /*
-  |----------------------------------------------------------
-  | Variables for Twitter/X API integration
-  |----------------------------------------------------------
-  */
-  TWITTER_CLIENT_ID: Env.schema.string.optional(),
-  TWITTER_CLIENT_SECRET: Env.schema.string.optional(),
-
-  /*
-  |----------------------------------------------------------
-  | Variables for Threads API integration
-  |----------------------------------------------------------
-  */
-  THREADS_CLIENT_ID: Env.schema.string.optional(),
-  THREADS_CLIENT_SECRET: Env.schema.string.optional(),
 })
 
 

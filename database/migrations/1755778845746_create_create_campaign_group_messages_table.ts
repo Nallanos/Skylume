@@ -12,12 +12,12 @@ export default class extends BaseSchema {
       table.integer('group_id').unsigned().references('id').inTable('campaign_groups').onDelete('CASCADE')
       table.integer('follower_campaign_id').unsigned().references('id').inTable('follower_campaigns').onDelete('CASCADE')
       
-      // Contenu du message personnalisé
-      table.text('message_content').notNullable().comment('Message final avec variables résolues')
-      table.json('variables_used').nullable().comment('Variables utilisées et leurs valeurs résolvées')
-      table.text('facets').nullable().comment('Rich text facets JSON pour le contenu du message')
+      // Personalized message content
+      table.text('message_content').notNullable().comment('Final message with resolved variables')
+      table.json('variables_used').nullable().comment('Variables used and their resolved values')
+      table.text('facets').nullable().comment('Rich text facets JSON for message content')
       
-      // Métadonnées d'envoi
+      // Sending metadata
       table.timestamp('sent_at').nullable()
       table.boolean('delivery_success').defaultTo(false)
       table.text('delivery_error').nullable()
@@ -25,7 +25,7 @@ export default class extends BaseSchema {
       table.timestamp('created_at')
       table.timestamp('updated_at')
       
-      // Index pour les performances
+      // Performance indexes
       table.index(['campaign_id', 'group_id'])
       table.index(['follower_campaign_id'])
       table.index(['sent_at'])

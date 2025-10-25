@@ -5,8 +5,8 @@ export default class extends BaseSchema {
 
   async up() {
     this.schema.alterTable(this.tableName, (table) => {
-      table.decimal('interested_threshold', 3, 2).defaultTo(0.70).comment('Seuil pour la catégorie "interested" (défaut: 0.70)')
-      table.decimal('moderately_interested_threshold', 3, 2).defaultTo(0.50).comment('Seuil pour la catégorie "moderately_interested" (défaut: 0.50)')
+      table.decimal('interested_threshold', 3, 2).defaultTo(0.70).comment('Threshold for the "interested" category (default: 0.70)')
+      table.decimal('moderately_interested_threshold', 3, 2).defaultTo(0.50).comment('Threshold for the "moderately_interested" category (default: 0.50)')
     })
   }
 

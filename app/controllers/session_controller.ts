@@ -1,41 +1,31 @@
 import { HttpContext } from '@adonisjs/core/http'
 import { inject } from '@adonisjs/core'
 import redis from '@adonisjs/redis/services/main'
-import { Stripe } from 'stripe'
 
 @inject()
 export default class SessionController {
-    private stripe = new Stripe(process.env.STRIPE_SECRET_KEY!)
-    
     constructor() { }
 
     public async logout({ auth, response, session }: HttpContext) {
         try {
             const user = await auth.user
             
-            // Clear OAuth-related session data
             if (user) {
-                // Remove OAuth tokens from Redis if they exist
                 const oauthTokenKey = `oauth_tokens:${user.id}`
                 await redis.del(oauthTokenKey)
                 
-                // Clear any OAuth state data
                 const oauthStateKeys = await redis.keys(`oauth_state:${user.id}:*`)
                 if (oauthStateKeys.length > 0) {
                     await redis.del(...oauthStateKeys)
                 }
             }
             
-            // Clear session data
             session.clear()
-            
-            // Logout from auth system
             await auth.use('web').logout()
 
             return response.redirect('/')
         } catch (error) {
             console.error('Logout error:', error)
-            // Force clear session even on error
             session.clear()
             return response.redirect('/')
         }
@@ -48,37 +38,15 @@ export default class SessionController {
             
             console.log(`[DELETE USER] Starting account deletion for user: ${user.id}`)
             
-            // Cancel Stripe subscription if exists
-            if (user.subscriptionsId) {
-                try {
-                    console.log(`[DELETE USER] Cancelling Stripe subscription: ${user.subscriptionsId}`)
-                    await this.stripe.subscriptions.cancel(user.subscriptionsId, {
-                        invoice_now: false,
-                        prorate: false // Don't prorate on account deletion
-                    })
-                    console.log(`[DELETE USER] ✅ Stripe subscription cancelled successfully`)
-                } catch (stripeError: any) {
-                    console.error('[DELETE USER] ⚠️ Error cancelling Stripe subscription:', stripeError.message)
-                    // Continue with account deletion even if Stripe cancellation fails
-                    // Log this for manual cleanup if needed
-                    console.error(`[DELETE USER] Manual cleanup may be required for subscription: ${user.subscriptionsId}`)
-                }
-            }
-            
-            // Clean up OAuth tokens before deleting user
             const oauthTokenKey = `oauth_tokens:${user.id}`
             await redis.del(oauthTokenKey)
             
-            // Clear any OAuth state data
             const oauthStateKeys = await redis.keys(`oauth_state:${user.id}:*`)
             if (oauthStateKeys.length > 0) {
                 await redis.del(...oauthStateKeys)
             }
             
-            // Clear session
             session.clear()
-            
-            // Delete user (this will also cascade delete related accounts, etc.)
             await user.delete()
             
             console.log(`[DELETE USER] ✅ User ${user.id} deleted successfully`)
@@ -110,14 +78,13 @@ export default class SessionController {
             const oauthTokens = await redis.get(oauthTokenKey)
             
             return response.json({
-                authenticated: true,
-                user: {
-                    id: user.id,
-                    // Add other safe user properties as needed
-                },
-                oauth: !!oauthTokens,
-                authMethod: oauthTokens ? 'oauth' : 'app_password'
-            })
+                    authenticated: true,
+                    user: {
+                        id: user.id,
+                    },
+                    oauth: !!oauthTokens,
+                    authMethod: oauthTokens ? 'oauth' : 'app_password'
+                })
         } catch (error) {
             console.error('Session status error:', error)
             return response.json({
@@ -148,13 +115,7 @@ export default class SessionController {
 
             const tokens = JSON.parse(tokenData)
             
-            // Check if tokens need refresh (implement actual refresh logic here)
             if (tokens.refresh_token && this.shouldRefreshToken(tokens)) {
-                // TODO: Implement token refresh logic using OAuthService
-                // const oauthService = await container.make('OAuthService')
-                // const newTokens = await oauthService.refreshTokens(tokens.refresh_token)
-                // await redis.setex(oauthTokenKey, 86400, JSON.stringify(newTokens))
-                
                 return response.json({
                     success: true,
                     message: 'Tokens refreshed'
@@ -172,12 +133,11 @@ export default class SessionController {
     }
 
     /**
-     * Helper method to determine if token should be refreshed
+     * Determine if token should be refreshed (expires within 5 minutes)
      */
     private shouldRefreshToken(tokens: any): boolean {
         if (!tokens.expires_at) return false
         
-        // Refresh if token expires within next 5 minutes
         const expiresAt = new Date(tokens.expires_at).getTime()
         const now = Date.now()
         const fiveMinutes = 5 * 60 * 1000

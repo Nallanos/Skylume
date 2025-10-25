@@ -1,56 +1,138 @@
-Here's a README template for "Skylume" based on best practices:
-
----
-
 # Skylume 🌌  
-*Your Marketing Companion for Bluesky — Automate, Engage, and Grow*
+*No Longer a Commercial Project - Now Free Forever*
 
-Skylume provides essential marketing tools tailored for the Bluesky platform. Currently featuring a bot for seamless engagement, Skylume empowers users to manage their presence effortlessly. Future updates will introduce scheduling capabilities to keep your content consistent and your audience engaged.
-
----
-
-## 🚀 Features
-- **Automated Engagement**: Set up a bot to interact with your followers.
-- **Content Scheduling** *(Coming Soon)*: Plan and schedule posts to keep your feed active even when you're not around.
-- **Analytics** *(Future Feature)*: Track engagement metrics for optimized posting.
+**Update: October 2024** - After a year of building growth automation tools for Bluesky, I learned that the platform's community explicitly rejects growth hacking and automation (they came to Bluesky to escape that from Twitter/X). Skylume is no longer a commercial project, but it's staying online and completely free for anyone who wants to use it.
 
 ---
 
+## 🎯 What Happened
 
-## 📑 Table of Contents
-1. [Installation](#installation)
-2. [Usage](#usage)
-3. [Contribution Guidelines](#contributing)
-4. [License](#license)
+I spent a year building sophisticated marketing automation for Bluesky:
+- Follower automation and growth tracking
+- DM campaign systems with personalization
+- ML-powered audience clustering
+- Scheduling and analytics tools
+
+Market validation with 33 users showed that Bluesky's community actively doesn't want these features. That's not a bug—it's a feature of why Bluesky exists.
+
+---
+
+## ✨ Current Status
+
+- **Completely Free**: All features unlocked, no payment required
+- **Staying Online**: Will remain available as long as server costs allow
+- **Open Source**: Code available for forking/self-hosting
+- **No Support Guarantee**: Use as-is, community contributions welcome
+
+---
+
+## 🚀 Features (All Free)
+- **Automated Scheduling**: Plan posts in advance
+- **Multi-Account Management**: Handle multiple Bluesky accounts
+- **Analytics**: Track engagement and growth
+- **Follower Automation**: Follow/unfollow tools
+- **DM Campaigns**: Automated outreach (use responsibly)
+- **Audience Clustering**: ML-powered audience analysis
+
+---
+
+## � Key Lessons Learned
+
+1. **Validate BEFORE building** - Talk to 50+ potential customers before writing code
+2. **Platform culture matters** - Don't build automation for anti-automation platforms
+3. **Ship early, listen always** - 33 real users taught more than months of assumptions
+4. **Respect the mission** - Bluesky users left Twitter to escape growth hacking
 
 ---
 
 ## 🔧 Installation
+
+### For Users (Hosted Version)
+Just visit [skylume.app](https://skylume.app) and sign up - completely free.
+
+### For Self-Hosting
 1. **Clone the Repo**  
    ```bash
    git clone https://github.com/Nallanos/Bluesky-copilot.git
+   cd Bluesky-copilot
    ```
+
 2. **Install Dependencies**  
    ```bash
-   cd Bluesky-copilot
    npm install
+   cd python-service && pip install -r requirements.txt
    ```
-3. **Setup Configuration**  
-   Update `.env` with your Bluesky API keys and settings.
 
-4. **Run the App**  
+3. **Setup Configuration**  
+   Copy `.env.example` to `.env` and configure:
+   - PostgreSQL database
+   - Redis instance
+   - Bluesky API credentials
+
+4. **Run Migrations**  
    ```bash
-   npm run dev
+   node ace migration:run
+   ```
+
+5. **Start Services**  
+   ```bash
+   npm run dev  # AdonisJS backend + React frontend
+   python python-service/analysis_worker.py  # ML worker
+   node ace queue:work  # BullMQ worker
    ```
 
 ---
 
+## 🏗️ Architecture
+
+- **Backend**: AdonisJS (TypeScript) with PostgreSQL + Redis
+- **Frontend**: React with Inertia.js SSR, TailwindCSS, shadcn/ui
+- **AI Service**: Python with HDBSCAN, LDA, UMAP for audience analysis
+- **Queue System**: BullMQ for scheduling and background jobs
+
+See [architecture docs](.github/copilot-instructions.md) for details.
+
+---
+
 ## 📘 Usage
-- **Starting the Bot**  
-   After installation, the bot will run automatically based on your settings in the config file.
-- **Scheduling** *(Future Feature)*  
-   Use the scheduling tool in the interface to plan your posts in advance.
 
-*Examples of commands and additional usage instructions will be provided here as features are added.*
+The interface is self-explanatory:
+1. Sign up (no payment required)
+2. Connect your Bluesky account(s)
+3. Access all features from the dashboard
 
-*Stay tuned for more features, and thank you for choosing Skylume to manage your Bluesky marketing!*
+**Note**: While all features are available, please use automation responsibly and respect Bluesky's community values.
+
+---
+
+## 🤝 Contributing
+
+This project is no longer actively maintained, but:
+- Bug fixes and improvements welcome
+- Fork it and build your own version
+- Use it as a learning resource
+
+---
+
+## 📄 License
+
+MIT License - Use freely, modify as needed, no warranties.
+
+---
+
+## 💌 Contact
+
+- **GitHub Issues**: For bugs or questions
+- **Email**: benameurallan06@gmail.com
+- **Fork/Maintain**: Reach out if you want to take over active development
+
+---
+
+## 🙏 Thank You
+
+To the 33 users who tried Skylume: your feedback was invaluable. You helped me learn one of the most important lessons in product development—validate your market before you build.
+
+---
+
+*Built by a 17-year-old learning expensive lessons. Now building the next thing, with better validation this time.*
+

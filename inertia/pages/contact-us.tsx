@@ -47,12 +47,6 @@ function ContactUs() {
                     Get help with your account, technical issues, or general inquiries
                   </p>
                   <a
-<<<<<<< HEAD
-                    href="mailto:contact@bluesky-bot.com"
-                    className="text-blue-600 hover:underline text-sm"
-                  >
-                    contact@bluesky-bot.com
-=======
                     href="mailto:support@skylume.app"
                     className="text-blue-600 hover:underline text-sm"
                   >
@@ -75,7 +69,6 @@ function ContactUs() {
                     className="text-blue-600 hover:underline text-sm"
                   >
                     sales@skylume.app
->>>>>>> origin/copilot/fix-39c5d0d7-5aef-4be5-ad57-67605464ae66
                   </a>
                 </CardContent>
               </Card>

@@ -5,7 +5,7 @@ import Account from '#models/account';
 import type { AtpSessionData } from '@atproto/api';
 import { imageSize } from 'image-size';
 
-// Interfaces pour les posts avec images, vidéos et labels
+// Interfaces for posts with images, videos and labels
 interface PostImage {
   file: Buffer;
   alt: string;

@@ -9,26 +9,8 @@ interface ProfileProps {
 }
 
 function Profile({ user }: ProfileProps) {
-  const handleCustomerPortal = async () => {
-    try {
-      await router.post('/customer-portal')
-    } catch (error) {
-      console.error('Error accessing customer portal:', error)
-    }
-  }
-
-  const handleCancelSubscription = async () => {
-    if (confirm('Are you sure you want to cancel your subscription? You will lose access to premium features at the end of your billing period.')) {
-      try {
-        await router.post('/cancel-subscription')
-      } catch (error) {
-        console.error('Error cancelling subscription:', error)
-      }
-    }
-  }
-
   const handleDeleteAccount = () => {
-    if (confirm('Are you sure you want to delete your account? This action is irreversible and will also cancel any active subscriptions.')) {
+    if (confirm('Are you sure you want to delete your account? This action is irreversible.')) {
       router.delete('/delete')
     }
   }
@@ -58,46 +40,30 @@ function Profile({ user }: ProfileProps) {
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                <div className="p-4 rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-950/20 dark:to-indigo-950/20 border border-blue-200 dark:border-blue-800">
+                <div className="p-4 rounded-lg bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950/20 dark:to-blue-950/20 border border-green-200 dark:border-green-800">
                   <div className="flex items-center justify-between">
                     <div>
-                      <h3 className="font-semibold text-blue-900 dark:text-blue-100 capitalize">
-                        {user?.plan || 'Free'} Plan
+                      <h3 className="font-semibold text-green-900 dark:text-green-100">
+                        Free Forever
                       </h3>
-                      <p className="text-sm text-blue-700 dark:text-blue-300">
-                        {user?.plan === 'pro' ? '€10/month - All features unlocked' : 
-                         user?.plan === 'business' ? '€19/month - Business features' : 
-                         'Limited features'}
+                      <p className="text-sm text-green-700 dark:text-green-300">
+                        All features unlocked - No payment required
                       </p>
                     </div>
                     <div className="text-right">
-                      <div className="text-lg font-bold text-blue-900 dark:text-blue-100">
-                        {user?.plan === 'pro' ? '€10' : 
-                         user?.plan === 'business' ? '€19' : 
-                         '€0'}
+                      <div className="text-lg font-bold text-green-900 dark:text-green-100">
+                        €0
                       </div>
-                      <div className="text-sm text-blue-700 dark:text-blue-300">/month</div>
+                      <div className="text-sm text-green-700 dark:text-green-300">/forever</div>
                     </div>
                   </div>
                 </div>
-
-                {(!user?.plan || user?.plan === 'free') && (
-                  <Button className="w-full" asChild>
-                    <a href="/pricing">Upgrade Plan</a>
-                  </Button>
-                )}
-
-                {(user?.plan === 'pro' || user?.plan === 'business') && (
-                  <div className="space-y-3">
-                    <Button 
-                      variant="destructive" 
-                      className="w-full" 
-                      onClick={handleCancelSubscription}
-                    >
-                      Cancel Subscription
-                    </Button>
-                  </div>
-                )}
+                
+                <div className="p-3 bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg">
+                  <p className="text-sm text-blue-900 dark:text-blue-100">
+                    ℹ️ Skylume is now completely free. All features are available to all users.
+                  </p>
+                </div>
               </CardContent>
             </Card>
 

@@ -7,23 +7,23 @@ export default class extends BaseSchema {
     this.schema.createTable(this.tableName, (table) => {
       table.increments('id')
       
-      // Référence vers la campagne DM
+      // Reference to the DM campaign
       table.integer('campaign_id').unsigned().references('id').inTable('dm_campaigns').onDelete('CASCADE')
       
-      // Configuration du groupe
-      table.string('name', 100).notNullable().comment('Nom du groupe défini par l\'utilisateur')
-      table.json('conditions').notNullable().comment('Conditions pour appartenir à ce groupe')
-      table.text('message').notNullable().comment('Template de message pour ce groupe')
-      table.integer('order').defaultTo(1).comment('Ordre de priorité du groupe (1 = plus haute priorité)')
+      // Group configuration
+      table.string('name', 100).notNullable().comment('User-defined group name')
+      table.json('conditions').notNullable().comment('Conditions for belonging to this group')
+      table.text('message').notNullable().comment('Message template for this group')
+      table.integer('order').defaultTo(1).comment('Group priority order (1 = highest priority)')
       
-      // Statistiques
-      table.integer('target_count').defaultTo(0).comment('Nombre estimé de destinataires')
-      table.integer('messages_sent').defaultTo(0).comment('Messages effectivement envoyés')
+      // Statistics
+      table.integer('target_count').defaultTo(0).comment('Estimated number of recipients')
+      table.integer('messages_sent').defaultTo(0).comment('Messages actually sent')
       
       table.timestamp('created_at')
       table.timestamp('updated_at')
       
-      // Index pour les performances
+      // Performance indexes
       table.index(['campaign_id', 'order'])
     })
   }

@@ -7,17 +7,17 @@ export default class extends BaseSchema {
     this.schema.createTable(this.tableName, (table) => {
       table.increments('id')
       
-      // Référence vers le groupe
+      // Reference to the group
       table.integer('campaign_group_id').unsigned().references('id').inTable('campaign_groups').onDelete('CASCADE')
       
-      // Contenu du template
-      table.text('content').notNullable().comment('Template de message avec variables')
-      table.integer('weight').defaultTo(1).comment('Poids pour la sélection aléatoire')
+      // Template content
+      table.text('content').notNullable().comment('Message template with variables')
+      table.integer('weight').defaultTo(1).comment('Weight for random selection')
       
       table.timestamp('created_at')
       table.timestamp('updated_at')
       
-      // Index pour les performances
+      // Performance indexes
       table.index(['campaign_group_id'])
     })
   }

@@ -1,7 +1,7 @@
 import fs from 'fs';
 import { Client } from 'pg';
 
-// Parse CSV avec gestion des guillemets et virgules dans les valeurs
+// Parse CSV with proper quote and comma handling in values
 function parseCSVLine(line) {
   const result = [];
   let current = '';

@@ -3,7 +3,6 @@ import { BaseSchema } from '@adonisjs/lucid/schema'
 export default class extends BaseSchema {
 
   async up() {
-    // Supprimer les colonnes Threads de la table accounts si elles existent
     await this.schema.raw(`
       DO $$ 
       BEGIN
@@ -29,7 +28,6 @@ export default class extends BaseSchema {
       END $$;
     `)
 
-    // Supprimer les colonnes Threads de la table schedulings si elles existent
     await this.schema.raw(`
       DO $$ 
       BEGIN
@@ -43,7 +41,6 @@ export default class extends BaseSchema {
       END $$;
     `)
 
-    // Supprimer la table threads_accounts si elle existe
     this.schema.dropTableIfExists('threads_accounts')
   }
 
@@ -66,7 +63,6 @@ export default class extends BaseSchema {
       table.timestamp('updated_at')
     })
 
-    // Recréer les colonnes Threads dans accounts
     this.schema.alterTable('accounts', (table) => {
       table.string('threads_access_token').nullable()
       table.string('threads_user_id').nullable()
@@ -75,7 +71,6 @@ export default class extends BaseSchema {
       table.timestamp('threads_rate_limit_reset').nullable()
     })
 
-    // Recréer les colonnes Threads dans schedulings
     this.schema.alterTable('schedulings', (table) => {
       table.integer('threads_account_id').unsigned().nullable().references('id').inTable('threads_accounts')
       table.text('threads_settings').nullable()

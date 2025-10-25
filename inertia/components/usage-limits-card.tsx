@@ -1,7 +1,6 @@
 import React from 'react'
 import { Progress } from './ui/progress'
 import { Card, CardContent, CardHeader, CardTitle } from './ui/card'
-import { Button } from './ui/button'
 import { Badge } from './ui/badge'
 import { AlertTriangle, Calendar, Users, Rss, Download, MousePointer } from 'lucide-react'
 
@@ -22,10 +21,9 @@ interface UsageStatus {
 
 interface Props {
   usageStatus: UsageStatus
-  onUpgrade: (feature: string) => void
 }
 
-const UsageLimitsCard: React.FC<Props> = ({ usageStatus, onUpgrade }) => {
+const UsageLimitsCard: React.FC<Props> = ({ usageStatus }) => {
   const getStatusColor = (percentage: number) => {
     if (percentage >= 90) return 'text-red-600'
     if (percentage >= 75) return 'text-orange-600'
@@ -87,18 +85,11 @@ const UsageLimitsCard: React.FC<Props> = ({ usageStatus, onUpgrade }) => {
       <CardHeader>
         <div className="flex items-center justify-between">
           <CardTitle className="flex items-center gap-2">
-            <span>Utilisation de votre plan</span>
-            <Badge variant="outline" className="capitalize">
-              {usageStatus.plan}
+            <span>Utilisation actuelle</span>
+            <Badge variant="outline" className="bg-green-100 text-green-700 border-green-300">
+              Free Forever
             </Badge>
           </CardTitle>
-          <Button 
-            variant="outline" 
-            size="sm"
-            onClick={() => window.location.href = '/pricing'}
-          >
-            Voir tous les plans
-          </Button>
         </div>
       </CardHeader>
       <CardContent>
@@ -122,16 +113,6 @@ const UsageLimitsCard: React.FC<Props> = ({ usageStatus, onUpgrade }) => {
                     <span className={`text-sm font-medium ${getStatusColor(item.data.percentage)}`}>
                       {item.data.current} / {formatLimit(item.data.limit)}
                     </span>
-                    {isNearLimit && !isUnlimited && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => onUpgrade(item.key)}
-                        className="h-6 px-2 text-xs"
-                      >
-                        Upgrade
-                      </Button>
-                    )}
                   </div>
                 </div>
                 
@@ -149,38 +130,10 @@ const UsageLimitsCard: React.FC<Props> = ({ usageStatus, onUpgrade }) => {
                 {isUnlimited && (
                   <p className="text-xs text-green-600 font-medium">✓ Illimité</p>
                 )}
-                
-                {isNearLimit && !isUnlimited && (
-                  <div className="p-2 bg-orange-50 border border-orange-200 rounded text-xs text-orange-800">
-                    Vous approchez de la limite. Pensez à upgrader votre plan pour continuer sans interruption.
-                  </div>
-                )}
               </div>
             )
           })}
         </div>
-        
-        {usageStatus.plan === 'free' && (
-          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-            <div className="flex items-start gap-3">
-              <div className="flex-1">
-                <h4 className="font-medium text-blue-900 mb-1">
-                  Débloquez plus de fonctionnalités
-                </h4>
-                <p className="text-sm text-blue-700 mb-3">
-                  Passez au plan Pro pour des limites étendues et des fonctionnalités avancées.
-                </p>
-                <Button 
-                  size="sm" 
-                  onClick={() => window.location.href = '/pricing'}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  Voir les plans
-                </Button>
-              </div>
-            </div>
-          </div>
-        )}
       </CardContent>
     </Card>
   )

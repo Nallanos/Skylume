@@ -17,7 +17,6 @@ export default class ImportUsersFromCsv extends BaseCommand {
     this.logger.info('Starting CSV import...')
     
     try {
-      // Lire le fichier CSV
       const csvContent = readFileSync(csvPath, 'utf-8')
       const lines = csvContent.split('\n')
       const headers = lines[0].split(',').map(h => h.replace(/"/g, ''))
@@ -43,7 +42,6 @@ export default class ImportUsersFromCsv extends BaseCommand {
 
       for (const record of records) {
         try {
-          // Vérifier si l'utilisateur existe déjà
           const existingUser = await User.find(record.id)
           if (existingUser) {
             this.logger.warning(`User ${record.id} already exists, skipping...`)

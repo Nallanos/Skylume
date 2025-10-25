@@ -13,10 +13,8 @@ export default class QueueWorker extends BaseCommand {
     this.logger.info('🚀 Starting BullMQ worker for scheduling...')
 
     try {
-      // Utiliser SchedulingQueueManager au lieu de SchedulingService
       const { SchedulingQueueManager } = await import('../app/services/scheduling_manager.js')
       
-      // Créer une instance et démarrer la queue
       const { container } = await import('@adonisjs/core')
       const schedulingManager = await container.make(SchedulingQueueManager)
       
@@ -27,7 +25,6 @@ export default class QueueWorker extends BaseCommand {
       this.logger.info('📊 Use "node ace queue:status" to check queue statistics')
       this.logger.info('⚠️  Press Ctrl+C to stop the worker')
 
-      // Garder le processus vivant
       process.on('SIGINT', async () => {
         this.logger.info('\n🛑 Stopping worker...')
         this.logger.success('✅ Worker stopped gracefully')
@@ -40,7 +37,6 @@ export default class QueueWorker extends BaseCommand {
         process.exit(0)
       })
 
-      // Garder le processus en vie
       await new Promise(() => {})
 
     } catch (error) {
