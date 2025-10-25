@@ -10,7 +10,7 @@
 I spent a year building sophisticated marketing automation for Bluesky:
 - Follower automation and growth tracking
 - DM campaign systems with personalization
-- ML-powered audience clustering
+- ~~ML-powered audience clustering~~ (experimental, not production-ready)
 - Scheduling and analytics tools
 
 Market validation with 33 users showed that Bluesky's community actively doesn't want these features. That's not a bug—it's a feature of why Bluesky exists.
@@ -32,7 +32,7 @@ Market validation with 33 users showed that Bluesky's community actively doesn't
 - **Analytics**: Track engagement and growth
 - **Follower Automation**: Follow/unfollow tools
 - **DM Campaigns**: Automated outreach (use responsibly)
-- **Audience Clustering**: ML-powered audience analysis
+- ~~**Audience Clustering**: ML-powered audience analysis~~ (deprecated)
 
 ---
 
@@ -60,7 +60,7 @@ Just visit [skylume.app](https://skylume.app) and sign up - completely free.
 2. **Install Dependencies**  
    ```bash
    npm install
-   cd python-service && pip install -r requirements.txt
+   # Note: python-service is deprecated and not required
    ```
 
 3. **Setup Configuration**  
@@ -77,8 +77,7 @@ Just visit [skylume.app](https://skylume.app) and sign up - completely free.
 5. **Start Services**  
    ```bash
    npm run dev  # AdonisJS backend + React frontend
-   python python-service/analysis_worker.py  # ML worker
-   node ace queue:work  # BullMQ worker
+   node ace queue:work  # BullMQ worker for scheduling
    ```
 
 ---
@@ -87,8 +86,8 @@ Just visit [skylume.app](https://skylume.app) and sign up - completely free.
 
 - **Backend**: AdonisJS (TypeScript) with PostgreSQL + Redis
 - **Frontend**: React with Inertia.js SSR, TailwindCSS, shadcn/ui
-- **AI Service**: Python with HDBSCAN, LDA, UMAP for audience analysis
 - **Queue System**: BullMQ for scheduling and background jobs
+- **~~AI Service~~**: ⚠️ Python service is deprecated (experimental artifact, not used in production)
 
 See [architecture docs](.github/copilot-instructions.md) for details.
 

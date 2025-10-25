@@ -35,15 +35,15 @@ new Ignitor(APP_ROOT, { importer: IMPORTER })
       await import('#start/env')
     })
     app.ready(async () => {
-      // Nettoyer les jobs obsolètes au démarrage
+      // Clean up stale jobs at startup
       try {
         // TODO: Re-enable when AI scheduler service is available
         // const { AiSchedulerService } = await import('#services/ai_scheduler_service')
         // const aiSchedulerService = new AiSchedulerService()
         // await aiSchedulerService.cleanupStaleJobs()
-        console.log('✅ Cleanup des jobs obsolètes terminé')
+        console.log('✅ Stale jobs cleanup completed')
       } catch (error) {
-        console.error('❌ Erreur lors du cleanup des jobs obsolètes:', error)
+        console.error('❌ Error during stale jobs cleanup:', error)
       }
     })
     app.listen('SIGTERM', () => app.terminate())

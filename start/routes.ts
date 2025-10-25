@@ -12,7 +12,27 @@ import { middleware } from './kernel.js'
 import Account from '#models/account'
 import Feed from '#models/feed'
 
-const docker_controller = () => import('#controllers/docker_controller')
+
+const session_controller = () => import('#controllers/session_controller')
+const account_controller = () => import('#controllers/account_controller')
+const oauth_metadata_controller = () => import('#controllers/oauth_metadata_controller')
+const twitter_auth_controller = () => import('#controllers/twitter_auth_controller')
+const home_controller = () => import('#controllers/home_controller')
+const feed_controller = () => import('#controllers/feeds_controller')
+const analytics_controller = () => import('#controllers/analytics_controller')
+const follower_analysis_controller = () => import('#controllers/follower_analysis_controller')
+const follower_tracker_controller = () => import('#controllers/follower_tracker_controller')
+const dm_campaigns_controller = () => import('#controllers/campaigns/dm_campaigns_basic_controller')
+const dm_campaign_analysis_controller = () => import('#controllers/campaigns/dm_campaign_analysis_controller')
+const dm_campaign_stats_controller = () => import('#controllers/campaigns/dm_campaign_stats_controller')
+const campaign_conversations_controller = () => import('#controllers/campaigns/campaign_conversations_controller')
+const campaign_messages_controller = () => import('#controllers/campaigns/campaign_messages_controller')
+const hashtag_groups_controller = () => import('#controllers/hashtag_groups_controller')
+const campaign_variables_controller = () => import('#controllers/campaigns/campaign_variables_controller')
+const campaign_groups_controller = () => import('#controllers/campaigns/campaign_groups_controller')
+const list_creator_controller = () => import('#controllers/list_creator_controller')
+const bluesky_profile_controller = () => import('#controllers/bluesky_profile_controller')
+
 
 /*
 |--------------------------------------------------------------------------
@@ -68,25 +88,7 @@ router
 
 router.on('/account/:id/dashboard/loading').renderInertia('AccountDashboard').use(middleware.auth())
 
-const session_controller = () => import('#controllers/session_controller')
-const account_controller = () => import('#controllers/account_controller')
-const oauth_metadata_controller = () => import('#controllers/oauth_metadata_controller')
-const twitter_auth_controller = () => import('#controllers/twitter_auth_controller')
-const home_controller = () => import('#controllers/home_controller')
-const feed_controller = () => import('#controllers/feeds_controller')
-const analytics_controller = () => import('#controllers/analytics_controller')
-const follower_analysis_controller = () => import('#controllers/follower_analysis_controller')
-const follower_tracker_controller = () => import('#controllers/follower_tracker_controller')
-const dm_campaigns_controller = () => import('#controllers/campaigns/dm_campaigns_basic_controller')
-const dm_campaign_analysis_controller = () => import('#controllers/campaigns/dm_campaign_analysis_controller')
-const dm_campaign_stats_controller = () => import('#controllers/campaigns/dm_campaign_stats_controller')
-const campaign_conversations_controller = () => import('#controllers/campaigns/campaign_conversations_controller')
-const campaign_messages_controller = () => import('#controllers/campaigns/campaign_messages_controller')
-const hashtag_groups_controller = () => import('#controllers/hashtag_groups_controller')
-const campaign_variables_controller = () => import('#controllers/campaigns/campaign_variables_controller')
-const campaign_groups_controller = () => import('#controllers/campaigns/campaign_groups_controller')
-const list_creator_controller = () => import('#controllers/list_creator_controller')
-const bluesky_profile_controller = () => import('#controllers/bluesky_profile_controller')
+
 
 /*
 |--------------------------------------------------------------------------
@@ -197,6 +199,12 @@ router.get('/dashboard', async ({ auth, inertia }) => {
   }
 })
 
+/*
+|--------------------------------------------------------------------------
+| FEED ROUTES
+|--------------------------------------------------------------------------
+*/
+
 router
   .get('/feed', async ({ inertia, auth }) => {
     const user = auth.user
@@ -214,60 +222,6 @@ router
     return inertia.render('feeds', { feeds: [] })
   })
   .use(middleware.auth())
-router.get('/feed/:id', [feed_controller, 'processPosts']).use(middleware.auth())
-router
-  .post('/feed/create', [feed_controller, 'createFeed'])
-  .use(middleware.auth())
-router.delete('/feed/delete/:id', [feed_controller, 'deleteFeed']).use(middleware.auth())
-router.get('/api/feed/:id/getPosts', [feed_controller, 'processPostsAsync']).use(middleware.auth())
-
-/*
-|--------------------------------------------------------------------------
-| MAIN DASHBOARD PAGES
-|--------------------------------------------------------------------------
-| Routes pour les pages principales de l'application
-|
-*/
-
-router.get('/dashboard', async ({ auth, inertia }) => {
-  // Silently check for authentication (including remember me tokens)
-  await auth.check()
-
-  const user = auth.user
-  if (user) {
-    let accounts = await Account.query()
-      .where('user_id', user.id)
-      .orderBy('followers_count', 'desc')
-
-    // Get Twitter accounts
-    const { default: TwitterAccount } = await import('#models/twitter_account')
-    const twitterAccounts = await TwitterAccount.query()
-      .where('user_id', user.id)
-      .orderBy('followers_count', 'desc')
-
-    // Get scheduling count for the user
-    const { default: Scheduling } = await import('#models/scheduling')
-    const schedulings = await Scheduling.query().where('userId', user.id).where('status', 'pending')
-
-    const scheduledCount = schedulings.length
-
-    return inertia.render('dashboard', {
-      accounts: accounts,
-      twitterAccounts: twitterAccounts.map(acc => ({
-        ...acc.toJSON(),
-        platform: 'twitter'
-      })),
-      user: {
-        ...user.toJSON(),
-        scheduledCount: scheduledCount,
-      },
-    })
-  } else {
-    // User not authenticated, show AddAccount component
-    console.log('User not authenticated, showing AddAccount component')
-    return inertia.render('dashboard', { accounts: [], twitterAccounts: [] })
-  }
-})
 
 router
   .get('/schedule', async ({ auth, inertia }) => {
@@ -793,29 +747,3 @@ router
   })
   .use(middleware.auth())
 
-/*
-|--------------------------------------------------------------------------
-| DOCKER MANAGEMENT API
-|--------------------------------------------------------------------------
-*/
-
-router
-  .post('/api/docker/rebuild', [docker_controller, 'rebuild'])
-
-router
-  .post('/api/docker/full-rebuild', [docker_controller, 'fullRebuild'])
-
-router
-  .get('/api/docker/status', [docker_controller, 'status'])
-
-router
-  .get('/api/docker/logs', [docker_controller, 'logs'])
-
-router
-  .get('/api/docker/app-status', [docker_controller, 'appStatus'])
-
-router
-  .post('/api/docker/github-webhook', [docker_controller, 'githubWebhook'])
-
-router
-  .post('/api/docker/clean', [docker_controller, 'clean'])
