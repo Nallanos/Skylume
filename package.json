@@ -4,16 +4,16 @@
   "private": false,
   "type": "module",
   "license": "MIT",
-  "description": "Free, open-source marketing automation tools for Bluesky - a learning experience in market validation",
+  "description": "Free, open-source automation tools for Bluesky",
   "author": "Ben Ameur Allan <benameurallan06@gmail.com>",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Nallanos/Bluesky-copilot.git"
+    "url": "https://github.com/Nallanos/Skylume.git"
   },
   "bugs": {
-    "url": "https://github.com/Nallanos/Bluesky-copilot/issues"
+    "url": "https://github.com/Nallanos/Skylume/issues"
   },
-  "homepage": "https://github.com/Nallanos/Bluesky-copilot#readme",
+  "homepage": "https://github.com/Nallanos/Skylume#readme",
   "keywords": [
     "bluesky",
     "automation",
@@ -107,9 +107,6 @@
     "@skyware/jetstream": "^0.2.2",
     "@stripe/stripe-js": "^6.0.0",
     "@tailwindcss/forms": "^0.5.9",
-    "@tensorflow-models/universal-sentence-encoder": "^1.3.3",
-    "@tensorflow/tfjs": "^4.22.0",
-    "@tensorflow/tfjs-node": "^4.22.0",
     "@types/chart.js": "^2.9.41",
     "@types/image-size": "^0.7.0",
     "@vinejs/vine": "^2.1.0",
