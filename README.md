@@ -1,11 +1,29 @@
-# Skylume 🌌  
-*No Longer a Commercial Project - Now Free Forever*
+# Skylume 🌌
 
-**Update: October 2024** - After a year of building growth automation tools for Bluesky, I learned that the platform's community explicitly rejects growth hacking and automation (they came to Bluesky to escape that from Twitter/X). Skylume is no longer a commercial project, but it's staying online and completely free for anyone who wants to use it.
+A marketing tool for Bluesky: post scheduling, multi-account management, audience
+analytics and DM campaigns. Built solo, used by 33 people during its commercial phase,
+now free and open source ([live version](https://skylume.app)).
+
+## ⚙️ What's under the hood
+
+- **AdonisJS 6 (TypeScript)** backend, PostgreSQL through the Lucid ORM, Redis.
+- **BullMQ job queues** with a dedicated worker process: posts are scheduled as delayed
+  jobs with automatic retries, and batch operations run in the background. Long-running
+  analyses (audience analysis, list creation) stream their progress to the browser over
+  Server-Sent Events.
+- **Bluesky AT Protocol integration** (`@atproto/api`) with OAuth, several accounts per
+  user, and DM conversations through the Bluesky chat API; optional cross-posting to X.
+- **Redis-backed rate limiting**, per-plan feature limits (switched off since it went
+  free), security headers middleware.
+- React front end through Inertia, shipped as a Docker image.
 
 ---
 
-## 🎯 What Happened
+## 📜 Project history
+
+**Update: October 2024** - After a year of building growth automation tools for Bluesky, I learned that the platform's community explicitly rejects growth hacking and automation (they came to Bluesky to escape that from Twitter/X). Skylume is no longer a commercial project, but it's staying online and completely free for anyone who wants to use it.
+
+### 🎯 What Happened
 
 I spent a year building sophisticated marketing automation for Bluesky:
 - Follower automation and growth tracking
@@ -53,8 +71,8 @@ Just visit [skylume.app](https://skylume.app) and sign up - completely free.
 ### For Self-Hosting
 1. **Clone the Repo**  
    ```bash
-   git clone https://github.com/Nallanos/Bluesky-copilot.git
-   cd Bluesky-copilot
+   git clone https://github.com/Nallanos/Skylume.git
+   cd Skylume
    ```
 
 2. **Install Dependencies**  
